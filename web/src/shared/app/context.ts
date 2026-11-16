@@ -1,4 +1,5 @@
 import type { Telemetry } from "../protocol";
+import { TargetStore } from "../targets";
 import type { Transport, TransportState } from "../transport";
 import type { AppContext, TelemetryKind } from "./types";
 
@@ -19,6 +20,7 @@ export function createContext(transport: Transport): AppContext {
 
   return {
     transport,
+    targets: new TargetStore(),
     onTelemetry: (kind, cb) => telemetrySubs.push([kind, cb as (m: never) => void]),
     onState: (cb) => stateSubs.push(cb),
     log,
