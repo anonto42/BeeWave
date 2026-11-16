@@ -10,4 +10,4 @@ version = "0.1.0"
 
 [workspace.dependencies]
 heapless = { version = "0.7", features = ["serde"] }
-walpad-protocol = { path = "crates/protocol", default-features = false }
+beewave-protocol = { path = "crates/protocol", default-features = false }

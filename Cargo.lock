@@ -12,6 +12,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "beewave-core"
+version = "0.1.0"
+dependencies = [
+ "beewave-protocol",
+ "heapless",
+]
+
+[[package]]
+name = "beewave-protocol"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+ "postcard",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -234,24 +252,6 @@ name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
-
-[[package]]
-name = "walpad-core"
-version = "0.1.0"
-dependencies = [
- "heapless",
- "walpad-protocol",
-]
-
-[[package]]
-name = "walpad-protocol"
-version = "0.1.0"
-dependencies = [
- "heapless",
- "postcard",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "zmij"

@@ -29,13 +29,13 @@ doctor: ## Check tools, toolchain and board
 test: test-rust web-test ## All host tests (no hardware needed)
 
 test-rust: ## Rust core + protocol unit tests
-	cargo test --workspace --features walpad-core/std
+	cargo test --workspace --features beewave-core/std
 
 vectors: ## Regenerate golden wire vectors consumed by the web tests
-	cargo test -p walpad-protocol --features std --test vectors
+	cargo test -p beewave-protocol --features std --test vectors
 
 check-nostd: ## Core must build without std
-	cargo build -p walpad-core
+	cargo build -p beewave-core
 
 # ---- web ---------------------------------------------------------------------
 .PHONY: web-dev web-mock web-lan web-build web-test
@@ -60,11 +60,11 @@ fw-monitor: ## Serial monitor
 	$(FW) cargo espflash monitor --port $(PORT)
 fw-run: ## Build + flash + monitor
 	$(FW) cargo espflash flash --release --port $(PORT) --monitor
-fw-image: ## OTA update file dist/walpad-app.bin (+ .sha256)
-	$(FW) cargo espflash save-image --release --chip esp32 ../dist/walpad-app.bin
-	cd dist && sha256sum walpad-app.bin | tee walpad-app.bin.sha256
+fw-image: ## OTA update file dist/beewave-app.bin (+ .sha256)
+	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin
+	cd dist && sha256sum beewave-app.bin | tee beewave-app.bin.sha256
 fw-size: ## Flash/RAM usage of the release build
-	$(FW) cargo espflash save-image --release --chip esp32 /tmp/walpad.bin >/dev/null && ls -l /tmp/walpad.bin
+	$(FW) cargo espflash save-image --release --chip esp32 /tmp/beewave.bin >/dev/null && ls -l /tmp/beewave.bin
 fw-clean: ## Remove firmware build output (keeps downloaded ESP-IDF in firmware/.embuild)
 	cd firmware && cargo clean
 board-info: ## Detect the chip on $(PORT)

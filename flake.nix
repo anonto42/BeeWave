@@ -1,5 +1,5 @@
 {
-  description = "WalPad: Rust ESP32 firmware + Web Bluetooth PWA";
+  description = "BeeWave: Rust ESP32 firmware + Web Bluetooth PWA";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -24,7 +24,7 @@
           ];
           shellHook = ''
             export ESP_EXPORT="''${ESP_EXPORT:-$HOME/export-esp.sh}"
-            echo "walpad dev shell: run 'make help'"
+            echo "beewave dev shell: run 'make help'"
           '';
         };
       });
