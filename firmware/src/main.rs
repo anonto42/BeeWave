@@ -1,13 +1,17 @@
 //! Composition root: the only place that knows about concrete adapters.
+//! Reading order: `runtime/` (threads + queues) -> `adapters/` (hardware) -> this file (wiring).
 mod adapters;
 mod runtime;
 
-use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 
-use adapters::{ble_gatt, esp_system::EspSystem, flash_ota::FlashOta, wifi_radio::WifiRadio};
-use runtime::{channels, spawn_worker, Event};
+use adapters::ble_gatt::{self, BleSink};
+use adapters::{esp_system::EspSystem, flash_ota::FlashOta, wifi_radio::WifiRadio};
+use runtime::{channels, core_id, run_app, spawn_worker};
 use walpad_core::app::App;
+
+const BLE_STACK: usize = 6 * 1024;
+const APP_STACK: usize = 8 * 1024;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
@@ -18,28 +22,22 @@ fn main() -> anyhow::Result<()> {
 
     let ch = channels();
 
+    // BLE task: GATT server in, telemetry out.
     let events_for_ble = ch.events_tx.clone();
     let tele_rx = ch.tele_rx;
-    spawn_worker("ble", 6 * 1024, move || {
-        if let Err(e) = ble_gatt::run(events_for_ble, tele_rx) { log::error!("ble failed: {e:?}"); }
-    });
-
-    let mut app = App::new(
-        WifiRadio::new(ch.events_tx.clone()),
-        FlashOta,
-        EspSystem,
-        ble_gatt::BleSink(ch.tele_tx),
-    );
-    let events_rx = ch.events_rx;
-    spawn_worker("app", 8 * 1024, move || loop {
-        match events_rx.recv_timeout(Duration::from_secs(1)) {
-            Ok(Event::Command(c)) => app.on_command(c),
-            Ok(Event::Frame(o)) => app.on_observation(o),
-            Err(RecvTimeoutError::Timeout) => app.on_tick(),
-            Err(RecvTimeoutError::Disconnected) => return,
+    spawn_worker("ble", BLE_STACK, move || {
+        if let Err(e) = ble_gatt::run(events_for_ble, tele_rx) {
+            log::error!("ble failed: {e:?}");
         }
     });
 
-    log::info!("walpad up on core {}", runtime::core_id());
-    loop { std::thread::sleep(Duration::from_secs(60)); }
+    // App task: owns the core `App`, wired to the real adapters.
+    let app = App::new(WifiRadio::new(ch.events_tx.clone()), FlashOta, EspSystem, BleSink(ch.tele_tx));
+    let events_rx = ch.events_rx;
+    spawn_worker("app", APP_STACK, move || run_app(app, events_rx));
+
+    log::info!("walpad up on core {}", core_id());
+    loop {
+        std::thread::sleep(Duration::from_secs(60));
+    }
 }
