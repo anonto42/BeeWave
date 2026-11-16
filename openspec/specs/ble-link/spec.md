@@ -4,15 +4,14 @@
 
 The BLE GATT link between phone and device: access control and delivery guarantees.
 
-## Current state (not yet hardened)
+## Current state
 
-Pairing is **not currently required**: the command characteristic accepts writes from any
-connected central, unauthenticated. This was deliberately turned off because Android's "pair new
-device" screen did not reliably bond with this plain custom GATT peripheral, and Web Bluetooth has
-no way to drive that pairing UI either — an encrypted characteristic just hung with no visible
-error on either side. The passkey-pairing code is written and kept in
-`firmware/src/adapters/ble_gatt/pairing.rs` (`require()`), just not called. Do not expose this
-device to anyone other than its operator until that requirement below is actually enforced again.
+Commands are protected by an application-level HMAC challenge-response (see the *Authenticated
+command session* requirement). The link itself is **not encrypted** and BLE bonding is still off:
+Android's "pair new device" screen did not reliably bond with this plain custom GATT peripheral and
+Web Bluetooth cannot drive that UI. The passkey code is kept in
+`firmware/src/adapters/ble_gatt/pairing.rs` (`require()`), unwired. Bonding remains a possible
+future hardening step, tracked by the deferred requirement below.
 
 ## Requirements
 
@@ -44,3 +43,28 @@ Telemetry notifications SHALL never block the device, and the client SHALL expos
 #### Scenario: Slow link
 - **WHEN** the telemetry queue is full
 - **THEN** newer messages are dropped, the device keeps running, and the drop count appears in status
+
+### Requirement: Authenticated command session
+The device SHALL reject every command except the authentication handshake until the client has
+proved knowledge of the shared key in the current connection, SHALL end the session whenever a
+connection is made or lost, and MUST stay locked when no valid key is configured.
+
+#### Scenario: Unauthenticated command
+- **WHEN** a client sends a command other than the handshake before authenticating
+- **THEN** the command is not executed and an unauthorized event is returned
+
+#### Scenario: Session ends on disconnect
+- **WHEN** an authenticated client disconnects and another connects
+- **THEN** the new client must authenticate before any command is accepted
+
+#### Scenario: No key configured
+- **WHEN** the firmware was built without a valid `BEEWAVE_KEY`
+- **THEN** no client can authenticate and all commands are rejected
+
+### Requirement: Telemetry gated by authentication
+Until the session is authenticated the device SHALL publish only authentication messages and
+unauthorized events, and SHALL NOT publish status or scan results.
+
+#### Scenario: Unauthenticated listener
+- **WHEN** a client connects but does not authenticate
+- **THEN** it receives no status or scan telemetry
