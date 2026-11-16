@@ -4,6 +4,7 @@ use std::{cell::RefCell, rc::Rc, vec::Vec};
 use beewave_protocol::{DeviceCommand, TelemetryMessage};
 
 use super::*;
+use crate::features::auth::proof;
 use crate::features::scan::Observation;
 use crate::ports::{
     OtaError, OtaWriter, RadioDriver, RadioError, Settings, SettingsError, SettingsStore, System,
@@ -66,6 +67,9 @@ impl System for FakeSystem {
     fn restart(&mut self) {
         *self.0.borrow_mut() = true;
     }
+    fn fill_random(&mut self, buf: &mut [u8]) {
+        buf.fill(0x42);
+    }
 }
 
 /// A sink that records messages, or refuses them all when `full` is true.
@@ -84,17 +88,35 @@ impl TelemetrySink for FakeSink {
     }
 }
 
+const KEY: [u8; 32] = [7; 32];
+
+type TestApp = App<FakeRadio, FakeOta, FakeSystem, FakeSink, FakeStore>;
+
+fn app_with(sink: FakeSink, rebooted: Rc<RefCell<bool>>, key: Option<[u8; 32]>) -> TestApp {
+    App::new(
+        FakeRadio::default(),
+        FakeOta,
+        FakeSystem(rebooted),
+        sink,
+        FakeStore::default(),
+        key,
+    )
+}
+
+/// Run the handshake the way a client does, then forget what it produced.
+fn authenticate(app: &mut TestApp, sink: &FakeSink) {
+    app.on_command(DeviceCommand::AuthBegin);
+    let mac = proof(&KEY, &[0x42; 16]).unwrap();
+    app.on_command(DeviceCommand::AuthProve { mac });
+    sink.got.borrow_mut().clear();
+}
+
 #[test]
 fn routes_commands_and_observations() {
     let sink = FakeSink::default();
     let rebooted = Rc::new(RefCell::new(false));
-    let mut app = App::new(
-        FakeRadio::default(),
-        FakeOta,
-        FakeSystem(rebooted.clone()),
-        sink.clone(),
-        FakeStore::default(),
-    );
+    let mut app = app_with(sink.clone(), rebooted.clone(), Some(KEY));
+    authenticate(&mut app, &sink);
 
     app.on_command(DeviceCommand::ConfigureRadio { channel: 99 });
     app.on_command(DeviceCommand::ConfigureRadio { channel: 6 });
@@ -127,16 +149,16 @@ fn counts_drops_when_sink_full() {
         full: true,
         ..Default::default()
     };
-    let mut app = App::new(
-        FakeRadio::default(),
-        FakeOta,
-        FakeSystem(Default::default()),
-        sink,
-        FakeStore::default(),
-    );
+    let mut app = app_with(sink, Default::default(), Some(KEY));
+    // Authenticated, but the sink refuses everything, so only drops are counted.
+    app.on_command(DeviceCommand::AuthBegin);
+    app.on_command(DeviceCommand::AuthProve {
+        mac: proof(&KEY, &[0x42; 16]).unwrap(),
+    });
+    let before = app.dropped();
     app.on_tick();
     app.on_tick();
-    assert_eq!(app.dropped(), 2);
+    assert_eq!(app.dropped(), before + 2);
 }
 
 #[test]
@@ -152,7 +174,9 @@ fn start_applies_saved_settings_and_set_persists() {
         FakeSystem(Default::default()),
         sink.clone(),
         store,
+        Some(KEY),
     );
+    authenticate(&mut app, &sink);
     app.start();
     app.on_tick();
     assert!(matches!(
@@ -183,4 +207,97 @@ fn start_applies_saved_settings_and_set_persists() {
             auto_scan: false
         }
     ));
+}
+
+#[test]
+fn rejects_commands_before_authentication() {
+    let sink = FakeSink::default();
+    let rebooted = Rc::new(RefCell::new(false));
+    let mut app = app_with(sink.clone(), rebooted.clone(), Some(KEY));
+
+    app.on_command(DeviceCommand::RebootDevice);
+    app.on_command(DeviceCommand::ConfigureRadio { channel: 6 });
+
+    assert!(!*rebooted.borrow(), "reboot must not run unauthenticated");
+    let out = sink.got.borrow();
+    assert_eq!(out.len(), 2);
+    assert!(out
+        .iter()
+        .all(|m| matches!(m, TelemetryMessage::Event { code: 4, .. })));
+}
+
+#[test]
+fn withholds_telemetry_until_authenticated() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Default::default(), Some(KEY));
+
+    app.on_tick();
+    app.on_observation(Observation {
+        bssid: [1; 6],
+        channel: 6,
+        rssi: -40,
+        ssid: "a".try_into().unwrap(),
+    });
+    assert!(sink.got.borrow().is_empty());
+    assert_eq!(app.dropped(), 0, "withheld is not dropped");
+
+    authenticate(&mut app, &sink);
+    app.on_tick();
+    assert!(matches!(
+        sink.got.borrow()[0],
+        TelemetryMessage::Status { .. }
+    ));
+}
+
+#[test]
+fn handshake_returns_challenge_then_result() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Default::default(), Some(KEY));
+    app.on_command(DeviceCommand::AuthBegin);
+    app.on_command(DeviceCommand::AuthProve {
+        mac: proof(&KEY, &[0x42; 16]).unwrap(),
+    });
+    let out = sink.got.borrow();
+    assert_eq!(
+        out[0],
+        TelemetryMessage::AuthChallenge { nonce: [0x42; 16] }
+    );
+    assert_eq!(out[1], TelemetryMessage::AuthResult { ok: true });
+}
+
+#[test]
+fn link_reset_requires_a_new_handshake() {
+    let sink = FakeSink::default();
+    let rebooted = Rc::new(RefCell::new(false));
+    let mut app = app_with(sink.clone(), rebooted.clone(), Some(KEY));
+    authenticate(&mut app, &sink);
+
+    app.on_link_reset();
+    app.on_command(DeviceCommand::RebootDevice);
+
+    assert!(!*rebooted.borrow());
+    assert!(matches!(
+        sink.got.borrow()[0],
+        TelemetryMessage::Event { code: 4, .. }
+    ));
+}
+
+#[test]
+fn device_without_a_key_stays_locked() {
+    let sink = FakeSink::default();
+    let rebooted = Rc::new(RefCell::new(false));
+    let mut app = app_with(sink.clone(), rebooted.clone(), None);
+
+    app.on_command(DeviceCommand::AuthBegin);
+    app.on_command(DeviceCommand::AuthProve {
+        mac: proof(&KEY, &[0x42; 16]).unwrap(),
+    });
+    app.on_command(DeviceCommand::RebootDevice);
+
+    assert!(!*rebooted.borrow());
+    assert!(sink
+        .got
+        .borrow()
+        .iter()
+        .any(|m| *m == TelemetryMessage::AuthResult { ok: false }));
 }

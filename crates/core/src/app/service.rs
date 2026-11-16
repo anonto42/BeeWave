@@ -1,8 +1,10 @@
-use beewave_protocol::{DeviceCommand, TelemetryMessage};
+use beewave_protocol::{DeviceCommand, TelemetryMessage, AUTH_NONCE_LEN};
 
 use super::messages::{
     event, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR,
+    EVENT_UNAUTHORIZED,
 };
+use crate::features::auth::AuthGate;
 use crate::features::ota::OtaSession;
 use crate::features::radio::RadioController;
 use crate::features::scan::{Observation, ScanTable};
@@ -20,6 +22,7 @@ where
     T: TelemetrySink,
     P: SettingsStore,
 {
+    auth: AuthGate,
     radio: RadioController<R>,
     ota: OtaSession<W>,
     settings: SettingsService<P>,
@@ -37,8 +40,17 @@ where
     T: TelemetrySink,
     P: SettingsStore,
 {
-    pub fn new(radio: R, ota: W, sys: S, sink: T, settings_store: P) -> Self {
+    /// `auth_key` is the shared secret; `None` locks the device (no client can authenticate).
+    pub fn new(
+        radio: R,
+        ota: W,
+        sys: S,
+        sink: T,
+        settings_store: P,
+        auth_key: Option<[u8; 32]>,
+    ) -> Self {
         Self {
+            auth: AuthGate::new(auth_key),
             radio: RadioController::new(radio),
             ota: OtaSession::new(ota),
             settings: SettingsService::new(settings_store),
@@ -66,6 +78,25 @@ where
 
     /// Driving port: a command arrived from the client.
     pub fn on_command(&mut self, cmd: DeviceCommand) {
+        match cmd {
+            DeviceCommand::AuthBegin => {
+                let mut nonce = [0u8; AUTH_NONCE_LEN];
+                self.sys.fill_random(&mut nonce);
+                let challenge = self.auth.begin(nonce);
+                self.emit(challenge);
+                return;
+            }
+            DeviceCommand::AuthProve { mac } => {
+                let result = self.auth.prove(&mac);
+                self.emit(result);
+                return;
+            }
+            _ => {}
+        }
+        if !self.auth.is_authenticated() {
+            self.emit(event(EVENT_UNAUTHORIZED, "not authenticated"));
+            return;
+        }
         if matches!(cmd, DeviceCommand::StartScan { .. }) {
             self.scans.clear();
         }
@@ -103,6 +134,12 @@ where
         }
     }
 
+    /// Driving port: a client connected or disconnected. Ends the session and any update.
+    pub fn on_link_reset(&mut self) {
+        self.auth.reset();
+        self.ota.abort();
+    }
+
     /// Driving port: the sniffer saw a frame.
     pub fn on_observation(&mut self, o: Observation) {
         if let Some(m) = self.scans.observe(o) {
@@ -121,7 +158,24 @@ where
             .handle(&DeviceCommand::ConfigureRadio { channel: s.channel });
     }
 
+    /// Until authenticated, only the handshake and the unauthorized event may leave the device.
+    fn permitted(&self, m: &TelemetryMessage) -> bool {
+        self.auth.is_authenticated()
+            || matches!(
+                m,
+                TelemetryMessage::AuthChallenge { .. }
+                    | TelemetryMessage::AuthResult { .. }
+                    | TelemetryMessage::Event {
+                        code: EVENT_UNAUTHORIZED,
+                        ..
+                    }
+            )
+    }
+
     fn emit(&mut self, m: TelemetryMessage) {
+        if !self.permitted(&m) {
+            return; // withheld on purpose, not a drop
+        }
         if !self.sink.publish(m) {
             self.dropped = self.dropped.saturating_add(1);
         }

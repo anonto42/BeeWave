@@ -29,6 +29,14 @@ impl<W: OtaWriter> OtaSession<W> {
         })
     }
 
+    /// Drop any update in flight (the client went away).
+    pub fn abort(&mut self) {
+        if self.state != State::Idle {
+            self.writer.abort();
+            self.state = State::Idle;
+        }
+    }
+
     fn begin(&mut self, size: u32, sha: [u8; 32]) -> Outcome {
         if self.state != State::Idle {
             self.writer.abort(); // a new begin restarts any update in flight

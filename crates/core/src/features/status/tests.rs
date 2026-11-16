@@ -13,6 +13,7 @@ impl System for FakeSystem {
         7
     }
     fn restart(&mut self) {}
+    fn fill_random(&mut self, _: &mut [u8]) {}
 }
 
 #[test]
