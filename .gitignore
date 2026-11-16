@@ -11,3 +11,5 @@ result-*
 *.pem
 *.key
 *.bin
+
+firmware/.beewave-key

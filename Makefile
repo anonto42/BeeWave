@@ -6,8 +6,10 @@ ESP_EXPORT ?= $(HOME)/export-esp.sh
 GRAPHIFY   := $(shell which graphify 2>/dev/null || echo $(HOME)/.local/bin/graphify)
 OPENSPEC   := $(shell which openspec 2>/dev/null || echo npx --yes @fission-ai/openspec@1.14.2)
 PORT       ?= /dev/ttyACM0
-# Load the Xtensa env, then run in firmware/
-FW = . $(ESP_EXPORT) && cd firmware &&
+# Device authentication key (64 hex chars). Untracked; created once by `make fw-key`.
+KEY_FILE   := firmware/.beewave-key
+# Load the Xtensa env and the device key, then run in firmware/
+FW = . $(ESP_EXPORT) && cd firmware && export BEEWAVE_KEY=$$(cat .beewave-key) &&
 
 .PHONY: help
 help: ## Show this help
@@ -52,18 +54,22 @@ web-test: ## Web unit tests (codec vs Rust golden vectors)
 
 # ---- firmware ----------------------------------------------------------------
 .PHONY: fw-build fw-flash fw-monitor fw-run fw-image fw-size fw-clean board-info
-fw-build: ## Build release firmware
+fw-key: ## Create the device key once (untracked) and print it for the PWA
+	@test -f $(KEY_FILE) || (umask 077 && head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > $(KEY_FILE))
+	@echo "Device key (enter it in the PWA, keep it secret): $$(cat $(KEY_FILE))"
+
+fw-build: fw-key ## Build release firmware
 	$(FW) cargo build --release
-fw-flash: ## Flash release firmware to $(PORT)
+fw-flash: fw-key ## Flash release firmware to $(PORT)
 	$(FW) cargo espflash flash --release --port $(PORT)
 fw-monitor: ## Serial monitor
 	$(FW) cargo espflash monitor --port $(PORT)
-fw-run: ## Build + flash + monitor
+fw-run: fw-key ## Build + flash + monitor
 	$(FW) cargo espflash flash --release --port $(PORT) --monitor
-fw-image: ## OTA update file dist/beewave-app.bin (+ .sha256)
+fw-image: fw-key ## OTA update file dist/beewave-app.bin (+ .sha256)
 	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin
 	cd dist && sha256sum beewave-app.bin | tee beewave-app.bin.sha256
-fw-size: ## Flash/RAM usage of the release build
+fw-size: fw-key ## Flash/RAM usage of the release build
 	$(FW) cargo espflash save-image --release --chip esp32 /tmp/beewave.bin >/dev/null && ls -l /tmp/beewave.bin
 fw-clean: ## Remove firmware build output (keeps downloaded ESP-IDF in firmware/.embuild)
 	cd firmware && cargo clean
