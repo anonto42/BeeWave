@@ -29,6 +29,8 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
       o.push(5, ...varint(c.offset), ...varint(c.data.length), ...c.data);
       break;
     case "otaEnd": o.push(6); break;
+    case "getSettings": o.push(7); break;
+    case "setSettings": o.push(8, c.channel, c.autoScan ? 1 : 0); break;
   }
   return Uint8Array.from(o);
 }

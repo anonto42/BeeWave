@@ -3,7 +3,8 @@ export type Telemetry =
   | { type: "status"; activeChannel: number; freeHeap: number; cpuLoad: number; dropped: number }
   | { type: "scan"; bssid: string; channel: number; rssi: number; ssid: string }
   | { type: "event"; code: number; message: string }
-  | { type: "otaAck"; nextOffset: number };
+  | { type: "otaAck"; nextOffset: number }
+  | { type: "settings"; channel: number; autoScan: boolean };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =
@@ -13,7 +14,9 @@ export type Command =
   | { type: "reboot" }
   | { type: "otaBegin"; size: number; sha256: Uint8Array }
   | { type: "otaChunk"; offset: number; data: Uint8Array }
-  | { type: "otaEnd" };
+  | { type: "otaEnd" }
+  | { type: "getSettings" }
+  | { type: "setSettings"; channel: number; autoScan: boolean };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

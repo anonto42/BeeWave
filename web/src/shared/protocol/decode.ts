@@ -25,6 +25,9 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 3:
       msg = { type: "otaAck", nextOffset: r.varint() };
       break;
+    case 4:
+      msg = { type: "settings", channel: r.u8(), autoScan: r.u8() !== 0 };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

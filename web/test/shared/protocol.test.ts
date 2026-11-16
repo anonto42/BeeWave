@@ -12,6 +12,9 @@ describe("telemetry decode (golden vectors from Rust)", () => {
   it("scan result with utf8 + negative rssi", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[1].hex))).toEqual({ seq: 1, msg: { type: "scan", bssid: "01:02:03:04:05:06", channel: 11, rssi: -67, ssid: "Café-WiFi" } });
   });
+  it("settings", () => {
+    expect(decodeTelemetry(bytes(vectors.telemetry[4].hex)).msg).toEqual({ type: "settings", channel: 6, autoScan: true });
+  });
   it("event + otaAck", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[2].hex)).msg).toEqual({ type: "event", code: 7, message: "hello" });
     expect(decodeTelemetry(bytes(vectors.telemetry[3].hex)).msg).toEqual({ type: "otaAck", nextOffset: 4096 });
@@ -31,6 +34,8 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "otaBegin", size: 1_000_000, sha256: new Uint8Array(32).fill(9) },
     { type: "otaChunk", offset: 96, data: Uint8Array.from([1, 2, 3]) },
     { type: "otaEnd" },
+    { type: "getSettings" },
+    { type: "setSettings", channel: 0, autoScan: true },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });
