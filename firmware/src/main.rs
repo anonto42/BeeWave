@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     // App task: owns the core `App`, wired to the real adapters.
-    let app = App::new(WifiRadio::new(ch.events_tx.clone()), FlashOta, EspSystem, BleSink(ch.tele_tx));
+    let app = App::new(WifiRadio::new(ch.events_tx.clone()), FlashOta::default(), EspSystem, BleSink(ch.tele_tx));
     let events_rx = ch.events_rx;
     spawn_worker("app", APP_STACK, move || run_app(app, events_rx));
 

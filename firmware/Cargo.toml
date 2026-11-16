@@ -31,6 +31,7 @@ esp-idf-svc = { version = "0.51", features = ["binstart", "std", "alloc"] }
 esp32-nimble = "0.11"
 walpad-protocol = { path = "../crates/protocol" }
 walpad-core = { path = "../crates/core" }
+sha2 = { version = "0.10", default-features = false }
 
 [build-dependencies]
 embuild = "0.33"
