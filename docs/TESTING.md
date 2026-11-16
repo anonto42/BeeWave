@@ -36,5 +36,9 @@ Wi-Fi sniffing and BLE share one radio. To measure notification latency while ho
    `firmware/src/adapters/wifi_radio/hopper.rs`, `REQUEST_CONN_PARAMS` and the interval/latency constants in
    `firmware/src/adapters/ble_gatt/tuning.rs`, queue depths in `firmware/src/runtime/channels.rs`.
 
+Note: `REQUEST_CONN_PARAMS` is `false` in this build. The connection-interval and slave-latency constants exist in
+`ble_gatt/tuning.rs` but are not applied. If row 2.2 fails (BLE disconnects during the 10-minute hop), the first lever is
+to enable `REQUEST_CONN_PARAMS` and retest.
+
 ## Acceptance sign-off
 Record the full hardware results (security checks and performance targets) in `docs/ACCEPTANCE.md`.
