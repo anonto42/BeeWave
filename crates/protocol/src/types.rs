@@ -54,6 +54,13 @@ pub enum DeviceCommand {
     AuthProve {
         mac: [u8; 32],
     },
+    /// Finish an update, proving the image is signed. The Ed25519 signature (64 bytes) is over
+    /// the image SHA-256 given in `OtaBegin`; serde cannot encode `[u8; 64]`, so it is sent as
+    /// its two 32-byte halves (`R` then `S`).
+    OtaEndSigned {
+        sig_r: [u8; 32],
+        sig_s: [u8; 32],
+    },
 }
 
 /// Device -> app.

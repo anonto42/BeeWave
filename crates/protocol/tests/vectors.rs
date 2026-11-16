@@ -52,6 +52,10 @@ fn roundtrip_and_emit_golden_vectors() {
         },
         DeviceCommand::AuthBegin,
         DeviceCommand::AuthProve { mac: [5; 32] },
+        DeviceCommand::OtaEndSigned {
+            sig_r: [3; 32],
+            sig_s: [4; 32],
+        },
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];
