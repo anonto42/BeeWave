@@ -5,4 +5,6 @@ use beewave_protocol::DeviceCommand;
 pub enum Event {
     /// A command arrived from the client over BLE.
     Command(DeviceCommand),
+    /// A client connected or disconnected: end its session so the next one starts unauthenticated.
+    LinkReset,
 }

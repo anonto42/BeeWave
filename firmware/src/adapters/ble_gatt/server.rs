@@ -12,18 +12,26 @@ const PREFERRED_MTU: u16 = 247;
 
 /// Runs forever: GATT server + notification pump.
 ///
-/// SECURITY: pairing/bonding is intentionally OFF right now (see `pairing.rs`). Android's system
-/// pairing screen does not reliably bond with a plain custom GATT peripheral, and Web Bluetooth
-/// does not trigger it either, so an encrypted characteristic here just hung the link with no
-/// usable error. This is safe only on your own bench: re-enable `pairing::require()` before this
-/// device is ever used anywhere someone else could write to it over BLE.
+/// SECURITY: BLE bonding is intentionally OFF (see `pairing.rs`). Commands are protected by the
+/// application-level HMAC handshake in the core (`features::auth`): the link is not encrypted,
+/// but no command runs and no status/scan telemetry is sent until the client proves the key.
 pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> anyhow::Result<()> {
     let device = BLEDevice::take();
     device.set_preferred_mtu(PREFERRED_MTU)?;
 
     let server = device.get_server();
-    server.on_connect(|_server, desc| log::info!("BLE connected: {:?}", desc));
-    server.on_disconnect(|_desc, reason| log::info!("BLE disconnected: {:?}", reason));
+    // Every connect and disconnect ends the previous session. Blocking `send` on purpose: a
+    // dropped reset would let the next client inherit an authenticated session.
+    let on_connect_events = events.clone();
+    server.on_connect(move |_server, desc| {
+        log::info!("BLE connected: {:?}", desc);
+        let _ = on_connect_events.send(Event::LinkReset);
+    });
+    let on_disconnect_events = events.clone();
+    server.on_disconnect(move |_desc, reason| {
+        log::info!("BLE disconnected: {:?}", reason);
+        let _ = on_disconnect_events.send(Event::LinkReset);
+    });
 
     let service = server.create_service(uuids::SERVICE);
 

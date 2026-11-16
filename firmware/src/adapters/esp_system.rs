@@ -66,6 +66,12 @@ impl System for EspSystem {
         load
     }
 
+    fn fill_random(&mut self, buf: &mut [u8]) {
+        // SAFETY: writes exactly `buf.len()` bytes into `buf`. Hardware RNG (true random while
+        // the radio is on, which it always is here).
+        unsafe { sys::esp_fill_random(buf.as_mut_ptr().cast(), buf.len()) }
+    }
+
     fn restart(&mut self) {
         // SAFETY: never returns; the chip reboots.
         unsafe { sys::esp_restart() }

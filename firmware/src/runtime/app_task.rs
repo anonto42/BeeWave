@@ -33,6 +33,7 @@ pub fn run_app<R, W, S, T, P>(
     loop {
         match events.recv_timeout(POLL) {
             Ok(Event::Command(c)) => app.on_command(c),
+            Ok(Event::LinkReset) => app.on_link_reset(),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return,
         }
