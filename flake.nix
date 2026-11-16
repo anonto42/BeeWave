@@ -20,7 +20,7 @@
             # ESP-IDF (embuild) build deps
             cmake ninja python3 pkg-config openssl libusb1 gcc
             # web
-            nodejs_22
+            nodejs_22 pnpm
           ];
           shellHook = ''
             export ESP_EXPORT="''${ESP_EXPORT:-$HOME/export-esp.sh}"

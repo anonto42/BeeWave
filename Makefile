@@ -17,10 +17,10 @@ help: ## Show this help
 .PHONY: setup doctor
 setup: ## One-time: ESP Xtensa Rust toolchain + web deps
 	espup install
-	cd web && npm install
+	cd web && pnpm install --frozen-lockfile
 
 doctor: ## Check tools, toolchain and board
-	@for t in cargo rustup node npm espflash ldproxy espup; do printf "%-10s" $$t; command -v $$t >/dev/null && echo ok || echo MISSING; done
+	@for t in cargo rustup node pnpm espflash ldproxy espup; do printf "%-10s" $$t; command -v $$t >/dev/null && echo ok || echo MISSING; done
 	@test -f $(ESP_EXPORT) && echo "esp env   ok ($(ESP_EXPORT))" || echo "esp env   MISSING: run 'make setup'"
 	@test -r $(PORT) -a -w $(PORT) && echo "board     ok ($(PORT))" || echo "board     not accessible ($(PORT))"
 
@@ -40,13 +40,13 @@ check-nostd: ## Core must build without std
 # ---- web ---------------------------------------------------------------------
 .PHONY: web-dev web-mock web-build web-test
 web-dev: ## Dev server (https needed for BLE off-localhost)
-	cd web && npm run dev
+	cd web && pnpm run dev
 web-mock: ## Dev server with the fake device (open /?mock)
-	cd web && npm run dev -- --open '/?mock'
+	cd web && pnpm run dev --open '/?mock'
 web-build: ## Production PWA bundle -> web/dist
-	cd web && npm run build
+	cd web && pnpm run build
 web-test: ## Web unit tests (codec vs Rust golden vectors)
-	cd web && npm test
+	cd web && pnpm test
 
 # ---- firmware ----------------------------------------------------------------
 .PHONY: fw-build fw-flash fw-monitor fw-run fw-size fw-clean board-info
