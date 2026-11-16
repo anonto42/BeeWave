@@ -1,8 +1,9 @@
 use beewave_protocol::{DeviceCommand, TelemetryMessage, AUTH_NONCE_LEN};
 
+use super::keys::DeviceKeys;
 use super::messages::{
-    event, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR,
-    EVENT_UNAUTHORIZED,
+    event, ota_error_text, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR,
+    EVENT_SETTINGS_ERROR, EVENT_UNAUTHORIZED,
 };
 use crate::features::auth::AuthGate;
 use crate::features::ota::OtaSession;
@@ -40,19 +41,12 @@ where
     T: TelemetrySink,
     P: SettingsStore,
 {
-    /// `auth_key` is the shared secret; `None` locks the device (no client can authenticate).
-    pub fn new(
-        radio: R,
-        ota: W,
-        sys: S,
-        sink: T,
-        settings_store: P,
-        auth_key: Option<[u8; 32]>,
-    ) -> Self {
+    /// `keys` are the build-time secrets; a missing key fails closed (see `DeviceKeys`).
+    pub fn new(radio: R, ota: W, sys: S, sink: T, settings_store: P, keys: DeviceKeys) -> Self {
         Self {
-            auth: AuthGate::new(auth_key),
+            auth: AuthGate::new(keys.auth),
             radio: RadioController::new(radio),
-            ota: OtaSession::new(ota),
+            ota: OtaSession::new(ota, keys.ota_signing),
             settings: SettingsService::new(settings_store),
             scans: ScanTable::new(),
             sys,
@@ -129,7 +123,7 @@ where
             match result {
                 Ok(Some(ack)) => self.emit(ack),
                 Ok(None) => {}
-                Err(_) => self.emit(event(EVENT_OTA_ERROR, "ota error")),
+                Err(e) => self.emit(event(EVENT_OTA_ERROR, ota_error_text(e))),
             }
         }
     }

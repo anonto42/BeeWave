@@ -99,7 +99,10 @@ fn app_with(sink: FakeSink, rebooted: Rc<RefCell<bool>>, key: Option<[u8; 32]>) 
         FakeSystem(rebooted),
         sink,
         FakeStore::default(),
-        key,
+        DeviceKeys {
+            auth: key,
+            ota_signing: None,
+        },
     )
 }
 
@@ -174,7 +177,10 @@ fn start_applies_saved_settings_and_set_persists() {
         FakeSystem(Default::default()),
         sink.clone(),
         store,
-        Some(KEY),
+        DeviceKeys {
+            auth: Some(KEY),
+            ota_signing: None,
+        },
     );
     authenticate(&mut app, &sink);
     app.start();

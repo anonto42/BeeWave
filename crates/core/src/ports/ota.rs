@@ -15,4 +15,8 @@ pub enum OtaError {
     BadState,
     HashMismatch,
     Flash,
+    /// The update came without a signature, or the device has no key to check it against.
+    Unsigned,
+    /// The signature does not match the image digest.
+    SignatureInvalid,
 }
