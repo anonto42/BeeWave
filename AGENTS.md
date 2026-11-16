@@ -24,7 +24,7 @@ Hexagonal core + feature slices (see `docs/ARCHITECTURE.md`):
 
 1. **Dependency rule:** `adapters -> core -> protocol`. `crates/core` never imports `esp-idf-*`, `std` threads, or allocates (heapless only).
 2. **Features are isolated:** slices depend on `ports`/`shared`, never on each other; only `App` / `main.ts` compose them.
-3. **Wire format changes touch three places:** `crates/protocol` -> `make vectors` -> `web/src/shared/protocol.ts`. `make test` must stay green.
+3. **Wire format changes touch three places:** `crates/protocol` -> `make vectors` -> `web/src/shared/protocol/`. `make test` must stay green.
 4. **Telemetry is lossy, commands are validated:** the BLE sink never blocks; every command is range-checked in the core.
 5. **No secrets in the repo;** commands require an authenticated session (HMAC with `BEEWAVE_KEY`, built from the untracked `firmware/.beewave-key`); no key = locked. Firmware updates must be Ed25519-signed (`BEEWAVE_OTA_PUBKEY`, private key untracked in `firmware/.beewave-ota.pem`).
 6. **Memory is a budget:** few long-lived tasks, bounded channels, no unbounded `Vec`/`String` on the device path.
