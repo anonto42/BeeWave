@@ -18,3 +18,12 @@ th { color:var(--dim); font-weight:normal; }
 .stat span { color:var(--dim); font-size:11px; }
 .log { max-height:140px; overflow:auto; color:var(--dim); }
 .tablewrap { max-height:320px; overflow:auto; }
+.dim { color: var(--dim); }
+label { display: inline-flex; gap: 6px; align-items: center; }
+input[type="file"] { color: var(--fg); max-width: 100%; }
+progress { height: 10px; accent-color: var(--fg); background: var(--bg); border: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); padding: 2px 6px; }
+.chip button { padding: 0 6px; border: 0; }
+tr[data-bssid] { cursor: pointer; }
+tr.target { background: #4d545c; }
