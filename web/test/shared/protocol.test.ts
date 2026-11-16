@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import vectors from "./vectors.json";
-import { decodeTelemetry, encodeCommand, type Command } from "../src/shared/protocol";
+import vectors from "../vectors.json";
+import { decodeTelemetry, encodeCommand, type Command } from "../../src/shared/protocol";
 
 const bytes = (h: string) => Uint8Array.from(h.match(/../g)!.map((x) => parseInt(x, 16)));
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -33,13 +33,4 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "otaEnd" },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
-});
-
-import { SeqTracker } from "../src/shared/transport";
-describe("SeqTracker", () => {
-  it("counts gaps and wraps at 255", () => {
-    const t = new SeqTracker();
-    [0, 1, 4, 255, 2].forEach((s) => t.push(s));
-    expect(t.lost).toBe(2 /*2,3*/ + 250 /*5..254*/ + 2 /*0,1*/);
-  });
 });
