@@ -8,8 +8,11 @@ OPENSPEC   := $(shell which openspec 2>/dev/null || echo npx --yes @fission-ai/o
 PORT       ?= /dev/ttyACM0
 # Device authentication key (64 hex chars). Untracked; created once by `make fw-key`.
 KEY_FILE   := firmware/.beewave-key
-# Load the Xtensa env and the device key, then run in firmware/
-FW = . $(ESP_EXPORT) && cd firmware && export BEEWAVE_KEY=$$(cat .beewave-key) &&
+# Firmware update signing: private key (untracked, never leaves your machine) and its public half.
+OTA_KEY    := firmware/.beewave-ota.pem
+OTA_PUB    := firmware/.beewave-ota.pub
+# Load the Xtensa env and the keys, then run in firmware/
+FW = . $(ESP_EXPORT) && cd firmware && export BEEWAVE_KEY=$$(cat .beewave-key) BEEWAVE_OTA_PUBKEY=$$(cat .beewave-ota.pub) &&
 
 .PHONY: help
 help: ## Show this help
@@ -58,18 +61,27 @@ fw-key: ## Create the device key once (untracked) and print it for the PWA
 	@test -f $(KEY_FILE) || (umask 077 && head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > $(KEY_FILE))
 	@echo "Device key (enter it in the PWA, keep it secret): $$(cat $(KEY_FILE))"
 
-fw-build: fw-key ## Build release firmware
+fw-ota-key: ## Create the OTA signing key once (untracked) and its public key for the firmware
+	@test -f $(OTA_KEY) || (umask 077 && openssl genpkey -algorithm ed25519 -out $(OTA_KEY))
+	@openssl pkey -in $(OTA_KEY) -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n' > $(OTA_PUB)
+	@echo "OTA signing public key (built into the firmware): $$(cat $(OTA_PUB))"
+
+fw-build: fw-key fw-ota-key ## Build release firmware
 	$(FW) cargo build --release
-fw-flash: fw-key ## Flash release firmware to $(PORT)
+fw-flash: fw-key fw-ota-key ## Flash release firmware to $(PORT)
 	$(FW) cargo espflash flash --release --port $(PORT)
 fw-monitor: ## Serial monitor
 	$(FW) cargo espflash monitor --port $(PORT)
-fw-run: fw-key ## Build + flash + monitor
+fw-run: fw-key fw-ota-key ## Build + flash + monitor
 	$(FW) cargo espflash flash --release --port $(PORT) --monitor
-fw-image: fw-key ## OTA update file dist/beewave-app.bin (+ .sha256)
+fw-image: fw-key fw-ota-key ## Signed OTA update: dist/beewave-app.bin + .sig (+ .sha256)
 	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin
 	cd dist && sha256sum beewave-app.bin | tee beewave-app.bin.sha256
-fw-size: fw-key ## Flash/RAM usage of the release build
+	# Sign the image's SHA-256 digest (what the device checks) with Ed25519.
+	cd dist && openssl dgst -sha256 -binary beewave-app.bin > beewave-app.digest \
+	  && openssl pkeyutl -sign -inkey ../$(OTA_KEY) -rawin -in beewave-app.digest -out beewave-app.bin.sig \
+	  && rm beewave-app.digest && ls -l beewave-app.bin.sig
+fw-size: fw-key fw-ota-key ## Flash/RAM usage of the release build
 	$(FW) cargo espflash save-image --release --chip esp32 /tmp/beewave.bin >/dev/null && ls -l /tmp/beewave.bin
 fw-clean: ## Remove firmware build output (keeps downloaded ESP-IDF in firmware/.embuild)
 	cd firmware && cargo clean

@@ -13,3 +13,4 @@ result-*
 *.bin
 
 firmware/.beewave-key
+firmware/.beewave-ota.pub
