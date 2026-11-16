@@ -1,0 +1,16 @@
+[package]
+name = "walpad-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+std = ["postcard/use-std"]
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive"] }
+postcard = { version = "1", default-features = false, features = ["heapless-cas"] }
+heapless = { version = "0.7", features = ["serde"] }
+
+[dev-dependencies]
+serde_json = "1"
