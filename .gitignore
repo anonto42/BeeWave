@@ -1,0 +1,13 @@
+graphify-out/
+target/
+node_modules/
+dist/
+.embuild/
+.direnv/
+result
+result-*
+.env
+.env.local
+*.pem
+*.key
+*.bin
