@@ -11,4 +11,3 @@ version = "0.1.0"
 [workspace.dependencies]
 heapless = { version = "0.7", features = ["serde"] }
 walpad-protocol = { path = "crates/protocol", default-features = false }
-walpad-core = { path = "crates/core", default-features = false }
