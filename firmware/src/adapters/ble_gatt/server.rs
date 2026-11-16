@@ -5,7 +5,7 @@ use esp32_nimble::enums::{AuthReq, SecurityIOCap};
 use esp32_nimble::{BLEAdvertisementData, BLEDevice, NimbleProperties};
 use walpad_protocol::{decode_command, encode_telemetry, TelemetryMessage, MAX_BODY};
 
-use super::uuids;
+use super::{pairing, uuids};
 use crate::runtime::Event;
 
 /// Preferred ATT MTU (must be >= walpad_protocol::MIN_MTU).
@@ -15,10 +15,12 @@ const PREFERRED_MTU: u16 = 247;
 pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> anyhow::Result<()> {
     let device = BLEDevice::take();
     device.set_preferred_mtu(PREFERRED_MTU)?;
+    // Passkey pairing: the device "displays" a fixed code the user types on the phone (MITM-protected).
     device
         .security()
-        .set_auth(AuthReq::Bond | AuthReq::Sc)
-        .set_io_cap(SecurityIOCap::NoInputNoOutput); // "Just Works"; upgrade to a passkey later
+        .set_auth(AuthReq::Bond | AuthReq::Mitm | AuthReq::Sc)
+        .set_io_cap(SecurityIOCap::DisplayOnly)
+        .set_passkey(pairing::passkey());
 
     let server = device.get_server();
     server.on_connect(|_server, desc| log::info!("BLE connected: {:?}", desc));
