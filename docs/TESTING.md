@@ -20,5 +20,6 @@ Run after `make fw-run`. Record results in the table at the bottom.
 | BLE loss while hopping | Scan on AUTO for 5 min, read "BLE LOST" | no disconnects, low loss | |
 | Core usage | Run a scan; `core N` is logged at boot, tasks are unpinned | both cores used | |
 | PWA cold start | Airplane mode, cleared cache, installed PWA | shell renders < 100 ms after load | |
-| OTA | Update with `dist/beewave-app.bin` | completes, new image boots, status resumes | |
+| OTA | Update with `dist/beewave-app.bin` + `.sig` | completes, new image boots, status resumes | |
+| OTA bad signature | Pick the image with a `.sig` from another build or a modified `.sig` | refused at once with "bad signature", old firmware keeps running | |
 | OTA rollback | (optional) flash a deliberately crashing image via OTA | device returns to the previous image | |

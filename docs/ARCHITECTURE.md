@@ -39,6 +39,11 @@ runs an HMAC-SHA256 challenge-response with a shared 32-byte key (`BEEWAVE_KEY` 
 `App` drops every command and withholds status/scan telemetry until the session is authenticated; the BLE adapter
 sends `Event::LinkReset` on every connect and disconnect so a session never outlives its connection. No key = locked.
 
+## Signed firmware updates
+`features/ota` verifies an Ed25519 signature over the image SHA-256 (`OtaEndSigned`) before the writer may finish; any
+failure aborts the update. Public key: `BEEWAVE_OTA_PUBKEY` at build time; private key: untracked `firmware/.beewave-ota.pem`
+(`make fw-ota-key`). Keys travel into the core as `DeviceKeys`; a missing key fails closed.
+
 ## Web
 ```
 web/src/

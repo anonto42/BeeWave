@@ -29,10 +29,13 @@
 | Pick a channel + SET CHANNEL | Pin the radio to that channel (AUTO = hop). |
 | Tap a network row | Adds it to the TARGETS tray (saved in your browser). |
 | SETTINGS -> SAVE TO DEVICE | Channel and scan-at-boot are written to flash and survive power loss. |
-| FIRMWARE UPDATE | Choose `dist/beewave-app.bin`, the phone sends it over BLE in 96-byte chunks with acks, the device verifies SHA-256, switches slot and reboots. If the new image fails to boot, the bootloader rolls back. |
+| FIRMWARE UPDATE | Choose `dist/beewave-app.bin` and its `dist/beewave-app.bin.sig`. The phone sends the image over BLE in 96-byte chunks with acks; the device verifies the SHA-256 **and the Ed25519 signature**, switches slot and reboots. A missing or wrong signature is refused. If the new image fails to boot, the bootloader rolls back. |
 | REBOOT | Restarts the device. |
 
-Make the update file with `make fw-image` (it also writes the SHA-256 for your own check).
+Make the update files with `make fw-image`: it writes the image, its `.sig` (signed with the private key in
+`firmware/.beewave-ota.pem`, created once by `make fw-ota-key`, never leaves your computer) and the SHA-256. The matching
+public key is built into the firmware, so the **first** signed update needs one cable flash of a build that has it.
+A device built without an OTA public key refuses all updates.
 
 ## Limits to know
 - One phone at a time (one BLE connection).
