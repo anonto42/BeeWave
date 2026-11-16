@@ -15,6 +15,11 @@ pub const MAX_BODY: usize = 128;
 /// Bytes before the body: `[version][sequence]`.
 pub const HEADER_LEN: usize = 2;
 
+/// Domain separator prepended to the nonce before signing (the ASCII bytes of this string).
+pub const AUTH_CONTEXT: &[u8] = b"beewave-auth-v1";
+/// Length of the authentication nonce.
+pub const AUTH_NONCE_LEN: usize = 16;
+
 /// App -> device.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum DeviceCommand {
@@ -42,6 +47,12 @@ pub enum DeviceCommand {
     SetSettings {
         channel: u8,
         auto_scan: bool,
+    },
+    /// Start authentication; the device answers with `AuthChallenge`.
+    AuthBegin,
+    /// Prove knowledge of the shared key: `HMAC-SHA256(key, AUTH_CONTEXT || nonce)`.
+    AuthProve {
+        mac: [u8; 32],
     },
 }
 
@@ -71,5 +82,13 @@ pub enum TelemetryMessage {
     Settings {
         channel: u8,
         auto_scan: bool,
+    },
+    /// Fresh single-use nonce the app must sign (reply to `AuthBegin`).
+    AuthChallenge {
+        nonce: [u8; 16],
+    },
+    /// Outcome of `AuthProve`.
+    AuthResult {
+        ok: bool,
     },
 }

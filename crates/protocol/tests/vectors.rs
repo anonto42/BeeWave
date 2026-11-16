@@ -28,6 +28,8 @@ fn roundtrip_and_emit_golden_vectors() {
             channel: 6,
             auto_scan: true,
         },
+        TelemetryMessage::AuthChallenge { nonce: [7; 16] },
+        TelemetryMessage::AuthResult { ok: true },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -48,6 +50,8 @@ fn roundtrip_and_emit_golden_vectors() {
             channel: 0,
             auto_scan: true,
         },
+        DeviceCommand::AuthBegin,
+        DeviceCommand::AuthProve { mac: [5; 32] },
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];
