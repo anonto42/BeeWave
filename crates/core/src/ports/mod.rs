@@ -5,10 +5,12 @@
 //! implementations and the tests provide fakes. One file per port.
 mod ota;
 mod radio;
+mod settings;
 mod system;
 mod telemetry;
 
 pub use ota::{OtaError, OtaWriter};
-pub use radio::{RadioDriver, RadioError};
+pub use radio::{RadioDriver, RadioError, AUTO_CHANNEL, MAX_CHANNEL};
+pub use settings::{Settings, SettingsError, SettingsStore};
 pub use system::System;
 pub use telemetry::TelemetrySink;

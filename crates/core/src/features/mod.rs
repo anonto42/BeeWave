@@ -9,4 +9,5 @@
 pub mod ota;
 pub mod radio;
 pub mod scan;
+pub mod settings;
 pub mod status;

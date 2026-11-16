@@ -5,7 +5,10 @@ use walpad_protocol::{DeviceCommand, TelemetryMessage};
 
 use super::*;
 use crate::features::scan::Observation;
-use crate::ports::{OtaError, OtaWriter, RadioDriver, RadioError, System, TelemetrySink};
+use crate::ports::{
+    OtaError, OtaWriter, RadioDriver, RadioError, Settings, SettingsError, SettingsStore, System,
+    TelemetrySink,
+};
 
 #[derive(Default)]
 struct FakeRadio(u8);
@@ -21,6 +24,18 @@ impl RadioDriver for FakeRadio {
         Ok(())
     }
     fn stop_sniffing(&mut self) -> Result<(), RadioError> {
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct FakeStore(Option<Settings>);
+impl SettingsStore for FakeStore {
+    fn load(&mut self) -> Settings {
+        self.0.unwrap_or_default()
+    }
+    fn save(&mut self, s: &Settings) -> Result<(), SettingsError> {
+        self.0 = Some(*s);
         Ok(())
     }
 }
@@ -78,6 +93,7 @@ fn routes_commands_and_observations() {
         FakeOta,
         FakeSystem(rebooted.clone()),
         sink.clone(),
+        FakeStore::default(),
     );
 
     app.on_command(DeviceCommand::ConfigureRadio { channel: 99 });
@@ -116,8 +132,55 @@ fn counts_drops_when_sink_full() {
         FakeOta,
         FakeSystem(Default::default()),
         sink,
+        FakeStore::default(),
     );
     app.on_tick();
     app.on_tick();
     assert_eq!(app.dropped(), 2);
+}
+
+#[test]
+fn start_applies_saved_settings_and_set_persists() {
+    let sink = FakeSink::default();
+    let store = FakeStore(Some(Settings {
+        channel: 9,
+        auto_scan: true,
+    }));
+    let mut app = App::new(
+        FakeRadio::default(),
+        FakeOta,
+        FakeSystem(Default::default()),
+        sink.clone(),
+        store,
+    );
+    app.start();
+    app.on_tick();
+    assert!(matches!(
+        sink.got.borrow()[0],
+        TelemetryMessage::Status {
+            active_channel: 9,
+            ..
+        }
+    ));
+
+    app.on_command(DeviceCommand::SetSettings {
+        channel: 4,
+        auto_scan: false,
+    });
+    app.on_command(DeviceCommand::GetSettings);
+    let out = sink.got.borrow();
+    assert!(matches!(
+        out[1],
+        TelemetryMessage::Settings {
+            channel: 4,
+            auto_scan: false
+        }
+    ));
+    assert!(matches!(
+        out[2],
+        TelemetryMessage::Settings {
+            channel: 4,
+            auto_scan: false
+        }
+    ));
 }

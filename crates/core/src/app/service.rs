@@ -1,28 +1,47 @@
 use walpad_protocol::{DeviceCommand, TelemetryMessage};
 
-use super::messages::{event, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR};
+use super::messages::{
+    event, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR,
+};
 use crate::features::ota::OtaSession;
 use crate::features::radio::RadioController;
 use crate::features::scan::{Observation, ScanTable};
+use crate::features::settings::SettingsService;
 use crate::features::status;
-use crate::ports::{OtaWriter, RadioDriver, System, TelemetrySink};
+use crate::ports::{OtaWriter, RadioDriver, Settings, SettingsStore, System, TelemetrySink};
 
-/// Composes the feature slices. The four generic parameters are the four driven ports;
+/// Composes the feature slices. The five generic parameters are the five driven ports;
 /// the firmware plugs in real adapters, tests plug in fakes.
-pub struct App<R: RadioDriver, W: OtaWriter, S: System, T: TelemetrySink> {
+pub struct App<R, W, S, T, P>
+where
+    R: RadioDriver,
+    W: OtaWriter,
+    S: System,
+    T: TelemetrySink,
+    P: SettingsStore,
+{
     radio: RadioController<R>,
     ota: OtaSession<W>,
+    settings: SettingsService<P>,
     scans: ScanTable,
     sys: S,
     sink: T,
     dropped: u16,
 }
 
-impl<R: RadioDriver, W: OtaWriter, S: System, T: TelemetrySink> App<R, W, S, T> {
-    pub fn new(radio: R, ota: W, sys: S, sink: T) -> Self {
+impl<R, W, S, T, P> App<R, W, S, T, P>
+where
+    R: RadioDriver,
+    W: OtaWriter,
+    S: System,
+    T: TelemetrySink,
+    P: SettingsStore,
+{
+    pub fn new(radio: R, ota: W, sys: S, sink: T, settings_store: P) -> Self {
         Self {
             radio: RadioController::new(radio),
             ota: OtaSession::new(ota),
+            settings: SettingsService::new(settings_store),
             scans: ScanTable::new(),
             sys,
             sink,
@@ -35,6 +54,16 @@ impl<R: RadioDriver, W: OtaWriter, S: System, T: TelemetrySink> App<R, W, S, T> 
         self.dropped
     }
 
+    /// Apply the saved settings (channel, auto-scan). Call once before processing input.
+    pub fn start(&mut self) {
+        let s = self.settings.current();
+        self.apply_channel(s);
+        if s.auto_scan {
+            self.radio
+                .handle(&DeviceCommand::StartScan { band_mask: 1 });
+        }
+    }
+
     /// Driving port: a command arrived from the client.
     pub fn on_command(&mut self, cmd: DeviceCommand) {
         if matches!(cmd, DeviceCommand::StartScan { .. }) {
@@ -42,6 +71,21 @@ impl<R: RadioDriver, W: OtaWriter, S: System, T: TelemetrySink> App<R, W, S, T> 
         }
         if matches!(cmd, DeviceCommand::RebootDevice) {
             self.sys.restart();
+            return;
+        }
+        if let Some(result) = self.settings.handle(&cmd) {
+            match result {
+                Ok(s) => {
+                    if matches!(cmd, DeviceCommand::SetSettings { .. }) {
+                        self.apply_channel(s);
+                    }
+                    self.emit(TelemetryMessage::Settings {
+                        channel: s.channel,
+                        auto_scan: s.auto_scan,
+                    });
+                }
+                Err(_) => self.emit(event(EVENT_SETTINGS_ERROR, "settings error")),
+            }
             return;
         }
         if let Some(result) = self.radio.handle(&cmd) {
@@ -70,6 +114,11 @@ impl<R: RadioDriver, W: OtaWriter, S: System, T: TelemetrySink> App<R, W, S, T> 
     pub fn on_tick(&mut self) {
         let m = status::sample(&self.sys, self.radio.channel(), self.dropped);
         self.emit(m);
+    }
+
+    fn apply_channel(&mut self, s: Settings) {
+        self.radio
+            .handle(&DeviceCommand::ConfigureRadio { channel: s.channel });
     }
 
     fn emit(&mut self, m: TelemetryMessage) {
