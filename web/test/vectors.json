@@ -1,0 +1,50 @@
+{
+  "commands": [
+    {
+      "hex": "01000003",
+      "msg": "StartScan { band_mask: 3 }"
+    },
+    {
+      "hex": "010101",
+      "msg": "StopOperation"
+    },
+    {
+      "hex": "0102020d",
+      "msg": "ConfigureRadio { channel: 13 }"
+    },
+    {
+      "hex": "010303",
+      "msg": "RebootDevice"
+    },
+    {
+      "hex": "010404c0843d0909090909090909090909090909090909090909090909090909090909090909",
+      "msg": "OtaBegin { size: 1000000, sha256: [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9] }"
+    },
+    {
+      "hex": "0105056003010203",
+      "msg": "OtaChunk { offset: 96, data: [1, 2, 3] }"
+    },
+    {
+      "hex": "010606",
+      "msg": "OtaEnd"
+    }
+  ],
+  "telemetry": [
+    {
+      "hex": "01000006c0c4072aac02",
+      "msg": "Status { active_channel: 6, free_heap: 123456, cpu_load: 42, dropped: 300 }"
+    },
+    {
+      "hex": "0101010102030405060bbd0a436166c3a92d57694669",
+      "msg": "ScanResult { bssid: [1, 2, 3, 4, 5, 6], channel: 11, rssi: -67, ssid: \"Café-WiFi\" }"
+    },
+    {
+      "hex": "010202070568656c6c6f",
+      "msg": "Event { code: 7, message: \"hello\" }"
+    },
+    {
+      "hex": "0103038020",
+      "msg": "OtaAck { next_offset: 4096 }"
+    }
+  ]
+}
