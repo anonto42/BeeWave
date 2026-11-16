@@ -77,6 +77,20 @@ describe("Authenticator", () => {
     expect(sent.map((c) => c.type)).toEqual(["authBegin", "authProve"]);
   });
 
+  it("reports `authenticated` only after the device accepts the proof", async () => {
+    const { auth } = setup(KEY_HEX, KEY_HEX);
+    const seen: string[] = [];
+    auth.onChange((s) => seen.push(s));
+    await auth.start();
+    expect(seen).toEqual(["authenticating", "authenticated"]);
+
+    const wrong = setup("ff".repeat(32), KEY_HEX);
+    const wrongSeen: string[] = [];
+    wrong.auth.onChange((s) => wrongSeen.push(s));
+    await wrong.auth.start();
+    expect(wrongSeen).not.toContain("authenticated");
+  });
+
   it("reports failure with the wrong key", async () => {
     const { auth } = setup("ff".repeat(32), KEY_HEX);
     await auth.start();

@@ -24,6 +24,9 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
 
   ctx.onState((s) => {
     save.disabled = s !== "connected";
-    if (s === "connected") ctx.transport.send({ type: "getSettings" }).catch((e) => ctx.log(String(e)));
+  });
+  // Ask for the saved settings only once the device has accepted our key; before that it refuses commands.
+  ctx.auth.onChange((s) => {
+    if (s === "authenticated") ctx.transport.send({ type: "getSettings" }).catch((e) => ctx.log(String(e)));
   });
 }
