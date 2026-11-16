@@ -1,4 +1,4 @@
-const channelOptions = Array.from({ length: 13 }, (_, i) => `<option>${i + 1}</option>`).join("");
+const channelOptions = `<option value="0">AUTO</option>` + Array.from({ length: 13 }, (_, i) => `<option>${i + 1}</option>`).join("");
 
 export const controlHtml = `<div class="pad row">
   <button data-scan disabled>START SCAN</button>

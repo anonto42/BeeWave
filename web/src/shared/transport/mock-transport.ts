@@ -13,6 +13,7 @@ export class MockTransport implements Transport {
   private timer?: number;
   private scanning = false;
   private channel = 1;
+  private pinned = 0; // 0 = auto-hop
 
   onTelemetry(cb: (t: Telemetry) => void): void { this.onTele = cb; }
   onState(cb: (s: TransportState, info?: string) => void): void { this.onStateCb = cb; }
@@ -30,14 +31,17 @@ export class MockTransport implements Transport {
   async send(cmd: Command): Promise<void> {
     if (cmd.type === "startScan") this.scanning = true;
     if (cmd.type === "stop") this.scanning = false;
-    if (cmd.type === "configureRadio") this.channel = cmd.channel;
+    if (cmd.type === "configureRadio") {
+      this.pinned = cmd.channel;
+      if (cmd.channel) this.channel = cmd.channel;
+    }
     this.onTele?.({ type: "event", code: 1, message: `ack ${cmd.type}` });
   }
 
   private tick(): void {
     this.onTele?.({ type: "status", activeChannel: this.channel, freeHeap: 90_000 + rand(2000), cpuLoad: 20 + rand(30), dropped: 0 });
     if (!this.scanning) return;
-    this.channel = (this.channel % 13) + 1;
+    if (!this.pinned) this.channel = (this.channel % 13) + 1;
     this.onTele?.({ type: "scan", bssid: randomBssid(), channel: this.channel, rssi: -40 - rand(50), ssid: SSIDS[rand(SSIDS.length)] });
   }
 }

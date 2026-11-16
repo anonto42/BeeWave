@@ -7,11 +7,22 @@ Hardware-independent device behaviour (radio control, scan reporting, status, OT
 ## Requirements
 
 ### Requirement: Validated radio control
-The radio feature SHALL accept channels 1 through 13 and MUST reject any other channel without calling the driver.
+The radio feature SHALL accept channels 1 through 13, or 0 meaning automatic hopping, and MUST reject any other channel without calling the driver. Status SHALL report the channel the radio is actually on.
 
 #### Scenario: Invalid channel
 - **WHEN** `ConfigureRadio` carries channel 99
 - **THEN** the command fails with an invalid-channel error and the current channel is unchanged
+
+### Requirement: Beacon parsing
+The scan feature SHALL parse 802.11 beacon and probe-response frames into a BSSID, SSID, channel and RSSI without allocating, and MUST ignore other frame types and malformed or truncated frames without panicking.
+
+#### Scenario: Hidden network
+- **WHEN** a beacon carries an empty or all-zero SSID
+- **THEN** the observation has an empty SSID
+
+#### Scenario: Truncated element
+- **WHEN** an information element claims more bytes than the frame holds
+- **THEN** parsing stops and returns what was read so far
 
 ### Requirement: De-duplicated scan reporting
 The scan feature SHALL report a network only when it is new or its RSSI moved by at least 6 dB, and SHALL bound its table without allocating.
