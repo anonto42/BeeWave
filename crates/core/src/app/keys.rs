@@ -7,3 +7,19 @@ pub struct DeviceKeys {
     /// Ed25519 public key that firmware updates must be signed with.
     pub ota_signing: Option<[u8; 32]>,
 }
+
+/// Parse a 32-byte key written as exactly 64 hex characters (either case, surrounding whitespace
+/// ignored). `None` for anything else, so a typo can never become a weak or partial key.
+pub fn parse_hex_key(text: &str) -> Option<[u8; 32]> {
+    let hex = text.trim().as_bytes();
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut key = [0u8; 32];
+    for (byte, pair) in key.iter_mut().zip(hex.chunks_exact(2)) {
+        let hi = (pair[0] as char).to_digit(16)?;
+        let lo = (pair[1] as char).to_digit(16)?;
+        *byte = (hi * 16 + lo) as u8;
+    }
+    Some(key)
+}

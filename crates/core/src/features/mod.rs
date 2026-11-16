@@ -7,6 +7,7 @@
 //! - `<logic>.rs`: the behaviour
 //! - `tests.rs`: unit tests with fake ports
 pub mod auth;
+pub mod latency;
 pub mod ota;
 pub mod radio;
 pub mod scan;
