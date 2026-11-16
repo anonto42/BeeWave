@@ -5,7 +5,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```
 nix develop        # or: direnv allow     (all tools)
 make help
-make setup         # once: Xtensa toolchain + npm deps
+make setup         # once: Xtensa toolchain + pnpm deps
 make test          # host tests, no hardware
 make web-mock      # UI with a fake device
 make fw-run        # build + flash + monitor (board on PORT=/dev/ttyACM0)
