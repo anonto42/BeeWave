@@ -60,3 +60,22 @@ fn auto_channel_is_accepted() {
         Some(Ok(()))
     );
 }
+
+#[test]
+fn channel_range_edges() {
+    let mut r = RadioController::new(FakeRadio::default());
+    let set = |r: &mut RadioController<FakeRadio>, channel| {
+        r.handle(&DeviceCommand::ConfigureRadio { channel })
+    };
+    for ok in [0, 1, 13] {
+        assert_eq!(set(&mut r, ok), Some(Ok(())), "channel {ok}");
+    }
+    for bad in [14, 15, 255] {
+        assert_eq!(
+            set(&mut r, bad),
+            Some(Err(RadioError::InvalidChannel)),
+            "channel {bad}"
+        );
+    }
+    assert_eq!(r.channel(), 13, "a rejected channel leaves the radio alone");
+}
