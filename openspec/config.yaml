@@ -1,0 +1,22 @@
+schema: spec-driven
+
+context: |
+  WalPad: Rust ESP32-WROOM firmware + Web Bluetooth PWA. Hexagonal core (crates/core) with feature
+  slices; adapters only in firmware/. Read AGENTS.md and .agents/shared/agent-startup.md before changing anything.
+  Wire format source of truth is crates/protocol; web/src/shared/protocol.ts mirrors it.
+
+rules:
+  proposal:
+    - State purpose, non-goals and invariants; check openspec/changes/ for overlap.
+    - Call out any wire-protocol change and its version impact.
+  design:
+    - Define port traits and failure modes before code; state RAM/flash cost for device-side changes.
+  tasks:
+    - Include host unit tests (valid, invalid, wrong-state) with fake ports, and a golden-vector update for wire changes.
+    - Validate with 'make check' before completing.
+
+operations:
+  apply:
+    guidance:
+      - Read .agents/shared rules first; keep core no_std and free of esp-idf.
+      - Run 'make check' before declaring completion.
