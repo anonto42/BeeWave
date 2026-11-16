@@ -1,14 +1,13 @@
 use walpad_protocol::DeviceCommand;
 
-use super::types::{Mode, MAX_CHANNEL};
+use super::types::{Mode, AUTO_CHANNEL, MAX_CHANNEL};
 use crate::ports::{RadioDriver, RadioError};
 
-/// Owns the radio driver `R` and the current mode/channel.
+/// Owns the radio driver `R` and the current mode.
 /// `R: RadioDriver` is a generic bound: any type implementing the port can be plugged in.
 pub struct RadioController<R: RadioDriver> {
     driver: R,
     mode: Mode,
-    channel: u8,
 }
 
 impl<R: RadioDriver> RadioController<R> {
@@ -16,7 +15,6 @@ impl<R: RadioDriver> RadioController<R> {
         Self {
             driver,
             mode: Mode::Idle,
-            channel: 1,
         }
     }
 
@@ -24,8 +22,9 @@ impl<R: RadioDriver> RadioController<R> {
         self.mode
     }
 
+    /// The channel the radio is on right now (the driver knows, it may be hopping).
     pub fn channel(&self) -> u8 {
-        self.channel
+        self.driver.channel()
     }
 
     /// `None` means "not a radio command, someone else handles it".
@@ -40,12 +39,10 @@ impl<R: RadioDriver> RadioController<R> {
                 self.driver.stop_sniffing().map(|_| self.mode = Mode::Idle)
             }
             DeviceCommand::ConfigureRadio { channel } => {
-                if !(1..=MAX_CHANNEL).contains(channel) {
+                if *channel != AUTO_CHANNEL && !(1..=MAX_CHANNEL).contains(channel) {
                     return Some(Err(RadioError::InvalidChannel)); // rejected before touching hardware
                 }
-                self.driver
-                    .set_channel(*channel)
-                    .map(|_| self.channel = *channel)
+                self.driver.set_channel(*channel)
             }
             _ => return None,
         })

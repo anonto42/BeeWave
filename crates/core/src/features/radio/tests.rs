@@ -23,6 +23,9 @@ impl RadioDriver for FakeRadio {
         self.sniffing = false;
         Ok(())
     }
+    fn channel(&self) -> u8 {
+        self.channel
+    }
 }
 
 #[test]
@@ -45,4 +48,15 @@ fn scan_and_channel() {
     assert_eq!(r.handle(&DeviceCommand::RebootDevice), None);
     r.handle(&DeviceCommand::StopOperation);
     assert_eq!(r.mode(), Mode::Idle);
+}
+
+#[test]
+fn auto_channel_is_accepted() {
+    let mut r = RadioController::new(FakeRadio::default());
+    assert_eq!(
+        r.handle(&DeviceCommand::ConfigureRadio {
+            channel: AUTO_CHANNEL
+        }),
+        Some(Ok(()))
+    );
 }

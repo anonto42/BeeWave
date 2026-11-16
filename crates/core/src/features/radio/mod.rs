@@ -3,7 +3,7 @@ mod controller;
 mod types;
 
 pub use controller::RadioController;
-pub use types::{Mode, MAX_CHANNEL};
+pub use types::{Mode, AUTO_CHANNEL, MAX_CHANNEL};
 
 #[cfg(test)]
 mod tests;

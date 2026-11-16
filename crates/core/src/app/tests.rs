@@ -7,9 +7,14 @@ use super::*;
 use crate::features::scan::Observation;
 use crate::ports::{OtaError, OtaWriter, RadioDriver, RadioError, System, TelemetrySink};
 
-struct FakeRadio;
+#[derive(Default)]
+struct FakeRadio(u8);
 impl RadioDriver for FakeRadio {
-    fn set_channel(&mut self, _: u8) -> Result<(), RadioError> {
+    fn channel(&self) -> u8 {
+        self.0
+    }
+    fn set_channel(&mut self, c: u8) -> Result<(), RadioError> {
+        self.0 = c;
         Ok(())
     }
     fn start_sniffing(&mut self) -> Result<(), RadioError> {
@@ -69,7 +74,7 @@ fn routes_commands_and_observations() {
     let sink = FakeSink::default();
     let rebooted = Rc::new(RefCell::new(false));
     let mut app = App::new(
-        FakeRadio,
+        FakeRadio::default(),
         FakeOta,
         FakeSystem(rebooted.clone()),
         sink.clone(),
@@ -106,7 +111,12 @@ fn counts_drops_when_sink_full() {
         full: true,
         ..Default::default()
     };
-    let mut app = App::new(FakeRadio, FakeOta, FakeSystem(Default::default()), sink);
+    let mut app = App::new(
+        FakeRadio::default(),
+        FakeOta,
+        FakeSystem(Default::default()),
+        sink,
+    );
     app.on_tick();
     app.on_tick();
     assert_eq!(app.dropped(), 2);
