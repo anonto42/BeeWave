@@ -1,0 +1,6 @@
+- [x] 1. Protocol: `OtaEndSigned`, golden vector
+- [x] 2. Core: Ed25519 verification in the OTA slice, `DeviceKeys`, specific OTA error texts, host tests
+- [x] 3. Firmware: read `BEEWAVE_OTA_PUBKEY`
+- [x] 4. Tooling: `make fw-ota-key`, signing in `make fw-image`
+- [x] 5. Web: signature file input, `otaEndSigned`, fail fast on device errors
+- [x] 6. Docs
