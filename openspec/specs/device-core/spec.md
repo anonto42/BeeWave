@@ -52,3 +52,18 @@ The core SHALL never block on the telemetry sink and SHALL count dropped message
 #### Scenario: Sink full
 - **WHEN** the sink rejects messages
 - **THEN** the dropped counter increases and the app continues
+
+### Requirement: Persistent settings
+The settings feature SHALL validate the channel (0 for auto, or 1 through 13), SHALL save settings through the storage port before accepting them, and MUST keep the previous settings when storage fails. Saved settings SHALL be applied at startup.
+
+#### Scenario: Invalid channel
+- **WHEN** `SetSettings` carries channel 99
+- **THEN** it is rejected, nothing is saved and an error event is emitted
+
+#### Scenario: Storage failure
+- **WHEN** the storage port fails to save
+- **THEN** the in-memory settings are unchanged and an error event is emitted
+
+#### Scenario: Boot
+- **WHEN** the device starts with saved settings
+- **THEN** the saved channel is applied and scanning starts if scan-at-boot was saved
