@@ -1,15 +1,15 @@
-# Using WalPad end to end
+# Using BeeWave end to end
 
 ## What happens when you power the ESP32
 1. It boots, starts Wi-Fi in station mode (never connects to any network), and applies your saved settings
    (channel, scan-at-boot).
-2. It starts **BLE advertising** under the name `WalPad`. It keeps advertising until a phone connects.
+2. It starts **BLE advertising** under the name `BeeWave`. It keeps advertising until a phone connects.
 3. If "scan at boot" is on, it starts sniffing beacons immediately; results only travel once a phone is connected.
 
 ## What the phone does
 1. Open the PWA (hosted over HTTPS, see `docs/DEPLOYMENT.md`) in **Chrome/Edge on Android** (or desktop).
    iPhone: use the **Bluefy** browser. Safari cannot do Web Bluetooth.
-2. Tap **CONNECT**. Chrome shows a chooser listing devices named `WalPad`. Pick it.
+2. Tap **CONNECT**. Chrome shows a chooser listing devices named `BeeWave`. Pick it.
 3. No pairing step right now — see the warning below. The connection should complete immediately.
 4. The status panel starts updating once per second (channel, free heap, CPU %, packets dropped on the device,
    packets lost on the BLE link).
@@ -25,7 +25,7 @@
 | Pick a channel + SET CHANNEL | Pin the radio to that channel (AUTO = hop). |
 | Tap a network row | Adds it to the TARGETS tray (saved in your browser). |
 | SETTINGS -> SAVE TO DEVICE | Channel and scan-at-boot are written to flash and survive power loss. |
-| FIRMWARE UPDATE | Choose `dist/walpad-app.bin`, the phone sends it over BLE in 96-byte chunks with acks, the device verifies SHA-256, switches slot and reboots. If the new image fails to boot, the bootloader rolls back. |
+| FIRMWARE UPDATE | Choose `dist/beewave-app.bin`, the phone sends it over BLE in 96-byte chunks with acks, the device verifies SHA-256, switches slot and reboots. If the new image fails to boot, the bootloader rolls back. |
 | REBOOT | Restarts the device. |
 
 Make the update file with `make fw-image` (it also writes the SHA-256 for your own check).

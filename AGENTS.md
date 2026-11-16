@@ -1,4 +1,4 @@
-# WalPad Agent Loader
+# BeeWave Agent Loader
 
 The canonical knowledge base for Codex, Claude, Gemini and other AI assistants is `.agents/shared/`.
 
@@ -13,7 +13,7 @@ Do not create duplicated rules, memory or plans outside `.agents/shared/`. Specs
 
 ## Project Context
 
-**WalPad**: Rust firmware for an ESP32-WROOM (4 MB, classic Xtensa) controlled from a Web Bluetooth PWA.
+**BeeWave**: Rust firmware for an ESP32-WROOM (4 MB, classic Xtensa) controlled from a Web Bluetooth PWA.
 Hexagonal core + feature slices (see `docs/ARCHITECTURE.md`):
 - `crates/protocol`: wire types + postcard codec (`no_std`). Source of truth for the wire format.
 - `crates/core`: domain, ports, `App` service, `features/{radio,scan,status,ota}` (`no_std`, host-tested).

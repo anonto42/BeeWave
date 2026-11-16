@@ -6,4 +6,4 @@
 - `unsafe` only in `firmware/src/adapters/*` around ESP-IDF FFI, with a one-line justification.
 - ESP-IDF callbacks (Wi-Fi promiscuous, BLE) must not allocate or block: write to a preallocated ring / `try_send`.
 - Prefer `try_send`/bounded channels; never `send` into a queue a slow peer can fill.
-- Format with `cargo fmt`; keep `cargo build -p walpad-core` (no_std) green.
+- Format with `cargo fmt`; keep `cargo build -p beewave-core` (no_std) green.

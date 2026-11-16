@@ -1,4 +1,4 @@
-# WalPad: Rust ESP32 + Web Bluetooth PWA
+# BeeWave: Rust ESP32 + Web Bluetooth PWA
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

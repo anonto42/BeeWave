@@ -1,4 +1,4 @@
-# WalPad Shared Agent Workspace
+# BeeWave Shared Agent Workspace
 
 `.agents/shared/` is the canonical, tool-neutral source of knowledge for AI-assisted work here.
 

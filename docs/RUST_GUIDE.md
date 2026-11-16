@@ -34,7 +34,7 @@ Read the real code next to each point. Start with `crates/protocol`, then `crate
   See `features/scan/table.rs` for what happens when the map is full.
 
 ## 7. Tests
-- `#[cfg(test)] mod tests;` compiles `tests.rs` only for `cargo test`. Run all: `make test`. Run one crate: `cargo test -p walpad-core --features std`.
+- `#[cfg(test)] mod tests;` compiles `tests.rs` only for `cargo test`. Run all: `make test`. Run one crate: `cargo test -p beewave-core --features std`.
 - Fakes (hand-written stand-ins for ports) live in the test files: `features/ota/tests.rs`.
 
 ## 8. `unsafe`
@@ -42,7 +42,7 @@ Read the real code next to each point. Start with `crates/protocol`, then `crate
   and `firmware/src/runtime/`, never in `crates/`.
 
 ## Suggested learning path
-1. Read `types.rs` and `codec.rs` in `crates/protocol`; run `cargo test -p walpad-protocol --features std`.
+1. Read `types.rs` and `codec.rs` in `crates/protocol`; run `cargo test -p beewave-protocol --features std`.
 2. Read `features/scan/` (smallest logic), then change `RSSI_DELTA` and watch a test fail.
 3. Read `features/ota/state.rs` and `session.rs`: enums as state machines.
 4. Read `app/service.rs`: how generics compose the pieces.
