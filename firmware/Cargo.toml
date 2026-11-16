@@ -1,0 +1,36 @@
+[package]
+name = "walpad-firmware"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+rust-version = "1.77"
+
+# Standalone workspace: root workspace is host-only.
+[workspace]
+
+[[bin]]
+name = "walpad-firmware"
+harness = false
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
+
+[profile.dev]
+debug = true
+opt-level = "z"
+
+[dependencies]
+log = "0.4"
+anyhow = "1"
+heapless = "0.7"
+esp-idf-svc = { version = "0.51", features = ["binstart", "std", "alloc"] }
+esp32-nimble = "0.11"
+walpad-protocol = { path = "../crates/protocol" }
+walpad-core = { path = "../crates/core" }
+
+[build-dependencies]
+embuild = "0.33"
