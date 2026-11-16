@@ -52,7 +52,9 @@ export class BleTransport implements Transport {
 
   async send(cmd: Command): Promise<void> {
     if (!this.cmdChar) throw new Error("not connected");
-    await this.cmdChar.writeValueWithoutResponse(encodeCommand(this.seq++ & 0xff, cmd));
+    // With response (not writeValueWithoutResponse): a security/other GATT rejection then
+    // rejects this promise instead of silently vanishing, so failures are visible to the user.
+    await this.cmdChar.writeValueWithResponse(encodeCommand(this.seq++ & 0xff, cmd));
   }
 
   private handlePacket(e: Event): void {

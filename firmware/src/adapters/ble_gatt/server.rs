@@ -31,7 +31,7 @@ pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> an
     // Commands: write-without-response, only over an encrypted + authenticated link.
     let command = service.lock().create_characteristic(
         uuids::COMMAND,
-        NimbleProperties::WRITE_NO_RSP | NimbleProperties::WRITE_ENC | NimbleProperties::WRITE_AUTHEN,
+        NimbleProperties::WRITE | NimbleProperties::WRITE_ENC | NimbleProperties::WRITE_AUTHEN, // response required so a security rejection is visible to the client
     );
     command.lock().on_write(move |args| match decode_command(args.recv_data()) {
         Ok((_seq, cmd)) => {
