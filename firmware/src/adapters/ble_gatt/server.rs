@@ -1,13 +1,13 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::time::Duration;
 
+use beewave_protocol::{decode_command, encode_telemetry, TelemetryMessage, MAX_BODY};
 use esp32_nimble::{BLEAdvertisementData, BLEDevice, NimbleProperties};
-use walpad_protocol::{decode_command, encode_telemetry, TelemetryMessage, MAX_BODY};
 
 use super::uuids;
 use crate::runtime::Event;
 
-/// Preferred ATT MTU (must be >= walpad_protocol::MIN_MTU).
+/// Preferred ATT MTU (must be >= beewave_protocol::MIN_MTU).
 const PREFERRED_MTU: u16 = 247;
 
 /// Runs forever: GATT server + notification pump.
@@ -28,23 +28,31 @@ pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> an
     let service = server.create_service(uuids::SERVICE);
 
     // Commands: write-with-response (so a rejection is visible to the client), no pairing required.
-    let command = service.lock().create_characteristic(uuids::COMMAND, NimbleProperties::WRITE);
-    command.lock().on_write(move |args| match decode_command(args.recv_data()) {
-        Ok((_seq, cmd)) => {
-            if events.try_send(Event::Command(cmd)).is_err() {
-                log::warn!("event queue full, command dropped");
+    let command = service
+        .lock()
+        .create_characteristic(uuids::COMMAND, NimbleProperties::WRITE);
+    command
+        .lock()
+        .on_write(move |args| match decode_command(args.recv_data()) {
+            Ok((_seq, cmd)) => {
+                if events.try_send(Event::Command(cmd)).is_err() {
+                    log::warn!("event queue full, command dropped");
+                }
             }
-        }
-        Err(e) => log::warn!("bad command: {e:?}"),
-    });
+            Err(e) => log::warn!("bad command: {e:?}"),
+        });
 
     // Telemetry: notify-only.
-    let telemetry = service.lock().create_characteristic(uuids::TELEMETRY, NimbleProperties::NOTIFY);
+    let telemetry = service
+        .lock()
+        .create_characteristic(uuids::TELEMETRY, NimbleProperties::NOTIFY);
 
     let advertising = device.get_advertising();
-    advertising
-        .lock()
-        .set_data(BLEAdvertisementData::new().name(uuids::DEVICE_NAME).add_service_uuid(uuids::SERVICE))?;
+    advertising.lock().set_data(
+        BLEAdvertisementData::new()
+            .name(uuids::DEVICE_NAME)
+            .add_service_uuid(uuids::SERVICE),
+    )?;
     advertising.lock().start()?;
 
     let mut seq: u8 = 0;

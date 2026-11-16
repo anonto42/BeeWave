@@ -2,8 +2,8 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+use beewave_core::features::radio::MAX_CHANNEL;
 use esp_idf_svc::sys::{self, esp, EspError};
-use walpad_core::features::radio::MAX_CHANNEL;
 
 use super::shared::Shared;
 
@@ -13,7 +13,9 @@ const DWELL: Duration = Duration::from_millis(250);
 /// Tune the radio. Thread-safe on the ESP-IDF side.
 pub fn set_channel(channel: u8) -> Result<(), EspError> {
     // SAFETY: plain driver call; `channel` was validated by the core (1..=13).
-    esp!(unsafe { sys::esp_wifi_set_channel(channel, sys::wifi_second_chan_t_WIFI_SECOND_CHAN_NONE) })
+    esp!(unsafe {
+        sys::esp_wifi_set_channel(channel, sys::wifi_second_chan_t_WIFI_SECOND_CHAN_NONE)
+    })
 }
 
 /// Long-running thread: while sniffing and not pinned, step through channels 1..=13.

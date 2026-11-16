@@ -1,9 +1,9 @@
 use core::ffi::c_void;
 use core::ptr;
 
+use beewave_core::ports::{OtaError, OtaWriter};
 use esp_idf_svc::sys::{self, esp};
 use sha2::{Digest, Sha256};
-use walpad_core::ports::{OtaError, OtaWriter};
 
 use super::session::Session;
 
@@ -32,9 +32,14 @@ impl OtaWriter for FlashOta {
 
         let mut handle: sys::esp_ota_handle_t = 0;
         // SAFETY: `partition` is valid; `handle` is a valid out-pointer.
-        esp!(unsafe { sys::esp_ota_begin(partition, size as usize, &mut handle) }).map_err(|_| OtaError::Flash)?;
+        esp!(unsafe { sys::esp_ota_begin(partition, size as usize, &mut handle) })
+            .map_err(|_| OtaError::Flash)?;
 
-        self.session = Some(Session { handle, partition, hasher: Sha256::new() });
+        self.session = Some(Session {
+            handle,
+            partition,
+            hasher: Sha256::new(),
+        });
         Ok(())
     }
 

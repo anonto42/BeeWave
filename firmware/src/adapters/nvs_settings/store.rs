@@ -1,9 +1,9 @@
+use beewave_core::ports::{Settings, SettingsError, SettingsStore, AUTO_CHANNEL, MAX_CHANNEL};
 use esp_idf_svc::nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault};
 use esp_idf_svc::sys::EspError;
-use walpad_core::ports::{Settings, SettingsError, SettingsStore, AUTO_CHANNEL, MAX_CHANNEL};
 
 /// NVS namespace and keys (keys are limited to 15 characters).
-const NAMESPACE: &str = "walpad";
+const NAMESPACE: &str = "beewave";
 const KEY_CHANNEL: &str = "channel";
 const KEY_AUTO_SCAN: &str = "autoscan";
 
@@ -13,7 +13,9 @@ pub struct NvsSettings {
 
 impl NvsSettings {
     pub fn new(partition: EspDefaultNvsPartition) -> Result<Self, EspError> {
-        Ok(Self { nvs: EspNvs::new(partition, NAMESPACE, true)? })
+        Ok(Self {
+            nvs: EspNvs::new(partition, NAMESPACE, true)?,
+        })
     }
 }
 

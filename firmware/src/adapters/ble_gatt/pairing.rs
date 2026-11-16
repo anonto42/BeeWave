@@ -6,7 +6,7 @@
 //! reachable by anyone other than you): call `require(device)` where the device is created, and
 //! put `WRITE_ENC | WRITE_AUTHEN` back on the command characteristic in `server.rs`.
 //!
-//! Set your own passkey at build time:  WALPAD_PASSKEY=482913 make fw-build
+//! Set your own passkey at build time:  BEEWAVE_PASSKEY=482913 make fw-build
 //! (the default below is public; change it before relying on this for real security).
 use esp32_nimble::enums::{AuthReq, SecurityIOCap};
 use esp32_nimble::BLEDevice;
@@ -23,10 +23,13 @@ pub fn require(device: &mut BLEDevice) {
 }
 
 fn passkey() -> u32 {
-    match option_env!("WALPAD_PASSKEY").and_then(|s| s.parse::<u32>().ok()).filter(|p| *p <= 999_999) {
+    match option_env!("BEEWAVE_PASSKEY")
+        .and_then(|s| s.parse::<u32>().ok())
+        .filter(|p| *p <= 999_999)
+    {
         Some(p) => p,
         None => {
-            log::warn!("WALPAD_PASSKEY not set; using the public default passkey");
+            log::warn!("BEEWAVE_PASSKEY not set; using the public default passkey");
             DEFAULT_PASSKEY
         }
     }

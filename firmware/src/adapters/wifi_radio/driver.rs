@@ -2,13 +2,13 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 
+use beewave_core::features::radio::{AUTO_CHANNEL, MAX_CHANNEL};
+use beewave_core::features::scan::Observation;
+use beewave_core::ports::{RadioDriver, RadioError};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::modem::Modem;
 use esp_idf_svc::sys::{self, esp, wifi_promiscuous_filter_t, EspError};
 use esp_idf_svc::wifi::{ClientConfiguration, Configuration, EspWifi};
-use walpad_core::features::radio::{AUTO_CHANNEL, MAX_CHANNEL};
-use walpad_core::features::scan::Observation;
-use walpad_core::ports::{RadioDriver, RadioError};
 
 use super::callback;
 use super::hopper;
@@ -25,17 +25,25 @@ pub struct WifiRadio {
 
 impl WifiRadio {
     /// Start the Wi-Fi driver in station mode (without connecting) and arm the sniffer callback.
-    pub fn new(modem: Modem, sysloop: EspSystemEventLoop, frames: SyncSender<Observation>) -> Result<Self, EspError> {
+    pub fn new(
+        modem: Modem,
+        sysloop: EspSystemEventLoop,
+        frames: SyncSender<Observation>,
+    ) -> Result<Self, EspError> {
         let mut wifi = EspWifi::new(modem, sysloop, None)?;
         wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
         wifi.start()?;
 
         callback::install(frames);
-        let filter = wifi_promiscuous_filter_t { filter_mask: sys::WIFI_PROMIS_FILTER_MASK_MGMT };
+        let filter = wifi_promiscuous_filter_t {
+            filter_mask: sys::WIFI_PROMIS_FILTER_MASK_MGMT,
+        };
         // SAFETY: Wi-Fi is started; `filter` is copied by the driver; `on_packet` has the required C signature.
         unsafe {
             esp!(sys::esp_wifi_set_promiscuous_filter(&filter))?;
-            esp!(sys::esp_wifi_set_promiscuous_rx_cb(Some(callback::on_packet)))?;
+            esp!(sys::esp_wifi_set_promiscuous_rx_cb(Some(
+                callback::on_packet
+            )))?;
         }
         hopper::set_channel(1)?;
 
@@ -43,7 +51,10 @@ impl WifiRadio {
         let for_hopper = shared.clone();
         spawn_worker("hopper", HOPPER_STACK, move || hopper::run(for_hopper));
 
-        Ok(Self { _wifi: wifi, shared })
+        Ok(Self {
+            _wifi: wifi,
+            shared,
+        })
     }
 
     fn set_promiscuous(&self, on: bool) -> Result<(), RadioError> {

@@ -10,9 +10,11 @@ use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 
 use adapters::ble_gatt::{self, BleSink};
-use adapters::{esp_system::EspSystem, flash_ota::FlashOta, nvs_settings::NvsSettings, wifi_radio::WifiRadio};
+use adapters::{
+    esp_system::EspSystem, flash_ota::FlashOta, nvs_settings::NvsSettings, wifi_radio::WifiRadio,
+};
+use beewave_core::app::App;
 use runtime::{channels, core_id, run_app, spawn_worker};
-use walpad_core::app::App;
 
 const BLE_STACK: usize = 6 * 1024;
 const APP_STACK: usize = 8 * 1024;
@@ -41,11 +43,17 @@ fn main() -> anyhow::Result<()> {
     // App task: owns the core `App`, wired to the real adapters.
     let radio = WifiRadio::new(peripherals.modem, sysloop, ch.frames_tx)?;
     let settings = NvsSettings::new(nvs)?;
-    let app = App::new(radio, FlashOta::default(), EspSystem::new(), BleSink(ch.tele_tx), settings);
+    let app = App::new(
+        radio,
+        FlashOta::default(),
+        EspSystem::new(),
+        BleSink(ch.tele_tx),
+        settings,
+    );
     let (events_rx, frames_rx) = (ch.events_rx, ch.frames_rx);
     spawn_worker("app", APP_STACK, move || run_app(app, events_rx, frames_rx));
 
-    log::info!("walpad up on core {}", core_id());
+    log::info!("beewave up on core {}", core_id());
     loop {
         std::thread::sleep(Duration::from_secs(60));
     }

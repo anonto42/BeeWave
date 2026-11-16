@@ -2,8 +2,8 @@
 use std::cell::Cell;
 use std::ffi::CStr;
 
+use beewave_core::ports::System;
 use esp_idf_svc::sys::{self, TaskStatus_t};
-use walpad_core::ports::System;
 
 /// ESP32 has two cores, each with its own idle task ("IDLE0" / "IDLE1").
 const CORES: u64 = 2;
@@ -16,7 +16,10 @@ pub struct EspSystem {
 
 impl EspSystem {
     pub fn new() -> Self {
-        Self { last: Cell::new(runtime_counters().unwrap_or((0, 0))), last_load: Cell::new(0) }
+        Self {
+            last: Cell::new(runtime_counters().unwrap_or((0, 0))),
+            last_load: Cell::new(0),
+        }
     }
 }
 
@@ -27,7 +30,8 @@ fn runtime_counters() -> Option<(u32, u32)> {
         let capacity = sys::uxTaskGetNumberOfTasks() as usize + 4; // headroom for tasks spawned meanwhile
         let mut tasks: Vec<TaskStatus_t> = Vec::with_capacity(capacity);
         let mut total: u32 = 0;
-        let got = sys::uxTaskGetSystemState(tasks.as_mut_ptr(), capacity as u32, &mut total) as usize;
+        let got =
+            sys::uxTaskGetSystemState(tasks.as_mut_ptr(), capacity as u32, &mut total) as usize;
         if got == 0 || total == 0 {
             return None;
         }
@@ -47,7 +51,9 @@ impl System for EspSystem {
     }
 
     fn cpu_load(&self) -> u8 {
-        let Some((idle, total)) = runtime_counters() else { return self.last_load.get() };
+        let Some((idle, total)) = runtime_counters() else {
+            return self.last_load.get();
+        };
         let (prev_idle, prev_total) = self.last.replace((idle, total));
         let d_total = total.wrapping_sub(prev_total) as u64;
         if d_total == 0 {

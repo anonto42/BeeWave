@@ -1,5 +1,5 @@
 //! Runtime plumbing: threads, the event channel and the app task.
-//! Not domain logic (that is `walpad_core`) and not a hardware adapter (that is `adapters/`).
+//! Not domain logic (that is `beewave_core`) and not a hardware adapter (that is `adapters/`).
 mod app_task;
 mod channels;
 mod cpu;

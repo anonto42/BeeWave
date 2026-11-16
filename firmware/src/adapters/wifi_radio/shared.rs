@@ -12,6 +12,10 @@ pub struct Shared {
 
 impl Shared {
     pub fn new() -> Self {
-        Self { sniffing: AtomicBool::new(false), pinned: AtomicU8::new(0), current: AtomicU8::new(1) }
+        Self {
+            sniffing: AtomicBool::new(false),
+            pinned: AtomicU8::new(0),
+            current: AtomicU8::new(1),
+        }
     }
 }

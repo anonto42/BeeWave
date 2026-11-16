@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::sync::OnceLock;
 
+use beewave_core::features::scan::{parse_beacon, Observation};
 use esp_idf_svc::sys::{wifi_promiscuous_pkt_t, wifi_promiscuous_pkt_type_t};
-use walpad_core::features::scan::{parse_beacon, Observation};
 
 /// Longest frame we look at (beacons with many elements can be a few hundred bytes).
 const MAX_FRAME: usize = 512;

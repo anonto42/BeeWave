@@ -1,9 +1,9 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
-use walpad_core::app::App;
-use walpad_core::features::scan::Observation;
-use walpad_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
+use beewave_core::app::App;
+use beewave_core::features::scan::Observation;
+use beewave_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
 
 use super::event::Event;
 
@@ -16,8 +16,11 @@ const FRAME_BATCH: usize = 32;
 
 /// The single task that owns `App`. All state lives here, so no locks are needed.
 /// Commands are served first; sniffed frames and the heartbeat fill the gaps.
-pub fn run_app<R, W, S, T, P>(mut app: App<R, W, S, T, P>, events: Receiver<Event>, frames: Receiver<Observation>)
-where
+pub fn run_app<R, W, S, T, P>(
+    mut app: App<R, W, S, T, P>,
+    events: Receiver<Event>,
+    frames: Receiver<Observation>,
+) where
     R: RadioDriver,
     W: OtaWriter,
     S: System,

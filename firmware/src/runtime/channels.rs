@@ -1,7 +1,7 @@
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
-use walpad_core::features::scan::Observation;
-use walpad_protocol::TelemetryMessage;
+use beewave_core::features::scan::Observation;
+use beewave_protocol::TelemetryMessage;
 
 use super::event::Event;
 
@@ -27,5 +27,12 @@ pub fn channels() -> Channels {
     let (events_tx, events_rx) = sync_channel(EVENT_DEPTH);
     let (frames_tx, frames_rx) = sync_channel(FRAME_DEPTH);
     let (tele_tx, tele_rx) = sync_channel(TELEMETRY_DEPTH);
-    Channels { events_tx, events_rx, frames_tx, frames_rx, tele_tx, tele_rx }
+    Channels {
+        events_tx,
+        events_rx,
+        frames_tx,
+        frames_rx,
+        tele_tx,
+        tele_rx,
+    }
 }

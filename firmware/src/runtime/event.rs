@@ -1,4 +1,4 @@
-use walpad_protocol::DeviceCommand;
+use beewave_protocol::DeviceCommand;
 
 /// Control events the app task reacts to. (Sniffed frames travel on their own queue so a flood of
 /// beacons can never delay or drop a command.)
