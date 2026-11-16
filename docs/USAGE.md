@@ -10,11 +10,13 @@
 1. Open the PWA (hosted over HTTPS, see `docs/DEPLOYMENT.md`) in **Chrome/Edge on Android** (or desktop).
    iPhone: use the **Bluefy** browser. Safari cannot do Web Bluetooth.
 2. Tap **CONNECT**. Chrome shows a chooser listing devices named `WalPad`. Pick it.
-3. First time only: Android asks to **pair** and shows a passkey box. Type the 6-digit passkey
-   (default `123456`; set your own with `WALPAD_PASSKEY=<6 digits> make fw-build`). The phone bonds with the device,
-   so later connections skip this step.
+3. No pairing step right now — see the warning below. The connection should complete immediately.
 4. The status panel starts updating once per second (channel, free heap, CPU %, packets dropped on the device,
    packets lost on the BLE link).
+
+> **Security note:** pairing is currently disabled (see `openspec/specs/ble-link/spec.md`). Anyone in BLE
+> range who connects can send commands, including firmware updates and reboot. Fine for your own bench;
+> do not leave the device running like this anywhere someone else could reach it over Bluetooth.
 
 ## Operations
 | You do | What happens |

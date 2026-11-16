@@ -1,26 +1,25 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::time::Duration;
 
-use esp32_nimble::enums::{AuthReq, SecurityIOCap};
 use esp32_nimble::{BLEAdvertisementData, BLEDevice, NimbleProperties};
 use walpad_protocol::{decode_command, encode_telemetry, TelemetryMessage, MAX_BODY};
 
-use super::{pairing, uuids};
+use super::uuids;
 use crate::runtime::Event;
 
 /// Preferred ATT MTU (must be >= walpad_protocol::MIN_MTU).
 const PREFERRED_MTU: u16 = 247;
 
 /// Runs forever: GATT server + notification pump.
+///
+/// SECURITY: pairing/bonding is intentionally OFF right now (see `pairing.rs`). Android's system
+/// pairing screen does not reliably bond with a plain custom GATT peripheral, and Web Bluetooth
+/// does not trigger it either, so an encrypted characteristic here just hung the link with no
+/// usable error. This is safe only on your own bench: re-enable `pairing::require()` before this
+/// device is ever used anywhere someone else could write to it over BLE.
 pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> anyhow::Result<()> {
     let device = BLEDevice::take();
     device.set_preferred_mtu(PREFERRED_MTU)?;
-    // Passkey pairing: the device "displays" a fixed code the user types on the phone (MITM-protected).
-    device
-        .security()
-        .set_auth(AuthReq::Bond | AuthReq::Mitm | AuthReq::Sc)
-        .set_io_cap(SecurityIOCap::DisplayOnly)
-        .set_passkey(pairing::passkey());
 
     let server = device.get_server();
     server.on_connect(|_server, desc| log::info!("BLE connected: {:?}", desc));
@@ -28,11 +27,8 @@ pub fn run(events: SyncSender<Event>, tele_rx: Receiver<TelemetryMessage>) -> an
 
     let service = server.create_service(uuids::SERVICE);
 
-    // Commands: write-without-response, only over an encrypted + authenticated link.
-    let command = service.lock().create_characteristic(
-        uuids::COMMAND,
-        NimbleProperties::WRITE | NimbleProperties::WRITE_ENC | NimbleProperties::WRITE_AUTHEN, // response required so a security rejection is visible to the client
-    );
+    // Commands: write-with-response (so a rejection is visible to the client), no pairing required.
+    let command = service.lock().create_characteristic(uuids::COMMAND, NimbleProperties::WRITE);
     command.lock().on_write(move |args| match decode_command(args.recv_data()) {
         Ok((_seq, cmd)) => {
             if events.try_send(Event::Command(cmd)).is_err() {
