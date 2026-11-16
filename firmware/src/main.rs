@@ -18,7 +18,7 @@ use beewave_core::app::App;
 use runtime::{channels, core_id, run_app, spawn_worker};
 
 const BLE_STACK: usize = 6 * 1024;
-const APP_STACK: usize = 8 * 1024;
+const APP_STACK: usize = 16 * 1024;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
