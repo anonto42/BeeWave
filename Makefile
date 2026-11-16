@@ -11,6 +11,9 @@ KEY_FILE   := firmware/.beewave-key
 # Firmware update signing: private key (untracked, never leaves your machine) and its public half.
 OTA_KEY    := firmware/.beewave-ota.pem
 OTA_PUB    := firmware/.beewave-ota.pub
+# Optional firmware cargo features, e.g. `make fw-run FEATURES=coex_debug` (latency logging).
+FEATURES   ?=
+CARGO_FEAT  = $(if $(FEATURES),--features $(FEATURES))
 # Load the Xtensa env and the keys, then run in firmware/
 FW = . $(ESP_EXPORT) && cd firmware && export BEEWAVE_KEY=$$(cat .beewave-key) BEEWAVE_OTA_PUBKEY=$$(cat .beewave-ota.pub) &&
 
@@ -67,17 +70,20 @@ fw-ota-key: ## Create the OTA signing key once (untracked) and its public key fo
 	@echo "OTA signing public key (built into the firmware): $$(cat $(OTA_PUB))"
 
 fw-build: fw-key fw-ota-key ## Build release firmware
-	$(FW) cargo build --release
+	$(FW) cargo build --release $(CARGO_FEAT)
 fw-flash: fw-key fw-ota-key ## Flash release firmware to $(PORT)
-	$(FW) cargo espflash flash --release --port $(PORT)
+	$(FW) cargo espflash flash --release --port $(PORT) $(CARGO_FEAT)
 fw-monitor: ## Serial monitor
 	$(FW) cargo espflash monitor --port $(PORT)
 fw-run: fw-key fw-ota-key ## Build + flash + monitor
-	$(FW) cargo espflash flash --release --port $(PORT) --monitor
-fw-image: fw-key fw-ota-key ## Signed OTA update: dist/beewave-app.bin + .sig (+ .sha256)
-	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin
+	$(FW) cargo espflash flash --release --port $(PORT) --monitor $(CARGO_FEAT)
+fw-image: fw-key fw-ota-key ## OTA update image dist/beewave-app.bin (+ .sha256), signed (.sig)
+	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin $(CARGO_FEAT)
 	cd dist && sha256sum beewave-app.bin | tee beewave-app.bin.sha256
-	# Sign the image's SHA-256 digest (what the device checks) with Ed25519.
+	$(MAKE) --no-print-directory fw-sign
+
+fw-sign: fw-ota-key ## Sign dist/beewave-app.bin with the OTA key -> dist/beewave-app.bin.sig
+	@test -f dist/beewave-app.bin || (echo "dist/beewave-app.bin missing: run 'make fw-image'" && exit 1)
 	cd dist && openssl dgst -sha256 -binary beewave-app.bin > beewave-app.digest \
 	  && openssl pkeyutl -sign -inkey ../$(OTA_KEY) -rawin -in beewave-app.digest -out beewave-app.bin.sig \
 	  && rm beewave-app.digest && ls -l beewave-app.bin.sig
