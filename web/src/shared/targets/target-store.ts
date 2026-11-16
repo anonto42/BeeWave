@@ -1,6 +1,6 @@
 import type { Target } from "./types";
 
-const KEY = "walpad.targets";
+const KEY = "beewave.targets";
 
 /** The user's target networks, shared by the scanner and the tray. Persisted in the browser only. */
 export class TargetStore {

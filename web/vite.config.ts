@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       workbox: { globPatterns: ["**/*.{js,css,html,svg}"] },
       manifest: {
-        name: "WalPad",
-        short_name: "WalPad",
+        name: "BeeWave",
+        short_name: "BeeWave",
         display: "standalone",
         background_color: "#2B3035",
         theme_color: "#2B3035",

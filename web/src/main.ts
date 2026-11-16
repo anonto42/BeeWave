@@ -19,5 +19,5 @@ const mock = new URLSearchParams(location.search).has("mock");
 const ctx = createContext(mock ? new MockTransport() : new BleTransport());
 
 const root = document.getElementById("app")!;
-root.innerHTML = `<h1>WALPAD ${mock ? "[MOCK]" : ""}</h1>`;
+root.innerHTML = `<h1>BEEWAVE ${mock ? "[MOCK]" : ""}</h1>`;
 for (const f of [compat, connection, status, control, settings, scanner, targets, ota, log]) f.mount(root, ctx);
