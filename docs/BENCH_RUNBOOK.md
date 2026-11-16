@@ -40,7 +40,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
   field, tap **SAVE KEY**, tap **CONNECT**, pick `BeeWave`.
 - **Expect, serial:** `BLE connected: ...`.
 - **Expect, PWA:** connection state `connected`; DEVICE KEY goes `authenticating...` then `authenticated`; the STATUS cells fill
-  in and update about once per second; the SETTINGS panel shows `saved on device`.
+  in and update about once per second. (One stray `event 4: not authenticated` right at connect is the known quirk above.)
 - **Pass (S1):** DEVICE KEY shows `authenticated`, status updates.
 - **Row:** **S1**
 - **If it fails, send:** S1, the DEVICE KEY text you saw, the LOG panel lines, and the serial lines from `BLE connected` onward.
@@ -50,7 +50,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
   Then tap **START SCAN**.
 - **Expect, serial:** `BLE connected: ...` / `BLE disconnected: ...` only.
 - **Expect, PWA:** DEVICE KEY shows `rejected: wrong key?`; STATUS cells stay `-`; SCANNER stays empty; the LOG gets
-  `event 4: not authenticated` when you tap START SCAN.
+  a new `event 4: not authenticated` each time you tap START SCAN (on top of the connect-time one).
 - **Pass (S2):** `rejected`; no status or scan data; commands do nothing.
 - **Row:** **S2**
 - **If it fails, send:** S2, which of {rejected text, status data, scan rows, command effect} was wrong, the LOG lines, serial lines.
@@ -58,7 +58,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
 ## 4. No key
 - [ ] **Do:** tap **FORGET**. Tap **DISCONNECT**, then **CONNECT**. Tap **START SCAN**.
 - **Expect, serial:** `BLE connected: ...`.
-- **Expect, PWA:** DEVICE KEY shows `no key saved`; STATUS stays `-`; SCANNER stays empty; LOG gets `event 4: not authenticated`.
+- **Expect, PWA:** DEVICE KEY shows `no key saved`; STATUS stays `-`; SCANNER stays empty; LOG gets a new `event 4: not authenticated` when you tap START SCAN.
 - **Pass (S3):** nothing shown or accepted.
 - **Row:** **S3**
 - **If it fails, send:** S3, what appeared or happened, LOG lines, serial lines.
@@ -81,8 +81,9 @@ Make sure DEVICE KEY shows `authenticated` first.
   **Expect, PWA:** STATUS CHANNEL stays on the pinned number; with AUTO it changes (hops every 250 ms, shown once per second).
   **Pass (2.8):** stays on the pinned channel; AUTO resumes hopping. **Row:** **2.8**
 - [ ] **Save and power-cycle.** **Do:** in SETTINGS choose a channel and tick SCAN AT BOOT, tap **SAVE TO DEVICE**, unplug and replug
-  the board, reconnect (authenticates by itself). **Expect, PWA:** SETTINGS shows the saved channel and `saved on device`; with
-  SCAN AT BOOT the scan starts without START SCAN. **Pass (2.9):** settings restored. **Row:** **2.9**
+  the board, reconnect (authenticates by itself). **Expect, PWA:** judge persistence from STATUS, not from the SETTINGS panel (it does not
+  reload after connecting, see the known quirk): STATUS CHANNEL sits on the saved channel (if you saved a fixed one) and, with
+  SCAN AT BOOT, SCANNER fills without you tapping START SCAN. **Pass (2.9):** channel and scan-at-boot restored. **Row:** **2.9**
 - [ ] **Reboot.** **Do:** tap **REBOOT**. **Expect, serial:** a fresh boot and `beewave up on core <N>`, `BLE disconnected: ...`.
   **Expect, PWA:** state `disconnected`; reconnect authenticates again by itself. **Pass (2.10):** restarts, link drops, re-authenticates.
   **Row:** **2.10**
