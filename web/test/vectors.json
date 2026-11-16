@@ -27,6 +27,14 @@
     {
       "hex": "010606",
       "msg": "OtaEnd"
+    },
+    {
+      "hex": "010707",
+      "msg": "GetSettings"
+    },
+    {
+      "hex": "0108080001",
+      "msg": "SetSettings { channel: 0, auto_scan: true }"
     }
   ],
   "telemetry": [
@@ -45,6 +53,10 @@
     {
       "hex": "0103038020",
       "msg": "OtaAck { next_offset: 4096 }"
+    },
+    {
+      "hex": "0104040601",
+      "msg": "Settings { channel: 6, auto_scan: true }"
     }
   ]
 }

@@ -24,6 +24,10 @@ fn roundtrip_and_emit_golden_vectors() {
             message: s("hello"),
         },
         TelemetryMessage::OtaAck { next_offset: 4096 },
+        TelemetryMessage::Settings {
+            channel: 6,
+            auto_scan: true,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -39,6 +43,11 @@ fn roundtrip_and_emit_golden_vectors() {
             data: heapless::Vec::from_slice(&[1, 2, 3]).unwrap(),
         },
         DeviceCommand::OtaEnd,
+        DeviceCommand::GetSettings,
+        DeviceCommand::SetSettings {
+            channel: 0,
+            auto_scan: true,
+        },
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];

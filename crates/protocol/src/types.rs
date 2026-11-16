@@ -36,6 +36,13 @@ pub enum DeviceCommand {
         data: heapless::Vec<u8, 96>,
     },
     OtaEnd,
+    /// Ask the device to report its saved settings.
+    GetSettings,
+    /// Save settings to flash and apply them. `channel` 0 = auto-hop.
+    SetSettings {
+        channel: u8,
+        auto_scan: bool,
+    },
 }
 
 /// Device -> app.
@@ -59,5 +66,10 @@ pub enum TelemetryMessage {
     },
     OtaAck {
         next_offset: u32,
+    },
+    /// Current saved settings (reply to GetSettings / SetSettings).
+    Settings {
+        channel: u8,
+        auto_scan: bool,
     },
 }
