@@ -20,7 +20,8 @@ export type Command =
   | { type: "getSettings" }
   | { type: "setSettings"; channel: number; autoScan: boolean }
   | { type: "authBegin" }
-  | { type: "authProve"; mac: Uint8Array };
+  | { type: "authProve"; mac: Uint8Array }
+  | { type: "otaEndSigned"; signature: Uint8Array };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

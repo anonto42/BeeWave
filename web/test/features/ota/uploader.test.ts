@@ -9,6 +9,8 @@ class FakeDevice {
   private next = 0;
   private count = 0;
   finished = false;
+  signature?: Uint8Array;
+  reject = false;
   uploader!: OtaUploader;
   constructor(private readonly dropEvery = 0) {}
 
@@ -26,7 +28,12 @@ class FakeDevice {
         this.next += cmd.data.length;
       }
       this.ack(this.next);
-    } else if (cmd.type === "otaEnd" && this.next === this.size) {
+    } else if (cmd.type === "otaEndSigned" && this.next === this.size) {
+      if (this.reject) {
+        setTimeout(() => this.uploader.handleError("ota refused: bad signature"), 0);
+        return;
+      }
+      this.signature = cmd.signature;
       this.finished = true;
       this.ack(this.size);
     }
@@ -37,6 +44,7 @@ class FakeDevice {
   }
 }
 
+const SIG = new Uint8Array(64).fill(9);
 const image = (n: number) => Uint8Array.from({ length: n }, (_, i) => (i * 7) & 0xff);
 
 async function run(dropEvery: number, size: number) {
@@ -45,7 +53,7 @@ async function run(dropEvery: number, size: number) {
   dev.uploader = up;
   const img = image(size);
   const seen: number[] = [];
-  await up.upload(img, (sent) => seen.push(sent));
+  await up.upload(img, SIG, (sent) => seen.push(sent));
   return { dev, img, seen };
 }
 
@@ -55,6 +63,24 @@ describe("OtaUploader", () => {
     expect(dev.data).toEqual([...img]);
     expect(dev.finished).toBe(true);
     expect(seen.at(-1)).toBe(1000);
+    expect(dev.signature).toEqual(SIG);
+  });
+
+  it("stops at once with the device's reason when it refuses the signature", async () => {
+    const dev = new FakeDevice();
+    dev.reject = true;
+    const up = new OtaUploader(dev.send, { ackTimeoutMs: 5000, window: 4, chunkSize: 16 });
+    dev.uploader = up;
+    const started = Date.now();
+    await expect(up.upload(image(64), SIG, () => {})).rejects.toThrow(/bad signature/);
+    expect(Date.now() - started).toBeLessThan(1000); // did not wait for the ack timeout
+  });
+
+  it("rejects a signature of the wrong size before sending anything", async () => {
+    const sent: Command[] = [];
+    const up = new OtaUploader(async (c) => void sent.push(c));
+    await expect(up.upload(image(10), new Uint8Array(10), () => {})).rejects.toThrow(/64 bytes/);
+    expect(sent).toEqual([]);
   });
 
   it("recovers from lost chunks", async () => {
@@ -65,6 +91,6 @@ describe("OtaUploader", () => {
 
   it("fails when the device never answers", async () => {
     const up = new OtaUploader(async () => {}, { ackTimeoutMs: 10 });
-    await expect(up.upload(image(10), () => {})).rejects.toThrow(/did not answer/);
+    await expect(up.upload(image(10), SIG, () => {})).rejects.toThrow(/did not answer/);
   });
 });

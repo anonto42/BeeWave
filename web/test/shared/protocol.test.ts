@@ -42,6 +42,7 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "setSettings", channel: 0, autoScan: true },
     { type: "authBegin" },
     { type: "authProve", mac: new Uint8Array(32).fill(5) },
+    { type: "otaEndSigned", signature: Uint8Array.from([...new Uint8Array(32).fill(3), ...new Uint8Array(32).fill(4)]) },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });

@@ -1,4 +1,4 @@
-import { MAX_OTA_CHUNK, type Command } from "../../shared/protocol";
+import { MAX_OTA_CHUNK, SIGNATURE_LEN, type Command } from "../../shared/protocol";
 import { sha256 } from "./sha256";
 import type { OtaOptions, OtaProgress } from "./types";
 
@@ -13,6 +13,7 @@ export class OtaUploader {
   private acked = -1; // -1 = no ack yet
   private ackSeq = 0; // bumps on every ack, including repeats
   private waiter?: () => void;
+  private failure?: string; // device-reported error, ends the upload immediately
   private readonly opts: OtaOptions;
 
   constructor(
@@ -29,7 +30,16 @@ export class OtaUploader {
     this.waiter?.();
   }
 
-  async upload(image: Uint8Array<ArrayBuffer>, onProgress: OtaProgress): Promise<void> {
+  /** Feed OTA error events here (the device refused or failed): the upload stops with that reason. */
+  handleError(message: string): void {
+    this.failure = message;
+    this.waiter?.();
+  }
+
+  /** `signature` is the 64-byte Ed25519 signature of the image's SHA-256 (`beewave-app.bin.sig`). */
+  async upload(image: Uint8Array<ArrayBuffer>, signature: Uint8Array, onProgress: OtaProgress): Promise<void> {
+    if (signature.length !== SIGNATURE_LEN) throw new Error(`signature file must be ${SIGNATURE_LEN} bytes`);
+    this.failure = undefined;
     const total = image.length;
     const { window, chunkSize } = this.opts;
     const hash = await sha256(image);
@@ -65,13 +75,24 @@ export class OtaUploader {
       onProgress(Math.max(this.acked, 0), total);
     }
 
-    await this.send({ type: "otaEnd" });
-    if (!(await this.waitForAck(() => this.acked === total))) throw new Error("device did not confirm the update");
+    // The last chunk's ack already says `total`, so wait for a *new* ack: the device's answer to the
+    // signed end (sent only after it verified the signature and finalised the image).
+    const seq = this.ackSeq;
+    await this.send({ type: "otaEndSigned", signature });
+    if (!(await this.waitForAck(() => this.ackSeq !== seq && this.acked === total))) {
+      throw new Error("device did not confirm the update");
+    }
     onProgress(total, total);
   }
 
   /** Resolve true once `done()` holds, false after the ack timeout. */
-  private waitForAck(done: () => boolean): Promise<boolean> {
+  private async waitForAck(done: () => boolean): Promise<boolean> {
+    const ok = await this.waitRaw(() => done() || this.failure !== undefined);
+    if (this.failure !== undefined) throw new Error(this.failure);
+    return ok;
+  }
+
+  private waitRaw(done: () => boolean): Promise<boolean> {
     if (done()) return Promise.resolve(true);
     return new Promise((resolve) => {
       const timer = setTimeout(() => {

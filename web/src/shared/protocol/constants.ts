@@ -4,6 +4,9 @@ export const PROTO_VERSION = 1;
 /** Largest OTA payload per chunk; must equal the Vec<u8, 96> capacity in Rust. */
 export const MAX_OTA_CHUNK = 96;
 
+/** Ed25519 signature length (R||S) sent with `otaEndSigned`. */
+export const SIGNATURE_LEN = 64;
+
 /** Nonce length of the auth challenge; must equal AUTH_NONCE_LEN in Rust. */
 export const AUTH_NONCE_LEN = 16;
 

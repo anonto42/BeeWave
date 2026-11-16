@@ -1,4 +1,4 @@
-import { MAX_OTA_CHUNK, PROTO_VERSION } from "./constants";
+import { MAX_OTA_CHUNK, PROTO_VERSION, SIGNATURE_LEN } from "./constants";
 import type { Command } from "./types";
 
 function varint(n: number): number[] {
@@ -35,6 +35,11 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
     case "authProve":
       if (c.mac.length !== 32) throw new Error("mac must be 32 bytes");
       o.push(10, ...c.mac);
+      break;
+    case "otaEndSigned":
+      // Ed25519 signature R||S; the two 32-byte halves are two plain arrays in Rust.
+      if (c.signature.length !== SIGNATURE_LEN) throw new Error(`signature must be ${SIGNATURE_LEN} bytes`);
+      o.push(11, ...c.signature);
       break;
   }
   return Uint8Array.from(o);
