@@ -20,7 +20,7 @@ One copy per firmware build you sign off; commit it with the results.
 | S4 | Session ends on disconnect | Authenticate, disconnect, reconnect with no key | Commands refused until the handshake runs again | |
 | S5 | Locked build | Flash a build without `BEEWAVE_KEY` | Serial log says `LOCKED`; nothing authenticates | |
 | S6 | Signed OTA | `make fw-image`, update with `.bin` + `.sig` | Completes, new image boots | |
-| S7 | Bad signature | Use a `.sig` from another build | Refused at once with "bad signature"; old firmware keeps running | |
+| S7 | Bad signature | Use a `.sig` from another build | Upload reaches 100%, then it is refused with "bad signature" (the signature is checked after the full image, before boot); old firmware keeps running | |
 | S8 | No OTA key | Flash a build without `BEEWAVE_OTA_PUBKEY` | Any update is refused | |
 
 ## Performance and behaviour
