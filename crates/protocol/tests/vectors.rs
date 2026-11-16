@@ -1,4 +1,4 @@
-use walpad_protocol::*;
+use beewave_protocol::*;
 
 fn s<const N: usize>(x: &str) -> heapless::String<N> {
     x.try_into().unwrap()
