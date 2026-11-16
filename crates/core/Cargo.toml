@@ -1,12 +1,12 @@
 [package]
-name = "walpad-core"
+name = "beewave-core"
 version.workspace = true
 edition.workspace = true
 
 [features]
 default = []
-std = ["walpad-protocol/std"]
+std = ["beewave-protocol/std"]
 
 [dependencies]
 heapless.workspace = true
-walpad-protocol.workspace = true
+beewave-protocol.workspace = true

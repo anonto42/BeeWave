@@ -1,6 +1,6 @@
 //! Event telemetry the app itself raises (as opposed to feature output).
+use beewave_protocol::TelemetryMessage;
 use heapless::String;
-use walpad_protocol::TelemetryMessage;
 
 use crate::ports::RadioError;
 

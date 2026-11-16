@@ -1,5 +1,5 @@
+use beewave_protocol::TelemetryMessage;
 use heapless::FnvIndexMap;
-use walpad_protocol::TelemetryMessage;
 
 use super::types::{Observation, RSSI_DELTA, TABLE_CAP};
 

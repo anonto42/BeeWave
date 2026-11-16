@@ -1,4 +1,4 @@
-use walpad_protocol::TelemetryMessage;
+use beewave_protocol::TelemetryMessage;
 
 use super::*;
 use crate::ports::System;

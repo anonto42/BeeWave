@@ -1,4 +1,4 @@
-use walpad_protocol::DeviceCommand;
+use beewave_protocol::DeviceCommand;
 
 use super::types::{Mode, AUTO_CHANNEL, MAX_CHANNEL};
 use crate::ports::{RadioDriver, RadioError};

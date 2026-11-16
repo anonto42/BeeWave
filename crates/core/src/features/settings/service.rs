@@ -1,4 +1,4 @@
-use walpad_protocol::DeviceCommand;
+use beewave_protocol::DeviceCommand;
 
 use crate::ports::{Settings, SettingsError, SettingsStore, AUTO_CHANNEL, MAX_CHANNEL};
 

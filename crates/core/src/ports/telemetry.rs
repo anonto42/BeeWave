@@ -1,4 +1,4 @@
-use walpad_protocol::TelemetryMessage;
+use beewave_protocol::TelemetryMessage;
 
 /// Where telemetry goes (BLE notifications on the device). Lossy by contract.
 pub trait TelemetrySink {

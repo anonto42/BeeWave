@@ -1,5 +1,5 @@
 //! Feature slices. Each folder owns its types, logic and tests, and depends only on
-//! `ports` and `walpad_protocol`, never on another feature.
+//! `ports` and `beewave_protocol`, never on another feature.
 //!
 //! Folder layout (same in every slice):
 //! - `mod.rs`: declares the files and re-exports the public names (table of contents only)

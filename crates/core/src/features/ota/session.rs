@@ -1,4 +1,4 @@
-use walpad_protocol::{DeviceCommand, TelemetryMessage};
+use beewave_protocol::{DeviceCommand, TelemetryMessage};
 
 use super::state::State;
 use crate::ports::{OtaError, OtaWriter};

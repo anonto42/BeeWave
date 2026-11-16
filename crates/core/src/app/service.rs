@@ -1,4 +1,4 @@
-use walpad_protocol::{DeviceCommand, TelemetryMessage};
+use beewave_protocol::{DeviceCommand, TelemetryMessage};
 
 use super::messages::{
     event, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR,

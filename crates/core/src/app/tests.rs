@@ -1,7 +1,7 @@
 extern crate std;
 use std::{cell::RefCell, rc::Rc, vec::Vec};
 
-use walpad_protocol::{DeviceCommand, TelemetryMessage};
+use beewave_protocol::{DeviceCommand, TelemetryMessage};
 
 use super::*;
 use crate::features::scan::Observation;
