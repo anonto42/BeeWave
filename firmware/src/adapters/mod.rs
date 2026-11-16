@@ -4,4 +4,5 @@
 pub mod ble_gatt;
 pub mod esp_system;
 pub mod flash_ota;
+pub mod nvs_settings;
 pub mod wifi_radio;

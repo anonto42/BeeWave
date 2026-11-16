@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use walpad_core::app::App;
 use walpad_core::features::scan::Observation;
-use walpad_core::ports::{OtaWriter, RadioDriver, System, TelemetrySink};
+use walpad_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
 
 use super::event::Event;
 
@@ -16,13 +16,16 @@ const FRAME_BATCH: usize = 32;
 
 /// The single task that owns `App`. All state lives here, so no locks are needed.
 /// Commands are served first; sniffed frames and the heartbeat fill the gaps.
-pub fn run_app<R, W, S, T>(mut app: App<R, W, S, T>, events: Receiver<Event>, frames: Receiver<Observation>)
+pub fn run_app<R, W, S, T, P>(mut app: App<R, W, S, T, P>, events: Receiver<Event>, frames: Receiver<Observation>)
 where
     R: RadioDriver,
     W: OtaWriter,
     S: System,
     T: TelemetrySink,
+    P: SettingsStore,
 {
+    app.start(); // apply saved channel / auto-scan
+
     let mut next_tick = Instant::now() + TICK;
     loop {
         match events.recv_timeout(POLL) {

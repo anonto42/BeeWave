@@ -7,9 +7,10 @@ use std::time::Duration;
 
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::peripherals::Peripherals;
+use esp_idf_svc::nvs::EspDefaultNvsPartition;
 
 use adapters::ble_gatt::{self, BleSink};
-use adapters::{esp_system::EspSystem, flash_ota::FlashOta, wifi_radio::WifiRadio};
+use adapters::{esp_system::EspSystem, flash_ota::FlashOta, nvs_settings::NvsSettings, wifi_radio::WifiRadio};
 use runtime::{channels, core_id, run_app, spawn_worker};
 use walpad_core::app::App;
 
@@ -25,6 +26,7 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take()?;
     let sysloop = EspSystemEventLoop::take()?;
+    let nvs = EspDefaultNvsPartition::take()?;
     let ch = channels();
 
     // BLE task: GATT server in, telemetry out.
@@ -38,7 +40,8 @@ fn main() -> anyhow::Result<()> {
 
     // App task: owns the core `App`, wired to the real adapters.
     let radio = WifiRadio::new(peripherals.modem, sysloop, ch.frames_tx)?;
-    let app = App::new(radio, FlashOta::default(), EspSystem::new(), BleSink(ch.tele_tx));
+    let settings = NvsSettings::new(nvs)?;
+    let app = App::new(radio, FlashOta::default(), EspSystem::new(), BleSink(ch.tele_tx), settings);
     let (events_rx, frames_rx) = (ch.events_rx, ch.frames_rx);
     spawn_worker("app", APP_STACK, move || run_app(app, events_rx, frames_rx));
 
