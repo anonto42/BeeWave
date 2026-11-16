@@ -1,13 +1,32 @@
-//! Build-time configuration. The device authentication key comes from `BEEWAVE_KEY`
-//! (64 hex characters). Anything else leaves the device locked (no client can authenticate).
+//! Build-time configuration, read from environment variables at compile time (64 hex chars each):
+//! - `BEEWAVE_KEY`: shared secret for the command handshake.
+//! - `BEEWAVE_OTA_PUBKEY`: Ed25519 public key firmware updates must be signed with.
+//!
+//! A missing or malformed value fails closed: no client can authenticate / no update is accepted.
+use beewave_core::app::DeviceKeys;
 
-/// Parse the compile-time `BEEWAVE_KEY`; `None` (locked) if it is unset or malformed.
-pub fn auth_key() -> Option<[u8; 32]> {
-    let key = parse_key(option_env!("BEEWAVE_KEY")?);
-    if key.is_none() {
-        log::error!("BEEWAVE_KEY must be 64 hex characters; device is LOCKED");
+/// All device keys, logging loudly about any that are missing.
+pub fn device_keys() -> DeviceKeys {
+    DeviceKeys {
+        auth: key(
+            "BEEWAVE_KEY",
+            option_env!("BEEWAVE_KEY"),
+            "device is LOCKED",
+        ),
+        ota_signing: key(
+            "BEEWAVE_OTA_PUBKEY",
+            option_env!("BEEWAVE_OTA_PUBKEY"),
+            "firmware updates are DISABLED",
+        ),
     }
-    key
+}
+
+fn key(name: &str, value: Option<&str>, consequence: &str) -> Option<[u8; 32]> {
+    let parsed = value.and_then(parse_key);
+    if parsed.is_none() {
+        log::error!("{name} missing or not 64 hex characters; {consequence}");
+    }
+    parsed
 }
 
 fn parse_key(hex: &str) -> Option<[u8; 32]> {

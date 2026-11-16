@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
         EspSystem::new(),
         BleSink(ch.tele_tx),
         settings,
-        config::auth_key(),
+        config::device_keys(),
     );
     let (events_rx, frames_rx) = (ch.events_rx, ch.frames_rx);
     spawn_worker("app", APP_STACK, move || run_app(app, events_rx, frames_rx));
