@@ -9,11 +9,6 @@ Do the steps in order and tick each one. Results go in `docs/ACCEPTANCE.md`; row
 - The serial log does **not** print auth results or OTA results. It shows ESP-IDF boot lines, `beewave up on core N`,
   `BLE connected: ...`, `BLE disconnected: ...`, key errors (`... missing or not 64 hex characters; ...`) and a few warnings.
   Auth and OTA outcomes are visible only in the PWA (DEVICE KEY panel, LOG panel, FIRMWARE UPDATE status).
-- **Known quirk (read before step 2):** on every connect the SETTINGS panel asks the device for its settings *before* the key
-  handshake has finished, so the device refuses it. Expect **one extra `event 4: not authenticated` in the LOG right after each
-  connect**, even with the right key, and the SETTINGS panel will **not** show the device's saved values after connecting. Ignore
-  that line for S1 (S1 is about `authenticated` + status); where a step below counts `event 4` lines, count them *after* the connect.
-  Nothing has been changed for this; tell me if you want it fixed.
 - PWA texts you will see: DEVICE KEY panel = `no key saved` / `key saved, not connected` / `authenticating...` /
   `authenticated` / `rejected: wrong key?`. LOG lines look like `event 4: not authenticated`.
   STATUS cells: CHANNEL, FREE HEAP (in K), CPU %, DEV DROPPED, BLE LOST.
@@ -40,8 +35,9 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
   field, tap **SAVE KEY**, tap **CONNECT**, pick `BeeWave`.
 - **Expect, serial:** `BLE connected: ...`.
 - **Expect, PWA:** connection state `connected`; DEVICE KEY goes `authenticating...` then `authenticated`; the STATUS cells fill
-  in and update about once per second. (One stray `event 4: not authenticated` right at connect is the known quirk above.)
-- **Pass (S1):** DEVICE KEY shows `authenticated`, status updates.
+  in and update about once per second; the SETTINGS panel loads the saved values and shows `saved on device`. No `event 4: not
+  authenticated` line should appear in the LOG on a successful connect.
+- **Pass (S1):** DEVICE KEY shows `authenticated`, status updates, and the LOG has no `event 4: not authenticated` from the connect.
 - **Row:** **S1**
 - **If it fails, send:** S1, the DEVICE KEY text you saw, the LOG panel lines, and the serial lines from `BLE connected` onward.
 
@@ -50,7 +46,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
   Then tap **START SCAN**.
 - **Expect, serial:** `BLE connected: ...` / `BLE disconnected: ...` only.
 - **Expect, PWA:** DEVICE KEY shows `rejected: wrong key?`; STATUS cells stay `-`; SCANNER stays empty; the LOG gets
-  a new `event 4: not authenticated` each time you tap START SCAN (on top of the connect-time one).
+  `event 4: not authenticated` when you tap START SCAN.
 - **Pass (S2):** `rejected`; no status or scan data; commands do nothing.
 - **Row:** **S2**
 - **If it fails, send:** S2, which of {rejected text, status data, scan rows, command effect} was wrong, the LOG lines, serial lines.
@@ -58,7 +54,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
 ## 4. No key
 - [ ] **Do:** tap **FORGET**. Tap **DISCONNECT**, then **CONNECT**. Tap **START SCAN**.
 - **Expect, serial:** `BLE connected: ...`.
-- **Expect, PWA:** DEVICE KEY shows `no key saved`; STATUS stays `-`; SCANNER stays empty; LOG gets a new `event 4: not authenticated` when you tap START SCAN.
+- **Expect, PWA:** DEVICE KEY shows `no key saved`; STATUS stays `-`; SCANNER stays empty; LOG gets `event 4: not authenticated` when you tap START SCAN.
 - **Pass (S3):** nothing shown or accepted.
 - **Row:** **S3**
 - **If it fails, send:** S3, what appeared or happened, LOG lines, serial lines.
@@ -81,9 +77,9 @@ Make sure DEVICE KEY shows `authenticated` first.
   **Expect, PWA:** STATUS CHANNEL stays on the pinned number; with AUTO it changes (hops every 250 ms, shown once per second).
   **Pass (2.8):** stays on the pinned channel; AUTO resumes hopping. **Row:** **2.8**
 - [ ] **Save and power-cycle.** **Do:** in SETTINGS choose a channel and tick SCAN AT BOOT, tap **SAVE TO DEVICE**, unplug and replug
-  the board, reconnect (authenticates by itself). **Expect, PWA:** judge persistence from STATUS, not from the SETTINGS panel (it does not
-  reload after connecting, see the known quirk): STATUS CHANNEL sits on the saved channel (if you saved a fixed one) and, with
-  SCAN AT BOOT, SCANNER fills without you tapping START SCAN. **Pass (2.9):** channel and scan-at-boot restored. **Row:** **2.9**
+  the board, reconnect (authenticates by itself). **Expect, PWA:** after it authenticates, the SETTINGS panel shows the channel you saved, SCAN AT BOOT
+  ticked and `saved on device`; STATUS CHANNEL sits on the saved channel and SCANNER fills without you tapping START SCAN.
+  **Pass (2.9):** channel and scan-at-boot restored. **Row:** **2.9**
 - [ ] **Reboot.** **Do:** tap **REBOOT**. **Expect, serial:** a fresh boot and `beewave up on core <N>`, `BLE disconnected: ...`.
   **Expect, PWA:** state `disconnected`; reconnect authenticates again by itself. **Pass (2.10):** restarts, link drops, re-authenticates.
   **Row:** **2.10**
@@ -98,8 +94,8 @@ Run `make fw-image` first (writes `dist/beewave-app.bin`, `.sha256` and `.bin.si
 - [ ] **Bad signature.** **Do:** `cp dist/beewave-app.bin.sig dist/bad.sig && printf '\x00' | dd of=dist/bad.sig bs=1 seek=0 conv=notrunc`
   (copy `bad.sig` to the phone). Update with `beewave-app.bin` + `bad.sig`.
   **Expect, PWA:** the upload runs to 100% (the signature is checked at the end), then status `failed: Error: ota refused: bad signature`
-  and LOG `event 2: ota refused: bad signature`; the device does **not** reboot. Note: "at once" in ACCEPTANCE means no timeout wait
-  after the end, not before the transfer. **Pass (S7):** refused with "bad signature"; old firmware keeps running (status keeps updating).
+  and LOG `event 2: ota refused: bad signature`; the device does **not** reboot. **Pass (S7):** upload reaches 100%, then it is refused
+  with "bad signature"; old firmware keeps running (status keeps updating).
   **Row:** **S7**
 - **If it fails, send:** the row ID, the FIRMWARE UPDATE status text, LOG lines, serial lines from the start of the update.
 
