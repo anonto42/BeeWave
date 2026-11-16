@@ -28,6 +28,12 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 4:
       msg = { type: "settings", channel: r.u8(), autoScan: r.u8() !== 0 };
       break;
+    case 5:
+      msg = { type: "authChallenge", nonce: r.bytes(16).slice() };
+      break;
+    case 6:
+      msg = { type: "authResult", ok: r.u8() !== 0 };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

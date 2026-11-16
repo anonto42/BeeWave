@@ -1,3 +1,4 @@
+import type { Authenticator, KeyStore } from "../auth";
 import type { Telemetry } from "../protocol";
 import type { Target, TargetStore } from "../targets";
 import type { Transport, TransportState } from "../transport";
@@ -8,6 +9,9 @@ export type TelemetryKind = Telemetry["type"];
 /** What every feature is wired with. Features depend on this, never on each other. */
 export interface AppContext {
   readonly transport: Transport;
+  /** Device key + handshake: runs automatically when the link comes up. */
+  readonly auth: Authenticator;
+  readonly keys: KeyStore;
   /** Networks the user marked as targets (shared by scanner and tray). */
   readonly targets: TargetStore;
   /** Subscribe to one kind of telemetry message. */

@@ -29,6 +29,15 @@ export class MockTransport implements Transport {
   }
 
   async send(cmd: Command): Promise<void> {
+    if (cmd.type === "authBegin") {
+      const nonce = Uint8Array.from({ length: 16 }, () => rand(256));
+      this.onTele?.({ type: "authChallenge", nonce });
+      return;
+    }
+    if (cmd.type === "authProve") {
+      this.onTele?.({ type: "authResult", ok: true }); // the mock accepts any key
+      return;
+    }
     if (cmd.type === "startScan") this.scanning = true;
     if (cmd.type === "stop") this.scanning = false;
     if (cmd.type === "configureRadio") {

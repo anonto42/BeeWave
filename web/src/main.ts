@@ -4,6 +4,7 @@ import { registerSW } from "virtual:pwa-register";
 import { createContext } from "./shared/app";
 import { BleTransport, MockTransport } from "./shared/transport";
 import * as connection from "./features/connection";
+import * as auth from "./features/auth";
 import * as status from "./features/status";
 import * as control from "./features/control";
 import * as scanner from "./features/scanner";
@@ -20,4 +21,4 @@ const ctx = createContext(mock ? new MockTransport() : new BleTransport());
 
 const root = document.getElementById("app")!;
 root.innerHTML = `<h1>BEEWAVE ${mock ? "[MOCK]" : ""}</h1>`;
-for (const f of [compat, connection, status, control, settings, scanner, targets, ota, log]) f.mount(root, ctx);
+for (const f of [compat, connection, auth, status, control, settings, scanner, targets, ota, log]) f.mount(root, ctx);

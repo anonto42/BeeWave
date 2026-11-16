@@ -31,6 +31,11 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
     case "otaEnd": o.push(6); break;
     case "getSettings": o.push(7); break;
     case "setSettings": o.push(8, c.channel, c.autoScan ? 1 : 0); break;
+    case "authBegin": o.push(9); break;
+    case "authProve":
+      if (c.mac.length !== 32) throw new Error("mac must be 32 bytes");
+      o.push(10, ...c.mac);
+      break;
   }
   return Uint8Array.from(o);
 }

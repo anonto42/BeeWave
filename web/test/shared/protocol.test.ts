@@ -19,6 +19,10 @@ describe("telemetry decode (golden vectors from Rust)", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[2].hex)).msg).toEqual({ type: "event", code: 7, message: "hello" });
     expect(decodeTelemetry(bytes(vectors.telemetry[3].hex)).msg).toEqual({ type: "otaAck", nextOffset: 4096 });
   });
+  it("auth challenge + result", () => {
+    expect(decodeTelemetry(bytes(vectors.telemetry[5].hex)).msg).toEqual({ type: "authChallenge", nonce: new Uint8Array(16).fill(7) });
+    expect(decodeTelemetry(bytes(vectors.telemetry[6].hex)).msg).toEqual({ type: "authResult", ok: true });
+  });
   it("rejects bad version / truncated", () => {
     expect(() => decodeTelemetry(Uint8Array.from([9, 0, 0]))).toThrow();
     expect(() => decodeTelemetry(bytes("0101"))).toThrow();
@@ -36,6 +40,8 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "otaEnd" },
     { type: "getSettings" },
     { type: "setSettings", channel: 0, autoScan: true },
+    { type: "authBegin" },
+    { type: "authProve", mac: new Uint8Array(32).fill(5) },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });
