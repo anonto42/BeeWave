@@ -10,13 +10,17 @@
 1. Open the PWA (hosted over HTTPS, see `docs/DEPLOYMENT.md`) in **Chrome/Edge on Android** (or desktop).
    iPhone: use the **Bluefy** browser. Safari cannot do Web Bluetooth.
 2. Tap **CONNECT**. Chrome shows a chooser listing devices named `BeeWave`. Pick it.
-3. No pairing step right now — see the warning below. The connection should complete immediately.
-4. The status panel starts updating once per second (channel, free heap, CPU %, packets dropped on the device,
-   packets lost on the BLE link).
+3. First time only: run `make fw-key` on your computer, which prints the device key (and `make fw-run`
+   builds it into the firmware). Paste the key into the **DEVICE KEY** panel and tap **SAVE KEY**.
+4. After connecting, the phone proves it knows the key automatically; the panel shows `authenticated`.
+   The status panel then updates once per second (channel, free heap, CPU %, packets dropped on the
+   device, packets lost on the BLE link).
 
-> **Security note:** pairing is currently disabled (see `openspec/specs/ble-link/spec.md`). Anyone in BLE
-> range who connects can send commands, including firmware updates and reboot. Fine for your own bench;
-> do not leave the device running like this anywhere someone else could reach it over Bluetooth.
+> **Security:** the device accepts no command, and sends no status or scan data, until the phone proves it
+> knows the key (HMAC challenge-response, see `openspec/specs/ble-link/spec.md`). The Bluetooth link itself is
+> **not encrypted**, so someone nearby can still read traffic; they just cannot control the device. A firmware
+> built without a valid `BEEWAVE_KEY` stays locked. The key is stored in `firmware/.beewave-key` (not in git)
+> and in your browser; keep both private. Changing the key means rebuilding and reflashing.
 
 ## Operations
 | You do | What happens |

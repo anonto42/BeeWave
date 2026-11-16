@@ -18,7 +18,7 @@ web/              PWA, feature slices                    (mirrors protocol.ts; T
 crates/core/src/
   ports.rs               traits the outside world must implement (TelemetrySink, RadioDriver, System, OtaWriter)
   app.rs                 App: routes driving input (commands, frames, ticks) to slices, publishes via the sink
-  features/<slice>/      state + rules + tests for ONE capability: radio, scan, status, ota
+  features/<slice>/      state + rules + tests for ONE capability: radio, scan, status, ota, settings, auth
 ```
 Slices depend on `ports` and `protocol`, never on each other. `App` is the only place that composes them.
 
@@ -33,11 +33,17 @@ Slices depend on `ports` and `protocol`, never on each other. `App` is the only 
 Driving adapters push `Event`s into one bounded channel; the `app` task owns `App` (no locks needed).
 Telemetry is lossy by contract: `BleSink::publish` never blocks, drops are counted and reported in `Status.dropped`.
 
+## Command authentication
+The BLE link is not encrypted, so commands are protected at the application level. `features/auth` (`AuthGate`)
+runs an HMAC-SHA256 challenge-response with a shared 32-byte key (`BEEWAVE_KEY` at build time, see `make fw-key`).
+`App` drops every command and withholds status/scan telemetry until the session is authenticated; the BLE adapter
+sends `Event::LinkReset` on every connect and disconnect so a session never outlives its connection. No key = locked.
+
 ## Web
 ```
 web/src/
   shared/      protocol.ts (codec), transport.ts (Transport port: BleTransport, MockTransport), app.ts (context + helpers)
-  features/    connection, status, control, scanner, log: each exports mount(root, ctx)
+  features/    connection, auth, status, control, scanner, log, ...: each exports mount(root, ctx)
   main.ts      composition root
 ```
 Features depend on `shared/` only, never on each other. UI state flows from `ctx.onTelemetry(kind, cb)`.
