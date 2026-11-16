@@ -1,0 +1,4 @@
+- [x] 1. Core: `LatencyHistogram` and `next_in_order` with host tests
+- [x] 2. Firmware: stamped telemetry, `coex_debug` reporting, tuning constants
+- [x] 3. Build: `FEATURES` variable
+- [x] 4. Docs: measurement procedure
