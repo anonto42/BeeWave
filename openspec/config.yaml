@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  WalPad: Rust ESP32-WROOM firmware + Web Bluetooth PWA. Hexagonal core (crates/core) with feature
+  BeeWave: Rust ESP32-WROOM firmware + Web Bluetooth PWA. Hexagonal core (crates/core) with feature
   slices; adapters only in firmware/. Read AGENTS.md and .agents/shared/agent-startup.md before changing anything.
   Wire format source of truth is crates/protocol; web/src/shared/protocol.ts mirrors it.
 

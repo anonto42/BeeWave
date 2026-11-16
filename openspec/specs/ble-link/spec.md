@@ -25,10 +25,10 @@ link established with a passkey, and MUST NOT accept command writes from unpaire
 - **THEN** the write is rejected by the stack and no command is processed
 
 ### Requirement: Configurable passkey
-The passkey SHALL be set at build time through `WALPAD_PASSKEY`, and the firmware MUST log a warning when it falls back to the public default.
+The passkey SHALL be set at build time through `BEEWAVE_PASSKEY`, and the firmware MUST log a warning when it falls back to the public default.
 
 #### Scenario: Default passkey
-- **WHEN** `WALPAD_PASSKEY` is not set at build time
+- **WHEN** `BEEWAVE_PASSKEY` is not set at build time
 - **THEN** the default passkey is used and a warning is logged at startup
 
 ### Requirement: Visible write failures
