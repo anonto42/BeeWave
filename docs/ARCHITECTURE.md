@@ -44,6 +44,12 @@ sends `Event::LinkReset` on every connect and disconnect so a session never outl
 failure aborts the update. Public key: `BEEWAVE_OTA_PUBKEY` at build time; private key: untracked `firmware/.beewave-ota.pem`
 (`make fw-ota-key`). Keys travel into the core as `DeviceKeys`; a missing key fails closed.
 
+## Diagnostics and tuning
+Wi-Fi sniffing and BLE share one radio. Telemetry is stamped when queued (`runtime/timed.rs`); with `FEATURES=coex_debug`
+the BLE task logs queue-wait and notify-call percentiles (`LatencyHistogram` in `crates/core/src/features/latency`).
+Tuning knobs are named constants: `DWELL` and `HOP_ORDER` (`wifi_radio/hopper.rs`), the connection parameters
+(`ble_gatt/tuning.rs`, off by default) and the queue depths (`runtime/channels.rs`). Procedure: `docs/TESTING.md`.
+
 ## Web
 ```
 web/src/
