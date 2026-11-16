@@ -3,7 +3,7 @@
 //! - `BEEWAVE_OTA_PUBKEY`: Ed25519 public key firmware updates must be signed with.
 //!
 //! A missing or malformed value fails closed: no client can authenticate / no update is accepted.
-use beewave_core::app::DeviceKeys;
+use beewave_core::app::{parse_hex_key, DeviceKeys};
 
 /// All device keys, logging loudly about any that are missing.
 pub fn device_keys() -> DeviceKeys {
@@ -22,23 +22,9 @@ pub fn device_keys() -> DeviceKeys {
 }
 
 fn key(name: &str, value: Option<&str>, consequence: &str) -> Option<[u8; 32]> {
-    let parsed = value.and_then(parse_key);
+    let parsed = value.and_then(parse_hex_key);
     if parsed.is_none() {
         log::error!("{name} missing or not 64 hex characters; {consequence}");
     }
     parsed
-}
-
-fn parse_key(hex: &str) -> Option<[u8; 32]> {
-    let hex = hex.trim().as_bytes();
-    if hex.len() != 64 {
-        return None;
-    }
-    let mut key = [0u8; 32];
-    for (byte, pair) in key.iter_mut().zip(hex.chunks_exact(2)) {
-        let hi = (pair[0] as char).to_digit(16)?;
-        let lo = (pair[1] as char).to_digit(16)?;
-        *byte = (hi * 16 + lo) as u8;
-    }
-    Some(key)
 }

@@ -4,11 +4,17 @@ use beewave_core::features::scan::Observation;
 use beewave_protocol::TelemetryMessage;
 
 use super::event::Event;
+use super::timed::Timed;
 
-/// Queue depths. Bounded on purpose: a stalled consumer must not be able to eat the heap.
-const EVENT_DEPTH: usize = 16;
-const TELEMETRY_DEPTH: usize = 32;
-const FRAME_DEPTH: usize = 64;
+// ---- Tuning knobs (queue depths) -------------------------------------------------------------
+// Bounded on purpose: a stalled consumer must not be able to eat the heap. Each slot costs RAM
+// (telemetry slots hold a message plus a timestamp), so raise these only with measurements.
+/// BLE -> app task (commands and link resets).
+pub const EVENT_DEPTH: usize = 16;
+/// App task -> BLE (telemetry; lossy when full).
+pub const TELEMETRY_DEPTH: usize = 32;
+/// Wi-Fi sniffer -> app task (observations; lossy when full).
+pub const FRAME_DEPTH: usize = 64;
 
 /// All queues of the system:
 /// - `events_*`: BLE -> app task (commands)
@@ -19,8 +25,8 @@ pub struct Channels {
     pub events_rx: Receiver<Event>,
     pub frames_tx: SyncSender<Observation>,
     pub frames_rx: Receiver<Observation>,
-    pub tele_tx: SyncSender<TelemetryMessage>,
-    pub tele_rx: Receiver<TelemetryMessage>,
+    pub tele_tx: SyncSender<Timed<TelemetryMessage>>,
+    pub tele_rx: Receiver<Timed<TelemetryMessage>>,
 }
 
 pub fn channels() -> Channels {

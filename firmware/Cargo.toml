@@ -33,5 +33,9 @@ beewave-protocol = { path = "../crates/protocol" }
 beewave-core = { path = "../crates/core" }
 sha2 = { version = "0.10", default-features = false }
 
+[features]
+# Log notification-path latency percentiles every 10 s (see src/adapters/ble_gatt/coex_diag.rs).
+coex_debug = []
+
 [build-dependencies]
 embuild = "0.33"
