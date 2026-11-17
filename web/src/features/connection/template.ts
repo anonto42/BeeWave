@@ -1,5 +1,3 @@
-export const connectionHtml = `<div class="pad row">
-  <button data-connect>CONNECT</button>
-  <button data-disconnect disabled>DISCONNECT</button>
-  <span data-state>disconnected</span>
-</div>`;
+export const connectionHtml = `<span class="link-dot" data-dot></span>
+<span class="link-text" data-state>disconnected</span>
+<button class="link-btn" data-toggle>CONNECT</button>`;

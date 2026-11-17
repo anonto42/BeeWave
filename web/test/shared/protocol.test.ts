@@ -7,7 +7,7 @@ const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")
 
 describe("telemetry decode (golden vectors from Rust)", () => {
   it("status", () => {
-    expect(decodeTelemetry(bytes(vectors.telemetry[0].hex)).msg).toEqual({ type: "status", activeChannel: 6, freeHeap: 123456, cpuLoad: 42, dropped: 300 });
+    expect(decodeTelemetry(bytes(vectors.telemetry[0].hex)).msg).toEqual({ type: "status", activeChannel: 6, freeHeap: 123456, cpuLoad: 42, dropped: 300, scanning: true });
   });
   it("scan result with utf8 + negative rssi", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[1].hex))).toEqual({ seq: 1, msg: { type: "scan", bssid: "01:02:03:04:05:06", channel: 11, rssi: -67, ssid: "Café-WiFi" } });
@@ -22,6 +22,7 @@ describe("telemetry decode (golden vectors from Rust)", () => {
   it("auth challenge + result", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[5].hex)).msg).toEqual({ type: "authChallenge", nonce: new Uint8Array(16).fill(7) });
     expect(decodeTelemetry(bytes(vectors.telemetry[6].hex)).msg).toEqual({ type: "authResult", ok: true });
+    expect(decodeTelemetry(bytes(vectors.telemetry[7].hex)).msg).toEqual({ type: "unclaimed" });
   });
   it("rejects bad version / truncated", () => {
     expect(() => decodeTelemetry(Uint8Array.from([9, 0, 0]))).toThrow();
@@ -43,6 +44,7 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "authBegin" },
     { type: "authProve", mac: new Uint8Array(32).fill(5) },
     { type: "otaEndSigned", signature: Uint8Array.from([...new Uint8Array(32).fill(3), ...new Uint8Array(32).fill(4)]) },
+    { type: "provision", key: new Uint8Array(32).fill(6) },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });

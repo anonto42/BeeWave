@@ -14,6 +14,8 @@ export class MockTransport implements Transport {
   private scanning = false;
   private channel = 1;
   private pinned = 0; // 0 = auto-hop
+  /** True once a client has provisioned a key (the mock starts unclaimed, like fresh firmware). */
+  private claimed = false;
 
   onTelemetry(cb: (t: Telemetry) => void): void { this.onTele = cb; }
   onState(cb: (s: TransportState, info?: string) => void): void { this.onStateCb = cb; }
@@ -29,6 +31,16 @@ export class MockTransport implements Transport {
   }
 
   async send(cmd: Command): Promise<void> {
+    if (cmd.type === "authBegin" && !this.claimed) {
+      this.onTele?.({ type: "unclaimed" });
+      return;
+    }
+    if (cmd.type === "provision") {
+      const ok = !this.claimed;
+      this.claimed = true;
+      this.onTele?.({ type: "authResult", ok });
+      return;
+    }
     if (cmd.type === "authBegin") {
       const nonce = Uint8Array.from({ length: 16 }, () => rand(256));
       this.onTele?.({ type: "authChallenge", nonce });
@@ -44,11 +56,11 @@ export class MockTransport implements Transport {
       this.pinned = cmd.channel;
       if (cmd.channel) this.channel = cmd.channel;
     }
-    this.onTele?.({ type: "event", code: 1, message: `ack ${cmd.type}` });
+    this.onTele?.({ type: "event", code: 100, message: `ack ${cmd.type}` });
   }
 
   private tick(): void {
-    this.onTele?.({ type: "status", activeChannel: this.channel, freeHeap: 90_000 + rand(2000), cpuLoad: 20 + rand(30), dropped: 0 });
+    this.onTele?.({ type: "status", activeChannel: this.channel, freeHeap: 90_000 + rand(2000), cpuLoad: 20 + rand(30), dropped: 0, scanning: this.scanning });
     if (!this.scanning) return;
     if (!this.pinned) this.channel = (this.channel % 13) + 1;
     this.onTele?.({ type: "scan", bssid: randomBssid(), channel: this.channel, rssi: -40 - rand(50), ssid: SSIDS[rand(SSIDS.length)] });

@@ -1,12 +1,13 @@
 /** Device -> app messages. Mirrors `TelemetryMessage` in crates/protocol/src/types.rs. */
 export type Telemetry =
-  | { type: "status"; activeChannel: number; freeHeap: number; cpuLoad: number; dropped: number }
+  | { type: "status"; activeChannel: number; freeHeap: number; cpuLoad: number; dropped: number; scanning: boolean }
   | { type: "scan"; bssid: string; channel: number; rssi: number; ssid: string }
   | { type: "event"; code: number; message: string }
   | { type: "otaAck"; nextOffset: number }
   | { type: "settings"; channel: number; autoScan: boolean }
   | { type: "authChallenge"; nonce: Uint8Array }
-  | { type: "authResult"; ok: boolean };
+  | { type: "authResult"; ok: boolean }
+  | { type: "unclaimed" };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =
@@ -21,7 +22,8 @@ export type Command =
   | { type: "setSettings"; channel: number; autoScan: boolean }
   | { type: "authBegin" }
   | { type: "authProve"; mac: Uint8Array }
-  | { type: "otaEndSigned"; signature: Uint8Array };
+  | { type: "otaEndSigned"; signature: Uint8Array }
+  | { type: "provision"; key: Uint8Array };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

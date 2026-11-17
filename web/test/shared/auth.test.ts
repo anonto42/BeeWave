@@ -97,11 +97,11 @@ describe("Authenticator", () => {
     expect(auth.state).toBe("failed");
   });
 
-  it("does nothing without a key", async () => {
+  it("asks the device and waits for a key when the device is already claimed", async () => {
     const { auth, sent } = setup(KEY_HEX);
     await auth.start();
     expect(auth.state).toBe("no-key");
-    expect(sent).toEqual([]);
+    expect(sent.map((c) => c.type)).toEqual(["authBegin"]);
   });
 
   it("ignores unrelated telemetry and forgets the session on reset", async () => {
@@ -117,5 +117,51 @@ describe("Authenticator", () => {
     const auth = new Authenticator(async () => { throw new Error("not connected"); }, new KeyStore(memoryStorage(KEY_HEX)));
     await auth.start();
     expect(auth.state).toBe("failed");
+  });
+});
+
+describe("claiming an unclaimed device", () => {
+  const NEW_KEY = Uint8Array.from({ length: 32 }, (_, i) => 255 - i);
+
+  function unclaimedDevice(opts: { accept: boolean; stored?: string }) {
+    const keys = new KeyStore(memoryStorage(opts.stored));
+    const sent: Command[] = [];
+    const auth: Authenticator = new Authenticator(
+      async (c) => {
+        sent.push(c);
+        if (c.type === "authBegin") await auth.handle({ type: "unclaimed" });
+        if (c.type === "provision") await auth.handle({ type: "authResult", ok: opts.accept });
+      },
+      keys,
+      () => NEW_KEY,
+    );
+    return { auth, keys, sent };
+  }
+
+  it("generates a key, sends it and saves it once the device accepts", async () => {
+    const { auth, keys, sent } = unclaimedDevice({ accept: true });
+    await auth.start();
+    expect(auth.state).toBe("authenticated");
+    expect(sent.map((c) => c.type)).toEqual(["authBegin", "provision"]);
+    expect(hex(keys.get()!)).toBe(hex(NEW_KEY));
+  });
+
+  it("does not save the key when the device refuses", async () => {
+    const { auth, keys } = unclaimedDevice({ accept: false });
+    await auth.start();
+    expect(auth.state).toBe("failed");
+    expect(keys.get()).toBeNull();
+  });
+
+  it("keeps an older saved key if the claim is refused", async () => {
+    const { auth, keys } = unclaimedDevice({ accept: false, stored: KEY_HEX });
+    await auth.start();
+    expect(hex(keys.get()!)).toBe(KEY_HEX);
+  });
+
+  it("replaces a stale saved key when a reset device is claimed again", async () => {
+    const { auth, keys } = unclaimedDevice({ accept: true, stored: KEY_HEX });
+    await auth.start();
+    expect(hex(keys.get()!)).toBe(hex(NEW_KEY));
   });
 });

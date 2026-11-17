@@ -12,21 +12,35 @@ export function createContext(transport: Transport): AppContext {
   const log = (m: string) => logSubs.forEach((f) => f(m));
 
   const keys = new KeyStore();
-  const auth = new Authenticator((c) => transport.send(c), keys);
+  // Every command goes through here, so the Log tab shows what was sent. Names only: never keys or payloads.
+  const logged: Transport = {
+    connect: () => transport.connect(),
+    disconnect: () => transport.disconnect(),
+    send: (c) => {
+      if (c.type !== "otaChunk") log(`> ${c.type}`);
+      return transport.send(c);
+    },
+    onTelemetry: (cb) => transport.onTelemetry(cb),
+    onState: (cb) => transport.onState(cb),
+    get lost() {
+      return transport.lost;
+    },
+  };
+  const auth = new Authenticator((c) => logged.send(c), keys);
 
   transport.onTelemetry((m) => {
     void auth.handle(m);
     telemetrySubs.forEach(([kind, f]) => kind === m.type && (f as (m: Telemetry) => void)(m));
   });
   transport.onState((s, info) => {
+    stateSubs.forEach((f) => f(s));
     if (s === "connected") void auth.start();
     if (s === "disconnected") auth.reset();
-    stateSubs.forEach((f) => f(s));
     if (info) log(info);
   });
 
   return {
-    transport,
+    transport: logged,
     auth,
     keys,
     targets: new TargetStore(),

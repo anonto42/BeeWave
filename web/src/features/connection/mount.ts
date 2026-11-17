@@ -1,17 +1,30 @@
-import { $, panel, type AppContext } from "../../shared/app";
+import { $, type AppContext } from "../../shared/app";
+import type { TransportState } from "../../shared/transport";
+import { linkLabel } from "./link-label";
 import { connectionHtml } from "./template";
 
+/** Connect/disconnect control and the live link + key state. Mount it into the title bar. */
 export function mount(root: HTMLElement, ctx: AppContext): void {
-  const el = panel("CONNECTION", connectionHtml);
+  const el = document.createElement("div");
+  el.className = "link";
+  el.innerHTML = connectionHtml;
   root.append(el);
-  const connect = $<HTMLButtonElement>(el, "[data-connect]");
-  const disconnect = $<HTMLButtonElement>(el, "[data-disconnect]");
+  const toggle = $<HTMLButtonElement>(el, "[data-toggle]");
 
-  connect.onclick = () => ctx.transport.connect().catch((e) => ctx.log(String(e)));
-  disconnect.onclick = () => ctx.transport.disconnect();
+  let link: TransportState = "disconnected";
+  const render = () => {
+    const { text, tone } = linkLabel(link, ctx.auth.state);
+    $(el, "[data-state]").textContent = text;
+    el.dataset.tone = tone;
+    toggle.textContent = link === "disconnected" ? "CONNECT" : "DISCONNECT";
+    toggle.disabled = link === "connecting";
+  };
+
+  toggle.onclick = () => (link === "disconnected" ? ctx.transport.connect().catch((e) => ctx.log(String(e))) : ctx.transport.disconnect());
   ctx.onState((s) => {
-    $(el, "[data-state]").textContent = s;
-    connect.disabled = s !== "disconnected";
-    disconnect.disabled = s !== "connected";
+    link = s;
+    render();
   });
+  ctx.auth.onChange(render);
+  render();
 }

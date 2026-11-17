@@ -1,7 +1,8 @@
-// Composition root: choose transport, create context, mount feature slices.
+// Composition root: choose transport, create context, build the tab shell, mount feature slices into tabs.
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
 import { createContext } from "./shared/app";
+import { createTabShell, ICONS } from "./shared/shell";
 import { BleTransport, MockTransport } from "./shared/transport";
 import * as connection from "./features/connection";
 import * as auth from "./features/auth";
@@ -13,6 +14,8 @@ import * as ota from "./features/ota";
 import * as settings from "./features/settings";
 import * as targets from "./features/targets";
 import * as compat from "./features/compat";
+import * as alerts from "./features/alerts";
+import * as reboot from "./features/reboot";
 
 registerSW({ immediate: true });
 
@@ -20,5 +23,22 @@ const mock = new URLSearchParams(location.search).has("mock");
 const ctx = createContext(mock ? new MockTransport() : new BleTransport());
 
 const root = document.getElementById("app")!;
-root.innerHTML = `<h1>BEEWAVE ${mock ? "[MOCK]" : ""}</h1>`;
-for (const f of [compat, connection, auth, status, control, settings, scanner, targets, ota, log]) f.mount(root, ctx);
+const shell = createTabShell(root, `BEEWAVE${mock ? " [MOCK]" : ""}`, [
+  { id: "device", label: "Device", icon: ICONS.device },
+  { id: "scan", label: "Scan", icon: ICONS.scan },
+  { id: "settings", label: "Settings", icon: ICONS.settings },
+  { id: "log", label: "Log", icon: ICONS.log },
+]);
+
+const layout = {
+  device: [compat, status],
+  scan: [control, scanner, targets],
+  settings: [settings, auth, reboot, ota],
+  log: [log],
+} as const;
+for (const [tab, features] of Object.entries(layout)) for (const f of features) f.mount(shell.panes[tab], ctx);
+
+// Connect / disconnect and the live link + key state live in the title bar, visible from every tab.
+connection.mount(shell.bar, ctx);
+// Device errors pop up over every tab.
+alerts.mount(root, ctx);

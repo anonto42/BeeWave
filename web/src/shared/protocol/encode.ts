@@ -41,6 +41,10 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
       if (c.signature.length !== SIGNATURE_LEN) throw new Error(`signature must be ${SIGNATURE_LEN} bytes`);
       o.push(11, ...c.signature);
       break;
+    case "provision":
+      if (c.key.length !== 32) throw new Error("key must be 32 bytes");
+      o.push(12, ...c.key);
+      break;
   }
   return Uint8Array.from(o);
 }

@@ -4,15 +4,17 @@ import { chipHtml, emptyHtml, trayHtml } from "./template";
 export function mount(root: HTMLElement, ctx: AppContext): void {
   const el = panel("TARGETS", trayHtml);
   root.append(el);
-  const chips = $(el, "[data-chips]");
+  const list = $(el, "[data-list]");
+  const title = $(el, "h2");
 
   const render = () => {
-    const list = ctx.targets.list();
-    chips.innerHTML = list.length ? list.map(chipHtml).join("") : emptyHtml;
+    const targets = ctx.targets.list();
+    title.textContent = targets.length ? `TARGETS (${targets.length})` : "TARGETS";
+    list.innerHTML = targets.length ? targets.map(chipHtml).join("") : emptyHtml;
   };
-  chips.onclick = (e) => {
-    const chip = (e.target as HTMLElement).closest<HTMLElement>("[data-bssid]");
-    if (chip && (e.target as HTMLElement).matches("[data-remove]")) ctx.targets.remove(chip.dataset.bssid!);
+  list.onclick = (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>("li[data-bssid]");
+    if (row && (e.target as HTMLElement).closest("[data-remove]")) ctx.targets.remove(row.dataset.bssid!);
   };
   ctx.targets.onChange(render);
   render();

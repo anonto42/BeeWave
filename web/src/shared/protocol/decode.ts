@@ -14,7 +14,7 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
   let msg: Telemetry;
   switch (tag) {
     case 0:
-      msg = { type: "status", activeChannel: r.u8(), freeHeap: r.varint(), cpuLoad: r.u8(), dropped: r.varint() };
+      msg = { type: "status", activeChannel: r.u8(), freeHeap: r.varint(), cpuLoad: r.u8(), dropped: r.varint(), scanning: r.u8() !== 0 };
       break;
     case 1:
       msg = { type: "scan", bssid: hex(r.bytes(6)), channel: r.u8(), rssi: r.i8(), ssid: r.str() };
@@ -33,6 +33,9 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
       break;
     case 6:
       msg = { type: "authResult", ok: r.u8() !== 0 };
+      break;
+    case 7:
+      msg = { type: "unclaimed" };
       break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
