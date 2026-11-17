@@ -66,6 +66,44 @@ pub enum DeviceCommand {
     Provision {
         key: [u8; 32],
     },
+    /// Ask for the current monitor configuration (answered with `MonitorConfig`).
+    GetMonitor,
+    /// Configure the receive-only monitors (answered with `MonitorConfig`). Never changes what the
+    /// radio transmits: nothing in BeeWave transmits on Wi-Fi, and the BLE scan is passive.
+    SetMonitor {
+        /// Deauth frames per second per BSSID that raise a `DeauthAlert`; 0 turns the detector off.
+        deauth_threshold: u8,
+        /// Run the passive BLE advertisement monitor.
+        ble_enabled: bool,
+        /// A class spikes when its count exceeds its baseline times this (2..=20).
+        ble_spike_factor: u8,
+    },
+}
+
+/// Class of a received BLE advertisement (receive-only monitor). Append new classes at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdClass {
+    /// Google Fast Pair (service data 0xFE2C).
+    FastPair,
+    /// Apple iBeacon.
+    IBeacon,
+    /// Apple proximity pairing (AirPods-style).
+    Proximity,
+    /// Anything else.
+    Generic,
+}
+
+/// What an `AnomalyAlert` is about. Append new kinds at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnomalyKind {
+    /// A known SSID is now advertised by a BSSID not seen with it before.
+    NewBssidForSsid,
+    /// The same BSSID was received on two channels within a minute.
+    TwoChannels,
+    /// RSSI jumped by more than 20 dB between cycles (`detail` = the jump in dB, capped at 255).
+    RssiOutlier,
+    /// A network came back after missing more than 5 cycles (`detail` = cycles missed, capped at 255).
+    Returned,
 }
 
 /// Device -> app.
@@ -107,4 +145,34 @@ pub enum TelemetryMessage {
     },
     /// Reply to `AuthBegin` while the device has no key yet: the client may `Provision` one.
     Unclaimed,
+    /// Deauthentication frames from one BSSID reached the threshold within a second.
+    DeauthAlert {
+        bssid: [u8; 6],
+        count: u16,
+    },
+    /// BLE advertisements per class over the last 60 s (sent every 10 s while the monitor runs).
+    BleStats {
+        fast_pair: u16,
+        ibeacon: u16,
+        proximity: u16,
+        generic: u16,
+    },
+    /// One advertisement class is far above its baseline.
+    BleSpike {
+        class: AdClass,
+        count: u16,
+        baseline: u16,
+    },
+    /// Something odd about a network (see `AnomalyKind`).
+    AnomalyAlert {
+        kind: AnomalyKind,
+        bssid: [u8; 6],
+        detail: u8,
+    },
+    /// The current monitor configuration (reply to `GetMonitor` / `SetMonitor`).
+    MonitorConfig {
+        deauth_threshold: u8,
+        ble_enabled: bool,
+        ble_spike_factor: u8,
+    },
 }

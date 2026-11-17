@@ -32,6 +32,31 @@ fn roundtrip_and_emit_golden_vectors() {
         TelemetryMessage::AuthChallenge { nonce: [7; 16] },
         TelemetryMessage::AuthResult { ok: true },
         TelemetryMessage::Unclaimed,
+        TelemetryMessage::DeauthAlert {
+            bssid: [1, 2, 3, 4, 5, 6],
+            count: 42,
+        },
+        TelemetryMessage::BleStats {
+            fast_pair: 1,
+            ibeacon: 2,
+            proximity: 300,
+            generic: 4000,
+        },
+        TelemetryMessage::BleSpike {
+            class: AdClass::Proximity,
+            count: 500,
+            baseline: 40,
+        },
+        TelemetryMessage::AnomalyAlert {
+            kind: AnomalyKind::RssiOutlier,
+            bssid: [9, 8, 7, 6, 5, 4],
+            detail: 27,
+        },
+        TelemetryMessage::MonitorConfig {
+            deauth_threshold: 10,
+            ble_enabled: true,
+            ble_spike_factor: 3,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -59,6 +84,12 @@ fn roundtrip_and_emit_golden_vectors() {
             sig_s: [4; 32],
         },
         DeviceCommand::Provision { key: [6; 32] },
+        DeviceCommand::GetMonitor,
+        DeviceCommand::SetMonitor {
+            deauth_threshold: 10,
+            ble_enabled: true,
+            ble_spike_factor: 3,
+        },
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];

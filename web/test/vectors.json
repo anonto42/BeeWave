@@ -51,6 +51,14 @@
     {
       "hex": "010c0c0606060606060606060606060606060606060606060606060606060606060606",
       "msg": "Provision { key: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] }"
+    },
+    {
+      "hex": "010d0d",
+      "msg": "GetMonitor"
+    },
+    {
+      "hex": "010e0e0a0103",
+      "msg": "SetMonitor { deauth_threshold: 10, ble_enabled: true, ble_spike_factor: 3 }"
     }
   ],
   "telemetry": [
@@ -85,6 +93,26 @@
     {
       "hex": "010707",
       "msg": "Unclaimed"
+    },
+    {
+      "hex": "0108080102030405062a",
+      "msg": "DeauthAlert { bssid: [1, 2, 3, 4, 5, 6], count: 42 }"
+    },
+    {
+      "hex": "0109090102ac02a01f",
+      "msg": "BleStats { fast_pair: 1, ibeacon: 2, proximity: 300, generic: 4000 }"
+    },
+    {
+      "hex": "010a0a02f40328",
+      "msg": "BleSpike { class: Proximity, count: 500, baseline: 40 }"
+    },
+    {
+      "hex": "010b0b020908070605041b",
+      "msg": "AnomalyAlert { kind: RssiOutlier, bssid: [9, 8, 7, 6, 5, 4], detail: 27 }"
+    },
+    {
+      "hex": "010c0c0a0103",
+      "msg": "MonitorConfig { deauth_threshold: 10, ble_enabled: true, ble_spike_factor: 3 }"
     }
   ]
 }

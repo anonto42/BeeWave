@@ -16,6 +16,6 @@ mod types;
 pub use codec::{decode_command, decode_telemetry, encode_command, encode_telemetry};
 pub use error::Error;
 pub use types::{
-    DeviceCommand, TelemetryMessage, AUTH_CONTEXT, AUTH_NONCE_LEN, HEADER_LEN, MAX_BODY, MIN_MTU,
-    PROTO_VERSION,
+    AdClass, AnomalyKind, DeviceCommand, TelemetryMessage, AUTH_CONTEXT, AUTH_NONCE_LEN,
+    HEADER_LEN, MAX_BODY, MIN_MTU, PROTO_VERSION,
 };
