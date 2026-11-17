@@ -8,6 +8,11 @@ OPENSPEC   := $(shell which openspec 2>/dev/null || echo npx --yes @fission-ai/o
 PORT       ?= /dev/ttyACM0
 # Device authentication key (64 hex chars). Untracked; created once by `make fw-key`.
 KEY_FILE   := firmware/.beewave-key
+# How the device gets its key. `auto` (default): none built in, the first phone to connect claims the
+# device and its key is stored in flash. `file`: bake firmware/.beewave-key in (the old behaviour).
+FW_KEY     ?= auto
+FW_KEY_DEP := $(if $(filter file,$(FW_KEY)),fw-key)
+KEY_EXPORT := $(if $(filter file,$(FW_KEY)),export BEEWAVE_KEY=$$(cat .beewave-key),unset BEEWAVE_KEY)
 # Firmware update signing: private key (untracked, never leaves your machine) and its public half.
 OTA_KEY    := firmware/.beewave-ota.pem
 OTA_PUB    := firmware/.beewave-ota.pub
@@ -15,7 +20,7 @@ OTA_PUB    := firmware/.beewave-ota.pub
 FEATURES   ?=
 CARGO_FEAT  = $(if $(FEATURES),--features $(FEATURES))
 # Load the Xtensa env and the keys, then run in firmware/
-FW = . $(ESP_EXPORT) && cd firmware && export BEEWAVE_KEY=$$(cat .beewave-key) BEEWAVE_OTA_PUBKEY=$$(cat .beewave-ota.pub) &&
+FW = . $(ESP_EXPORT) && cd firmware && $(KEY_EXPORT) && export BEEWAVE_OTA_PUBKEY=$$(cat .beewave-ota.pub) &&
 
 .PHONY: help
 help: ## Show this help
@@ -59,7 +64,7 @@ web-test: ## Web unit tests (codec vs Rust golden vectors)
 	cd web && pnpm test
 
 # ---- firmware ----------------------------------------------------------------
-.PHONY: fw-build fw-flash fw-monitor fw-run fw-image fw-size fw-clean board-info
+.PHONY: fw-build fw-flash fw-monitor fw-run fw-image fw-size fw-clean fw-unclaim board-info
 fw-key: ## Create the device key once (untracked) and print it for the PWA
 	@test -f $(KEY_FILE) || (umask 077 && head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > $(KEY_FILE))
 	@echo "Device key (enter it in the PWA, keep it secret): $$(cat $(KEY_FILE))"
@@ -69,15 +74,17 @@ fw-ota-key: ## Create the OTA signing key once (untracked) and its public key fo
 	@openssl pkey -in $(OTA_KEY) -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n' > $(OTA_PUB)
 	@echo "OTA signing public key (built into the firmware): $$(cat $(OTA_PUB))"
 
-fw-build: fw-key fw-ota-key ## Build release firmware
+fw-build: $(FW_KEY_DEP) fw-ota-key ## Build release firmware
 	$(FW) cargo build --release $(CARGO_FEAT)
-fw-flash: fw-key fw-ota-key ## Flash release firmware to $(PORT)
+fw-flash: $(FW_KEY_DEP) fw-ota-key ## Flash release firmware to $(PORT)
 	$(FW) cargo espflash flash --release --port $(PORT) $(CARGO_FEAT)
+fw-unclaim: ## Forget the stored device key (erases the NVS partition) so the next phone can claim it
+	. $(ESP_EXPORT) && espflash erase-region --port $(PORT) 0x9000 0x6000
 fw-monitor: ## Serial monitor
 	$(FW) cargo espflash monitor --port $(PORT)
-fw-run: fw-key fw-ota-key ## Build + flash + monitor
+fw-run: $(FW_KEY_DEP) fw-ota-key ## Build + flash + monitor
 	$(FW) cargo espflash flash --release --port $(PORT) --monitor $(CARGO_FEAT)
-fw-image: fw-key fw-ota-key ## OTA update image dist/beewave-app.bin (+ .sha256), signed (.sig)
+fw-image: $(FW_KEY_DEP) fw-ota-key ## OTA update image dist/beewave-app.bin (+ .sha256), signed (.sig)
 	$(FW) cargo espflash save-image --release --chip esp32 ../dist/beewave-app.bin $(CARGO_FEAT)
 	cd dist && sha256sum beewave-app.bin | tee beewave-app.bin.sha256
 	$(MAKE) --no-print-directory fw-sign
@@ -87,7 +94,7 @@ fw-sign: fw-ota-key ## Sign dist/beewave-app.bin with the OTA key -> dist/beewav
 	cd dist && openssl dgst -sha256 -binary beewave-app.bin > beewave-app.digest \
 	  && openssl pkeyutl -sign -inkey ../$(OTA_KEY) -rawin -in beewave-app.digest -out beewave-app.bin.sig \
 	  && rm beewave-app.digest && ls -l beewave-app.bin.sig
-fw-size: fw-key fw-ota-key ## Flash/RAM usage of the release build
+fw-size: $(FW_KEY_DEP) fw-ota-key ## Flash/RAM usage of the release build
 	$(FW) cargo espflash save-image --release --chip esp32 /tmp/beewave.bin >/dev/null && ls -l /tmp/beewave.bin
 fw-clean: ## Remove firmware build output (keeps downloaded ESP-IDF in firmware/.embuild)
 	cd firmware && cargo clean

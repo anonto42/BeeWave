@@ -8,7 +8,7 @@ use beewave_core::ports::{RadioDriver, RadioError};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::modem::Modem;
 use esp_idf_svc::sys::{self, esp, wifi_promiscuous_filter_t, EspError};
-use esp_idf_svc::wifi::{ClientConfiguration, Configuration, EspWifi};
+use esp_idf_svc::wifi::{AuthMethod, ClientConfiguration, Configuration, EspWifi};
 
 use super::callback;
 use super::hopper;
@@ -31,7 +31,11 @@ impl WifiRadio {
         frames: SyncSender<Observation>,
     ) -> Result<Self, EspError> {
         let mut wifi = EspWifi::new(modem, sysloop, None)?;
-        wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
+        // Never connects: no password, so the default WPA2 threshold only produces a boot warning.
+        wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+            auth_method: AuthMethod::None,
+            ..Default::default()
+        }))?;
         wifi.start()?;
 
         callback::install(frames);

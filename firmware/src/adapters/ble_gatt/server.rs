@@ -1,10 +1,13 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::time::{Duration, Instant};
 
-use beewave_protocol::{decode_command, encode_telemetry, TelemetryMessage, MAX_BODY};
+use beewave_protocol::{
+    decode_command, encode_telemetry, DeviceCommand, TelemetryMessage, MAX_BODY,
+};
 use esp32_nimble::{BLEAdvertisementData, BLEDevice, NimbleProperties};
 
 use super::coex_diag::CoexDiag;
+use super::names::{command_name, notable_telemetry};
 use super::{tuning, uuids};
 use crate::runtime::{Event, Timed};
 
@@ -48,6 +51,9 @@ pub fn run(
         .lock()
         .on_write(move |args| match decode_command(args.recv_data()) {
             Ok((_seq, cmd)) => {
+                if !matches!(cmd, DeviceCommand::OtaChunk { .. }) {
+                    log::info!("rx command: {}", command_name(&cmd));
+                }
                 if events.try_send(Event::Command(cmd)).is_err() {
                     log::warn!("event queue full, command dropped");
                 }
@@ -76,6 +82,9 @@ pub fn run(
             Ok(Timed { queued_at, msg }) => {
                 if server.connected_count() == 0 {
                     continue; // nobody listening: drop instead of queueing
+                }
+                if let Some(name) = notable_telemetry(&msg) {
+                    log::info!("tx telemetry: {name}");
                 }
                 if let Ok(n) = encode_telemetry(seq, &msg, &mut buf) {
                     seq = seq.wrapping_add(1);
