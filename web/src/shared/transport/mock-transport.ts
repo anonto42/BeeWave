@@ -1,4 +1,5 @@
 import type { Command, Telemetry } from "../protocol";
+import { MockSettings } from "./mock-settings";
 import { MockWorld } from "./mock-world";
 import type { Transport, TransportState } from "./types";
 
@@ -7,6 +8,7 @@ const rand = (n: number) => Math.floor(Math.random() * n);
 /** Simulated device so the UI can be developed without hardware (`?mock`). */
 export class MockTransport implements Transport {
   readonly lost = 0;
+  readonly deviceName = "BeeWave-mock";
   private onTele?: (t: Telemetry) => void;
   private onStateCb?: (s: TransportState, info?: string) => void;
   private timer?: number;
@@ -17,6 +19,8 @@ export class MockTransport implements Transport {
   private claimed = false;
   /** The simulated radio environment (access points, deauth, BLE, anomalies). */
   private readonly world = new MockWorld();
+  /** The simulated device's persisted settings. */
+  private readonly stored = new MockSettings();
 
   onTelemetry(cb: (t: Telemetry) => void): void { this.onTele = cb; }
   onState(cb: (s: TransportState, info?: string) => void): void { this.onStateCb = cb; }
@@ -49,6 +53,16 @@ export class MockTransport implements Transport {
     }
     if (cmd.type === "authProve") {
       this.onTele?.({ type: "authResult", ok: true }); // the mock accepts any key
+      return;
+    }
+    const handled = this.stored.handle(cmd, { scanning: this.scanning });
+    if (handled) {
+      this.world.applyScanSettings(this.stored.settings.scan);
+      handled.replies.forEach((t) => this.onTele?.(t));
+      if (handled.factoryReset) {
+        this.claimed = false; // the key goes with the factory reset, like on the real device
+        setTimeout(() => this.disconnect(), 200);
+      }
       return;
     }
     if (cmd.type === "getMonitor") {

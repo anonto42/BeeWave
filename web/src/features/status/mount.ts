@@ -35,6 +35,12 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     }
     note();
   });
+  // the most recent alert (deauth, BLE, anomaly or watchlist) stays visible here
+  ctx.monitor.alerts.onAlert((a) => {
+    const last = $(el, "[data-last]");
+    last.hidden = false;
+    last.textContent = `last event: ${a.title}`;
+  });
   ctx.auth.onChange(note);
   note();
 }

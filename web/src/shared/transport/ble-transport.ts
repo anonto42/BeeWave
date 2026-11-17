@@ -19,6 +19,10 @@ export class BleTransport implements Transport {
   onTelemetry(cb: (t: Telemetry) => void): void { this.onTele = cb; }
   onState(cb: (s: TransportState, info?: string) => void): void { this.onStateCb = cb; }
 
+  get deviceName(): string | null {
+    return this.device?.name ?? null;
+  }
+
   async connect(): Promise<void> {
     if (!navigator.bluetooth) {
       throw new Error("Web Bluetooth unavailable (use Chrome/Edge on Android or desktop; iOS needs Bluefy)");
@@ -30,20 +34,35 @@ export class BleTransport implements Transport {
         optionalServices: [SERVICE_UUID],
       });
       this.device.addEventListener("gattserverdisconnected", () => this.onStateCb?.("disconnected"));
-
-      const server = await this.device.gatt!.connect();
-      const service = await server.getPrimaryService(SERVICE_UUID);
-      this.cmdChar = await service.getCharacteristic(COMMAND_CHAR_UUID);
-      const telemetry = await service.getCharacteristic(TELEMETRY_CHAR_UUID);
-
-      this.tracker.reset();
-      telemetry.addEventListener("characteristicvaluechanged", (e) => this.handlePacket(e));
-      await telemetry.startNotifications();
-      this.onStateCb?.("connected");
+      await this.open();
     } catch (e) {
       this.onStateCb?.("disconnected", String(e));
       throw e;
     }
+  }
+
+  /** Connect again to the device we already chose (no chooser). */
+  async reconnect(): Promise<void> {
+    if (!this.device) throw new Error("no device to reconnect to");
+    this.onStateCb?.("connecting");
+    try {
+      await this.open();
+    } catch (e) {
+      this.onStateCb?.("disconnected", String(e));
+      throw e;
+    }
+  }
+
+  private async open(): Promise<void> {
+    const server = await this.device!.gatt!.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    this.cmdChar = await service.getCharacteristic(COMMAND_CHAR_UUID);
+    const telemetry = await service.getCharacteristic(TELEMETRY_CHAR_UUID);
+
+    this.tracker.reset();
+    telemetry.addEventListener("characteristicvaluechanged", (e) => this.handlePacket(e));
+    await telemetry.startNotifications();
+    this.onStateCb?.("connected");
   }
 
   disconnect(): void {

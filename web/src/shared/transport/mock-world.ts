@@ -1,5 +1,6 @@
 import type { Telemetry } from "../protocol";
 import { DEFAULT_CONFIG, type MonitorConfig } from "../monitor/monitor-state";
+import type { ScanSettings } from "../protocol";
 
 /** A tiny seeded PRNG (mulberry32) so the simulated world is repeatable in tests. */
 export function seeded(seed: number): () => number {
@@ -55,12 +56,19 @@ export class MockWorld {
   config: MonitorConfig = { ...DEFAULT_CONFIG };
   private rand: () => number;
   private reported = new Map<string, number>();
+  /** The owner's scan settings, applied the way the device applies them. */
+  private policy = { dedupDb: 6, ssidFilter: "", channelMask: 0 };
   private rssi = new Map<string, number>();
   private scanTicks = 0;
   private bleTicks = 0;
 
   constructor(seed = 7) {
     this.rand = seeded(seed);
+  }
+
+  /** Adopt the scan settings (dedup threshold and filters) like the device does for following beacons. */
+  applyScanSettings(s: Pick<ScanSettings, "dedupRssiDb" | "ssidFilter" | "channelFilterMask">): void {
+    this.policy = { dedupDb: s.dedupRssiDb, ssidFilter: s.ssidFilter.toLowerCase(), channelMask: s.channelFilterMask };
   }
 
   /** `setMonitor` with the device's validation; returns the reply. */
@@ -93,6 +101,9 @@ export class MockWorld {
   private scanBeacons(ch: number, out: Telemetry[]): void {
     for (const ap of APS) {
       if (ap.channel !== ch || this.scanTicks < ap.from) continue;
+      const { dedupDb, ssidFilter, channelMask } = this.policy;
+      if (channelMask !== 0 && (channelMask & (1 << (ap.channel - 1))) === 0) continue;
+      if (ssidFilter && !ap.ssid.toLowerCase().includes(ssidFilter)) continue;
       const prev = this.rssi.get(ap.bssid) ?? ap.base;
       // a slow drift, with the odd big swing
       const swing = this.rand() < 0.1 ? (this.rand() < 0.5 ? -1 : 1) * (8 + Math.floor(this.rand() * 12)) : Math.floor(this.rand() * 5) - 2;
@@ -100,7 +111,7 @@ export class MockWorld {
       this.rssi.set(ap.bssid, now);
       const last = this.reported.get(ap.bssid);
       // the device's de-duplication rule: report when new or moved by 6 dB or more
-      if (last === undefined || Math.abs(now - last) >= 6) {
+      if (last === undefined || Math.abs(now - last) >= dedupDb) {
         this.reported.set(ap.bssid, now);
         out.push({ type: "scan", bssid: bssidBytes(ap.bssid), channel: ap.channel, rssi: now, ssid: ap.ssid });
       }

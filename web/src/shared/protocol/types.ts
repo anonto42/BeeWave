@@ -1,4 +1,5 @@
-import type { AdClassName, AnomalyKindName } from "./monitor";
+import type { AdClassName, AnomalyKindName, RejectReasonName } from "./monitor";
+import type { DeviceSettings } from "./settings-types";
 
 /** Device -> app messages. Mirrors `TelemetryMessage` in crates/protocol/src/types.rs. */
 export type Telemetry =
@@ -14,7 +15,32 @@ export type Telemetry =
   | { type: "bleStats"; fastPair: number; ibeacon: number; proximity: number; generic: number }
   | { type: "bleSpike"; class: AdClassName; count: number; baseline: number }
   | { type: "anomaly"; kind: AnomalyKindName; bssid: string; detail: number }
-  | { type: "monitorConfig"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number };
+  | { type: "monitorConfig"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number }
+  | { type: "settingsAll"; schema: number; revision: number; settings: DeviceSettings }
+  | { type: "settingsSaved"; revision: number; ok: boolean; reason: RejectReasonName | null }
+  | {
+      type: "storageInfo";
+      nvsUsed: number;
+      nvsFree: number;
+      ota0Active: boolean;
+      ota1Active: boolean;
+      ota0Size: number;
+      ota1Size: number;
+      settingsRevision: number;
+    }
+  | { type: "selfTest"; radio: boolean; nvs: boolean; ble: boolean; otaSlot: boolean; busy: boolean }
+  | {
+      type: "deviceInfo";
+      version: string;
+      gitSha: string;
+      built: string;
+      /** 16 bytes as 32 lowercase hex characters. */
+      otaKeyFp: string;
+      requestConnParams: boolean;
+      coexDebug: boolean;
+      bonding: boolean;
+    }
+  | { type: "rejected"; reason: RejectReasonName };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =
@@ -32,7 +58,13 @@ export type Command =
   | { type: "otaEndSigned"; signature: Uint8Array }
   | { type: "provision"; key: Uint8Array }
   | { type: "getMonitor" }
-  | { type: "setMonitor"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number };
+  | { type: "setMonitor"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number }
+  | { type: "getSettingsAll" }
+  | { type: "saveSettingsAll"; settings: DeviceSettings }
+  | { type: "factoryReset" }
+  | { type: "runSelfTest" }
+  | { type: "getStorageInfo" }
+  | { type: "getDeviceInfo" };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

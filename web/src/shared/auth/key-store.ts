@@ -5,6 +5,8 @@ const STORAGE_KEY = "beewave.key";
 /** The device key, kept in this browser only. Works in memory when storage is blocked. */
 export class KeyStore {
   private key: Uint8Array | null = null;
+  /** False = keep the key in memory only (the phone-side "remember key" setting is off). */
+  private persist = true;
 
   constructor(private readonly storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null = safeStorage()) {
     try {
@@ -19,13 +21,24 @@ export class KeyStore {
     return this.key;
   }
 
+  /** Turn saving to browser storage on or off. Turning it off also removes any saved copy; the key in memory stays. */
+  setPersist(on: boolean): void {
+    this.persist = on;
+    try {
+      if (on && this.key) this.storage?.setItem(STORAGE_KEY, [...this.key].map((b) => b.toString(16).padStart(2, "0")).join(""));
+      if (!on) this.storage?.removeItem(STORAGE_KEY);
+    } catch {
+      /* blocked storage: nothing to do */
+    }
+  }
+
   /** Save a key typed by the user. Returns `false` (and keeps the old key) if it is not valid. */
   set(text: string): boolean {
     const key = parseKey(text);
     if (!key) return false;
     this.key = key;
     try {
-      this.storage?.setItem(STORAGE_KEY, text.trim().toLowerCase());
+      if (this.persist) this.storage?.setItem(STORAGE_KEY, text.trim().toLowerCase());
     } catch {
       /* private mode / quota: keep working in memory */
     }

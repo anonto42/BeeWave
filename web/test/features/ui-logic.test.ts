@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeEvent } from "../../src/features/alerts/describe";
 import { controlState } from "../../src/features/control/enabled";
-import { signalBars } from "../../src/features/scanner/signal";
+import { rssiHtml, rssiLevel } from "../../src/shared/monitor";
 import { sortNetworks } from "../../src/features/scanner/sort";
 import type { ScanResult } from "../../src/features/scanner/types";
 
@@ -34,9 +34,16 @@ describe("controlState", () => {
   });
 });
 
-describe("signalBars", () => {
-  it("maps RSSI to 1-4 bars", () => {
-    expect([-40, -55, -56, -67, -70, -77, -90].map(signalBars)).toEqual([4, 4, 3, 3, 2, 2, 1]);
+describe("RSSI bands", () => {
+  it("maps dBm to 0-5 bars at -30/-67/-70/-80/-90", () => {
+    expect([-20, -30, -31, -67, -68, -70, -71, -80, -81, -90, -91].map(rssiLevel)).toEqual([5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0]);
+  });
+  it("shows the number or the bars, with the number as the bars' tooltip", () => {
+    expect(rssiHtml(-55, "dbm")).toBe('<span class="dbm">-55</span>');
+    const bars = rssiHtml(-55, "bars");
+    expect(bars).toContain('data-bars="4"');
+    expect(bars).toContain('title="-55 dBm"');
+    expect(bars.match(/<i><\/i>/g)).toHaveLength(5);
   });
 });
 

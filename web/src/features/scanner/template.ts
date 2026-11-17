@@ -1,5 +1,5 @@
 import { esc } from "../../shared/app";
-import { signalBars } from "./signal";
+import { rssiHtml } from "../../shared/monitor";
 import type { ScanResult } from "./types";
 
 export const scannerHtml = `<div class="toolbar">
@@ -13,9 +13,8 @@ export const scannerHtml = `<div class="toolbar">
 
 export const emptyHtml = `<li class="empty dim">No networks yet. Press START SCAN.</li>`;
 
-export const rowHtml = (n: ScanResult, isTarget: boolean) =>
+export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean) =>
   `<li class="net${isTarget ? " target" : ""}" data-bssid="${n.bssid}" data-ssid="${esc(n.ssid)}">` +
   `<span class="mark${isTarget ? " on" : ""}" aria-hidden="true"></span>` +
   `<span class="net-main"><b>${esc(n.ssid || "(hidden)")}</b><small>${n.bssid} · CH ${n.channel}</small></span>` +
-  `<span class="sig" data-bars="${signalBars(n.rssi)}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>` +
-  `<span class="dbm">${n.rssi}</span></li>`;
+  `${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;

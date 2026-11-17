@@ -15,7 +15,10 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
 
   let link: TransportState = "disconnected";
   let scanning = false;
-  let pinned = 0; // the channel the user picked (0 = AUTO)
+  const model = ctx.settings.device;
+  let localPin = 0; // the channel picked while the device settings are not loaded (0 = AUTO)
+  /** The pinned channel: the Settings default-channel draft when it is loaded, so both controls always agree. */
+  const pinned = () => model.draft?.radio.defaultChannel ?? localPin;
   const render = () => {
     const s = controlState(link, ctx.auth.state, scanning);
     run.disabled = !s.run.enabled;
@@ -25,7 +28,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     mode.dataset.mode = s.mode.toLowerCase();
     for (const c of chips) {
       c.disabled = !s.channelEnabled;
-      c.setAttribute("aria-pressed", String(Number(c.dataset.ch) === pinned));
+      c.setAttribute("aria-pressed", String(Number(c.dataset.ch) === pinned()));
     }
   };
 
@@ -37,9 +40,11 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   $(el, "[data-channels]").onclick = (e) => {
     const chip = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-ch]");
     if (!chip || chip.disabled) return;
-    pinned = Number(chip.dataset.ch);
+    const ch = Number(chip.dataset.ch);
+    localPin = ch;
+    model.set("radio.defaultChannel", ch); // shows in Settings > Radio as a pending change; Apply makes it permanent
     render();
-    void send({ type: "configureRadio", channel: pinned });
+    void send({ type: "configureRadio", channel: ch });
   };
 
   ctx.onState((s) => {
@@ -51,6 +56,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     render();
   });
   ctx.auth.onChange(render);
+  model.onChange(render);
   ctx.onTelemetry("status", (m) => {
     scanning = m.scanning;
     hint.textContent = `on channel ${m.activeChannel}`;

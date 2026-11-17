@@ -1,5 +1,5 @@
 import { esc } from "../../shared/app";
-import { sparklinePoints, type DeltaRow, type NetworkRecord } from "../../shared/monitor";
+import { rssiHtml, sparklinePoints, type DeltaRow, type NetworkRecord } from "../../shared/monitor";
 
 export type View = "all" | "delta";
 
@@ -18,7 +18,7 @@ export const sparkSvg = (values: readonly number[]) =>
 export const rowHtml = (r: NetworkRecord, delta: number | null) =>
   `<li class="net static"><span class="net-main"><b>${esc(r.ssid || "(hidden)")}</b><small>${r.bssid} · CH ${r.channel}</small></span>` +
   sparkSvg(r.history.map((p) => p.rssi)) +
-  `<span class="dbm">${r.rssi}</span>` +
+  rssiHtml(r.rssi) +
   (delta === null ? "" : `<span class="delta ${delta >= 0 ? "up" : "down"}">${delta > 0 ? "+" : ""}${delta}</span>`) +
   `</li>`;
 

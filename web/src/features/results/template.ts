@@ -1,7 +1,9 @@
-import { esc, clock } from "../../shared/app";
+import { clock, esc } from "../../shared/app";
+import { rssiHtml } from "../../shared/monitor";
+import type { ResultColumn } from "../../shared/settings";
 import type { ResultQuery, ResultRow, SortKey } from "./filter";
 
-const COLUMNS: Array<[SortKey, string]> = [
+const COLUMNS: Array<[SortKey & ResultColumn, string]> = [
   ["ssid", "SSID"],
   ["bssid", "BSSID"],
   ["vendor", "VENDOR"],
@@ -24,14 +26,24 @@ export const resultsHtml = `<div class="toolbar">
 </table></div>
 <div class="pad dim" data-count></div>`;
 
-export const headHtml = (q: ResultQuery) =>
-  COLUMNS.map(([key, label]) => {
+export const headHtml = (q: ResultQuery, visible: readonly ResultColumn[]) =>
+  COLUMNS.filter(([key]) => visible.includes(key)).map(([key, label]) => {
     const on = q.sort === key;
     return `<th aria-sort="${on ? (q.dir === "asc" ? "ascending" : "descending") : "none"}"><button class="th" data-sort="${key}">${label}${on ? (q.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>`;
   }).join("");
 
-export const rowHtml = ({ record: r, vendor }: ResultRow) =>
-  `<tr><td>${esc(r.ssid || "(hidden)")}</td><td>${r.bssid}</td><td>${esc(vendor)}</td><td>${r.rssi}</td><td>${r.channel}</td>` +
-  `<td>${clock(r.firstSeen)}</td><td>${clock(r.lastSeen)}</td><td>${r.count}</td></tr>`;
+const CELLS: Record<ResultColumn, (r: ResultRow) => string> = {
+  ssid: ({ record: r }) => esc(r.ssid || "(hidden)"),
+  bssid: ({ record: r }) => r.bssid,
+  vendor: ({ vendor }) => esc(vendor),
+  rssi: ({ record: r }) => rssiHtml(r.rssi),
+  channel: ({ record: r }) => String(r.channel),
+  firstSeen: ({ record: r }) => clock(r.firstSeen),
+  lastSeen: ({ record: r }) => clock(r.lastSeen),
+  count: ({ record: r }) => String(r.count),
+};
 
-export const emptyRow = `<tr><td colspan="8" class="dim">No networks match.</td></tr>`;
+export const rowHtml = (row: ResultRow, visible: readonly ResultColumn[]) =>
+  `<tr>${COLUMNS.filter(([key]) => visible.includes(key)).map(([key]) => `<td>${CELLS[key](row)}</td>`).join("")}</tr>`;
+
+export const emptyRow = (cols: number) => `<tr><td colspan="${cols}" class="dim">No networks match.</td></tr>`;

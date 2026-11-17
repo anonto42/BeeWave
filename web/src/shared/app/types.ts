@@ -1,5 +1,6 @@
 import type { Authenticator, KeyStore } from "../auth";
 import type { MonitorKernel } from "../monitor";
+import type { SettingsKernel } from "../settings";
 import type { Telemetry } from "../protocol";
 import type { Target, TargetStore } from "../targets";
 import type { Transport, TransportState } from "../transport";
@@ -17,6 +18,8 @@ export interface AppContext {
   readonly targets: TargetStore;
   /** Scan history, alerts, watchlist, monitor state and the session record (fed from every telemetry message). */
   readonly monitor: MonitorKernel;
+  /** Device-side and phone-side settings. */
+  readonly settings: SettingsKernel;
   /** Subscribe to one kind of telemetry message. */
   onTelemetry<K extends TelemetryKind>(kind: K, cb: (m: Extract<Telemetry, { type: K }>) => void): void;
   onState(cb: (s: TransportState) => void): void;

@@ -1,11 +1,10 @@
 // Composition root: choose transport, create context, build the tab shell, mount feature slices into tabs.
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
-import { createContext } from "./shared/app";
+import { applyUiSettings, createContext } from "./shared/app";
 import { createTabShell, ICONS } from "./shared/shell";
 import { BleTransport, MockTransport } from "./shared/transport";
 import * as connection from "./features/connection";
-import * as auth from "./features/auth";
 import * as status from "./features/status";
 import * as control from "./features/control";
 import * as scanner from "./features/scanner";
@@ -15,7 +14,6 @@ import * as settings from "./features/settings";
 import * as targets from "./features/targets";
 import * as compat from "./features/compat";
 import * as alerts from "./features/alerts";
-import * as reboot from "./features/reboot";
 import * as results from "./features/results";
 import * as channelChart from "./features/channel-chart";
 import * as rssiHistory from "./features/rssi-history";
@@ -23,8 +21,6 @@ import * as compare from "./features/compare";
 import * as anomalies from "./features/anomalies";
 import * as deauth from "./features/deauth";
 import * as bleMonitor from "./features/ble-monitor";
-import * as watchlist from "./features/watchlist";
-import * as exportSession from "./features/export";
 
 registerSW({ immediate: true });
 
@@ -45,11 +41,15 @@ const layout = {
   device: [compat, status],
   scan: [control, scanner, targets],
   analyze: [results, channelChart, rssiHistory, compare],
-  alerts: [anomalies, deauth, bleMonitor, watchlist],
-  settings: [settings, auth, reboot, exportSession, ota],
+  alerts: [anomalies, deauth, bleMonitor],
+  settings: [settings, ota],
   log: [log],
 } as const;
 for (const [tab, features] of Object.entries(layout)) for (const f of features) f.mount(shell.panes[tab], ctx);
+
+// Phone-side look and feel: theme, density, signal unit and repaint rate apply now and on every change.
+applyUiSettings(ctx.settings.phone.get().ui);
+ctx.settings.phone.onChange((p) => applyUiSettings(p.ui));
 
 // Connect / disconnect and the live link + key state live in the title bar, visible from every tab.
 connection.mount(shell.bar, ctx);

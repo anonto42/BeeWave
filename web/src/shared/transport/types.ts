@@ -11,4 +11,8 @@ export interface Transport {
   onState(cb: (s: TransportState, info?: string) => void): void;
   /** Telemetry packets lost on the link, detected from sequence gaps. */
   readonly lost: number;
+  /** Name of the device we are (or were last) connected to, if known. */
+  readonly deviceName?: string | null;
+  /** Connect again to the device we had, without the chooser (used for auto-reconnect). Optional. */
+  reconnect?(): Promise<void>;
 }

@@ -1,3 +1,4 @@
+import { NAVIGATE_EVENT } from "./events";
 import { tabFromHash } from "./tab-id";
 import type { TabDef, TabShell } from "./types";
 
@@ -43,6 +44,11 @@ export function createTabShell(root: HTMLElement, title: string, tabs: readonly 
     if (location.hash !== `#${id}`) history.replaceState(null, "", `#${id}`);
     window.scrollTo(0, 0);
   }
+
+  window.addEventListener(NAVIGATE_EVENT, (e) => {
+    const id = (e as CustomEvent<string>).detail;
+    if (ids.includes(id)) select(id);
+  });
 
   root.append(header, main, nav);
   select(tabFromHash(location.hash, ids, ids[0]));

@@ -32,6 +32,31 @@ describe("telemetry decode (golden vectors from Rust)", () => {
     expect(m(11)).toEqual({ type: "anomaly", kind: "rssiOutlier", bssid: "09:08:07:06:05:04", detail: 27 });
     expect(m(12)).toEqual({ type: "monitorConfig", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 });
   });
+  it("settings management messages", () => {
+    const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;
+    expect(m(13)).toEqual({
+      type: "settingsAll",
+      schema: 1,
+      revision: 300,
+      settings: {
+        scan: { scanAtBoot: true, scanIntervalMs: 500, dedupRssiDb: 6, ssidFilter: "Cafe", channelFilterMask: 0b1_0000_0100_0001 },
+        radio: { defaultChannel: 0, hopDwellMs: 250, hopOrder: "custom", customHopList: [1, 6, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+        telemetry: { statusPeriodMs: 1000, logLevel: "info" },
+        alerts: { deauthThreshold: 10, deauthWindowMs: 1000 },
+      },
+    });
+    expect(m(14)).toEqual({ type: "settingsSaved", revision: 7, ok: false, reason: "windowTooShort" });
+    expect(m(15)).toEqual({ type: "settingsSaved", revision: 8, ok: true, reason: null });
+    expect(m(16)).toEqual({
+      type: "storageInfo", nvsUsed: 3000, nvsFree: 21576, ota0Active: true, ota1Active: false, ota0Size: 1572864, ota1Size: 1572864, settingsRevision: 9,
+    });
+    expect(m(17)).toEqual({ type: "selfTest", radio: true, nvs: true, ble: false, otaSlot: true, busy: false });
+    expect(m(18)).toEqual({
+      type: "deviceInfo", version: "0.1.0", gitSha: "a1b2c3d", built: "2026-11-18T10:00:00Z", otaKeyFp: "ab".repeat(16),
+      requestConnParams: false, coexDebug: false, bonding: false,
+    });
+    expect(m(19)).toEqual({ type: "rejected", reason: "busy" });
+  });
   it("rejects an unknown enum variant", () => {
     // BleSpike with class index 9
     expect(() => decodeTelemetry(bytes("010a0a09f40328"))).toThrow(/unknown enum variant/);
@@ -59,6 +84,20 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "provision", key: new Uint8Array(32).fill(6) },
     { type: "getMonitor" },
     { type: "setMonitor", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 },
+    { type: "getSettingsAll" },
+    {
+      type: "saveSettingsAll",
+      settings: {
+        scan: { scanAtBoot: true, scanIntervalMs: 500, dedupRssiDb: 6, ssidFilter: "Cafe", channelFilterMask: 0b1_0000_0100_0001 },
+        radio: { defaultChannel: 0, hopDwellMs: 250, hopOrder: "custom", customHopList: [1, 6, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+        telemetry: { statusPeriodMs: 1000, logLevel: "info" },
+        alerts: { deauthThreshold: 10, deauthWindowMs: 1000 },
+      },
+    },
+    { type: "factoryReset" },
+    { type: "runSelfTest" },
+    { type: "getStorageInfo" },
+    { type: "getDeviceInfo" },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });

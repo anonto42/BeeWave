@@ -1,5 +1,6 @@
 import { $, type AppContext } from "../../shared/app";
 import type { TransportState } from "../../shared/transport";
+import { openSettings } from "../../shared/shell";
 import { linkLabel } from "./link-label";
 import { connectionHtml } from "./template";
 
@@ -20,6 +21,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     toggle.disabled = link === "connecting";
   };
 
+  $<HTMLButtonElement>(el, "[data-lock]").onclick = () => openSettings("connection");
   toggle.onclick = () => (link === "disconnected" ? ctx.transport.connect().catch((e) => ctx.log(String(e))) : ctx.transport.disconnect());
   ctx.onState((s) => {
     link = s;

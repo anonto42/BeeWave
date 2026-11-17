@@ -13,8 +13,9 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   const render = () => {
     const all = ctx.monitor.scans.networks();
     const rows = filterAndSort(all, q);
-    head.innerHTML = headHtml(q);
-    body.innerHTML = rows.length ? rows.map(rowHtml).join("") : emptyRow;
+    const visible = ctx.settings.phone.get().ui.visibleColumns;
+    head.innerHTML = headHtml(q, visible);
+    body.innerHTML = rows.length ? rows.map((r) => rowHtml(r, visible)).join("") : emptyRow(visible.length);
     $(el, "[data-count]").textContent = `${rows.length} of ${all.length} networks`;
   };
   const later = coalesce(render);
@@ -35,5 +36,6 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   };
 
   ctx.monitor.scans.onChange(later);
+  ctx.settings.phone.onChange(render); // columns, density and RSSI unit apply at once
   render();
 }

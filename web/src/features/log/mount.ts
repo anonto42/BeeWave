@@ -13,6 +13,8 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     box.querySelector("[data-empty]")?.remove();
     box.prepend(Object.assign(document.createElement("div"), { textContent: `${new Date().toLocaleTimeString()} ${text}` }));
     while (box.childElementCount > MAX_LINES) box.lastChild!.remove();
+    // newest lines are on top: keep them in view unless the owner turned auto-scroll off
+    if (ctx.settings.phone.get().ui.autoScrollLog) box.scrollTop = 0;
   };
 
   ctx.onLog(add);
