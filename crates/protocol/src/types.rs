@@ -61,6 +61,11 @@ pub enum DeviceCommand {
         sig_r: [u8; 32],
         sig_s: [u8; 32],
     },
+    /// Claim an unclaimed device: the key it will require from now on. Refused when the device
+    /// already has a key.
+    Provision {
+        key: [u8; 32],
+    },
 }
 
 /// Device -> app.
@@ -71,6 +76,8 @@ pub enum TelemetryMessage {
         free_heap: u32,
         cpu_load: u8,
         dropped: u16,
+        /// True while the sniffer is running (scan in progress).
+        scanning: bool,
     },
     ScanResult {
         bssid: [u8; 6],
@@ -98,4 +105,6 @@ pub enum TelemetryMessage {
     AuthResult {
         ok: bool,
     },
+    /// Reply to `AuthBegin` while the device has no key yet: the client may `Provision` one.
+    Unclaimed,
 }

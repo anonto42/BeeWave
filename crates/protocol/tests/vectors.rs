@@ -12,6 +12,7 @@ fn roundtrip_and_emit_golden_vectors() {
             free_heap: 123_456,
             cpu_load: 42,
             dropped: 300,
+            scanning: true,
         },
         TelemetryMessage::ScanResult {
             bssid: [1, 2, 3, 4, 5, 6],
@@ -30,6 +31,7 @@ fn roundtrip_and_emit_golden_vectors() {
         },
         TelemetryMessage::AuthChallenge { nonce: [7; 16] },
         TelemetryMessage::AuthResult { ok: true },
+        TelemetryMessage::Unclaimed,
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -56,6 +58,7 @@ fn roundtrip_and_emit_golden_vectors() {
             sig_r: [3; 32],
             sig_s: [4; 32],
         },
+        DeviceCommand::Provision { key: [6; 32] },
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];
