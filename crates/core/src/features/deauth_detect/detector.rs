@@ -27,14 +27,27 @@ impl DeauthDetector {
     /// The BSSIDs at or above the threshold in this one-second window, strongest first, at most
     /// `MAX_ALERTS`. Nothing is reported while the detector is off.
     pub fn evaluate(&self, counts: &[([u8; 6], u16)]) -> Vec<DeauthHit, MAX_ALERTS> {
+        self.evaluate_window(counts, 1000)
+    }
+
+    /// Like `evaluate`, for counts gathered over `window_ms`: the rate in frames per second is compared with
+    /// the threshold and reported as `count`.
+    pub fn evaluate_window(
+        &self,
+        counts: &[([u8; 6], u16)],
+        window_ms: u16,
+    ) -> Vec<DeauthHit, MAX_ALERTS> {
         let mut hits: Vec<DeauthHit, MAX_ALERTS> = Vec::new();
-        if self.threshold == 0 {
+        if self.threshold == 0 || window_ms == 0 {
             return hits;
         }
-        for &(bssid, count) in counts {
-            if count < u16::from(self.threshold) {
+        for &(bssid, frames) in counts {
+            let rate =
+                (u32::from(frames) * 1000 / u32::from(window_ms)).min(u32::from(u16::MAX)) as u16;
+            if rate < u16::from(self.threshold) {
                 continue;
             }
+            let count = rate;
             let hit = DeauthHit { bssid, count };
             if hits.is_full() {
                 // replace the weakest kept hit if this one is stronger

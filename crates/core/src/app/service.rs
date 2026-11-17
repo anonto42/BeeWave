@@ -1,9 +1,9 @@
-use beewave_protocol::{AdClass, DeviceCommand, TelemetryMessage, AUTH_NONCE_LEN};
+use beewave_protocol::{AdClass, DeviceCommand, LogLevel, TelemetryMessage, AUTH_NONCE_LEN};
 
 use super::keys::DeviceKeys;
 use super::messages::{
     event, ota_error_text, radio_error_text, EVENT_MONITOR_ERROR, EVENT_OTA_ERROR,
-    EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR, EVENT_UNAUTHORIZED,
+    EVENT_RADIO_ERROR, EVENT_UNAUTHORIZED,
 };
 use super::monitoring::{MonitorConfig, Monitoring};
 use crate::features::auth::AuthGate;
@@ -12,7 +12,7 @@ use crate::features::radio::{Mode, RadioController};
 use crate::features::scan::{Observation, ScanTable};
 use crate::features::settings::SettingsService;
 use crate::features::status;
-use crate::ports::{OtaWriter, RadioDriver, Settings, SettingsStore, System, TelemetrySink};
+use crate::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
 
 /// Composes the feature slices. The five generic parameters are the five driven ports;
 /// the firmware plugs in real adapters, tests plug in fakes.
@@ -24,15 +24,17 @@ where
     T: TelemetrySink,
     P: SettingsStore,
 {
-    auth: AuthGate,
-    radio: RadioController<R>,
-    ota: OtaSession<W>,
-    settings: SettingsService<P>,
-    scans: ScanTable,
-    monitoring: Monitoring,
-    sys: S,
-    sink: T,
+    pub(super) auth: AuthGate,
+    pub(super) radio: RadioController<R>,
+    pub(super) ota: OtaSession<W>,
+    pub(super) settings: SettingsService<P>,
+    pub(super) scans: ScanTable,
+    pub(super) monitoring: Monitoring,
+    pub(super) sys: S,
+    pub(super) sink: T,
     dropped: u16,
+    /// Running time in milliseconds, advanced by the status period on every tick.
+    elapsed_ms: u32,
 }
 
 impl<R, W, S, T, P> App<R, W, S, T, P>
@@ -59,6 +61,7 @@ where
             sys,
             sink,
             dropped: 0,
+            elapsed_ms: 0,
         }
     }
 
@@ -67,14 +70,30 @@ where
         self.dropped
     }
 
-    /// Apply the saved settings (channel, auto-scan). Call once before processing input.
+    /// Apply the saved settings (scan policy, alert thresholds, channel, scan at boot). Call once before
+    /// processing input.
     pub fn start(&mut self) {
-        let s = self.settings.current();
-        self.apply_channel(s);
-        if s.auto_scan {
+        self.apply_settings();
+        if self.settings.current().scan.scan_at_boot {
+            self.configure_hop();
             self.radio
                 .handle(&DeviceCommand::StartScan { band_mask: 1 });
         }
+    }
+
+    /// Milliseconds between status heartbeats (the firmware schedules `on_tick` with it).
+    pub fn status_period_ms(&self) -> u32 {
+        self.settings.current().telemetry.status_period_ms
+    }
+
+    /// Window the deauth counters are drained over (the firmware schedules `on_deauth_window` with it).
+    pub fn deauth_window_ms(&self) -> u16 {
+        self.settings.current().alerts.deauth_window_ms
+    }
+
+    /// Verbosity the device's own logging should use.
+    pub fn log_level(&self) -> LogLevel {
+        self.settings.current().telemetry.log_level
     }
 
     /// Driving port: a command arrived from the client.
@@ -108,6 +127,7 @@ where
         }
         if matches!(cmd, DeviceCommand::StartScan { .. }) {
             self.scans.clear();
+            self.configure_hop(); // hopping changes apply when a scan starts, never mid-hop
         }
         if matches!(cmd, DeviceCommand::RebootDevice) {
             self.sys.restart();
@@ -140,19 +160,7 @@ where
             }
             _ => {}
         }
-        if let Some(result) = self.settings.handle(&cmd) {
-            match result {
-                Ok(s) => {
-                    if matches!(cmd, DeviceCommand::SetSettings { .. }) {
-                        self.apply_channel(s);
-                    }
-                    self.emit(TelemetryMessage::Settings {
-                        channel: s.channel,
-                        auto_scan: s.auto_scan,
-                    });
-                }
-                Err(_) => self.emit(event(EVENT_SETTINGS_ERROR, "settings error")),
-            }
+        if self.handle_settings_command(&cmd) {
             return;
         }
         if let Some(result) = self.radio.handle(&cmd) {
@@ -181,15 +189,16 @@ where
         if let Some(alert) = self.monitoring.on_observation(&o) {
             self.emit(alert);
         }
-        if let Some(m) = self.scans.observe(o) {
+        if let Some(m) = self.scans.observe(o, self.elapsed_ms) {
             self.emit(m);
         }
     }
 
-    /// Driving port: one second of deauthentication frame counts per BSSID, drained from the
-    /// sniffer's counters. Publishes an alert for each BSSID at or above the threshold.
-    pub fn on_deauth_second(&mut self, counts: &[([u8; 6], u16)]) {
-        for alert in self.monitoring.on_deauth_second(counts) {
+    /// Driving port: deauthentication frame counts per BSSID gathered over `deauth_window_ms`, drained from
+    /// the sniffer's counters. Publishes an alert for each BSSID whose rate reaches the threshold.
+    pub fn on_deauth_window(&mut self, counts: &[([u8; 6], u16)]) {
+        let window = self.deauth_window_ms();
+        for alert in self.monitoring.on_deauth_window(counts, window) {
             self.emit(alert);
         }
     }
@@ -206,6 +215,7 @@ where
 
     /// Driving port: periodic tick (status heartbeat, BLE monitor statistics).
     pub fn on_tick(&mut self) {
+        self.elapsed_ms = self.elapsed_ms.wrapping_add(self.status_period_ms());
         let scanning = self.radio.mode() == Mode::Scanning;
         let m = status::sample(&self.sys, self.radio.channel(), self.dropped, scanning);
         self.emit(m);
@@ -223,11 +233,6 @@ where
         self.emit(TelemetryMessage::AuthResult { ok });
     }
 
-    fn apply_channel(&mut self, s: Settings) {
-        self.radio
-            .handle(&DeviceCommand::ConfigureRadio { channel: s.channel });
-    }
-
     /// Until authenticated, only the handshake and the unauthorized event may leave the device.
     fn permitted(&self, m: &TelemetryMessage) -> bool {
         self.auth.is_authenticated()
@@ -243,7 +248,7 @@ where
             )
     }
 
-    fn emit(&mut self, m: TelemetryMessage) {
+    pub(super) fn emit(&mut self, m: TelemetryMessage) {
         if !self.permitted(&m) {
             return; // withheld on purpose, not a drop
         }

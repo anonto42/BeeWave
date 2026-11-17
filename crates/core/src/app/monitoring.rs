@@ -98,10 +98,20 @@ impl Monitoring {
             })
     }
 
-    /// One second of deauth frame counts per BSSID. Returns the alerts to publish.
-    pub fn on_deauth_second(&self, counts: &[([u8; 6], u16)]) -> Vec<TelemetryMessage, 4> {
+    /// The owner's persisted deauth threshold became the active one (a later `SetMonitor` may override it in RAM).
+    pub fn apply_alert_settings(&mut self, deauth_threshold: u8) {
+        self.deauth.set_threshold(deauth_threshold);
+        self.cfg.deauth_threshold = deauth_threshold;
+    }
+
+    /// Deauth frame counts per BSSID gathered over `window_ms`. Returns the alerts to publish.
+    pub fn on_deauth_window(
+        &self,
+        counts: &[([u8; 6], u16)],
+        window_ms: u16,
+    ) -> Vec<TelemetryMessage, 4> {
         let mut out = Vec::new();
-        for hit in self.deauth.evaluate(counts) {
+        for hit in self.deauth.evaluate_window(counts, window_ms) {
             let _ = out.push(TelemetryMessage::DeauthAlert {
                 bssid: hit.bssid,
                 count: hit.count,

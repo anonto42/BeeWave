@@ -12,5 +12,5 @@ mod telemetry;
 pub use ota::{OtaError, OtaWriter};
 pub use radio::{RadioDriver, RadioError, AUTO_CHANNEL, MAX_CHANNEL};
 pub use settings::{Settings, SettingsError, SettingsStore};
-pub use system::System;
+pub use system::{BuildFacts, PartitionInfo, System};
 pub use telemetry::TelemetrySink;

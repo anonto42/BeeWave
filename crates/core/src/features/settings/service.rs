@@ -1,21 +1,64 @@
-use beewave_protocol::DeviceCommand;
+use beewave_protocol::{DeviceCommand, RejectReason};
 
-use crate::ports::{Settings, SettingsError, SettingsStore, AUTO_CHANNEL, MAX_CHANNEL};
+use super::validate::validate;
+use crate::ports::{Settings, SettingsError, SettingsStore};
 
 pub struct SettingsService<S: SettingsStore> {
-    store: S,
+    pub(super) store: S,
     current: Settings,
 }
 
 impl<S: SettingsStore> SettingsService<S> {
-    /// Loads whatever is saved (or defaults).
+    /// Loads whatever is saved (or defaults). A stored set that no longer validates (for example after
+    /// a downgrade) is replaced by the defaults rather than trusted.
     pub fn new(mut store: S) -> Self {
-        let current = store.load();
+        let loaded = store.load();
+        let current = if validate(&loaded).is_ok() {
+            loaded
+        } else {
+            Settings::default()
+        };
         Self { store, current }
     }
 
-    pub fn current(&self) -> Settings {
-        self.current
+    pub fn current(&self) -> &Settings {
+        &self.current
+    }
+
+    /// How many times the settings were saved (persisted, survives reboots).
+    pub fn revision(&mut self) -> u32 {
+        self.store.save_revision()
+    }
+
+    /// Validate, persist, and only then adopt. On any error the stored and the live values are untouched.
+    pub fn save_all(&mut self, next: Settings) -> Result<u32, RejectReason> {
+        validate(&next)?;
+        self.store.save(&next).map_err(|_| RejectReason::Storage)?;
+        self.current = next;
+        Ok(self.store.save_revision())
+    }
+
+    /// The legacy `SetSettings`: change only the pinned channel and scan-at-boot.
+    pub fn set_legacy(&mut self, channel: u8, auto_scan: bool) -> Result<u32, RejectReason> {
+        let mut next = self.current.clone();
+        next.radio.default_channel = channel;
+        next.scan.scan_at_boot = auto_scan;
+        self.save_all(next)
+    }
+
+    /// `None` if not a (legacy) settings read. Writes go through `save_all` / `set_legacy`.
+    pub fn handle_legacy_get(&self, cmd: &DeviceCommand) -> Option<(u8, bool)> {
+        matches!(cmd, DeviceCommand::GetSettings).then_some((
+            self.current.radio.default_channel,
+            self.current.scan.scan_at_boot,
+        ))
+    }
+
+    /// Restore factory defaults and erase everything stored (settings, key, revision).
+    pub fn factory_reset(&mut self) -> Result<(), SettingsError> {
+        self.store.erase_all()?;
+        self.current = Settings::default();
+        Ok(())
     }
 
     /// The device key stored by an earlier provisioning, if any.
@@ -25,24 +68,5 @@ impl<S: SettingsStore> SettingsService<S> {
 
     pub fn save_key(&mut self, key: &[u8; 32]) -> Result<(), SettingsError> {
         self.store.save_key(key)
-    }
-
-    /// `None` if not a settings command. `Some(Ok(settings))` carries the settings to report back.
-    pub fn handle(&mut self, cmd: &DeviceCommand) -> Option<Result<Settings, SettingsError>> {
-        Some(match cmd {
-            DeviceCommand::GetSettings => Ok(self.current),
-            DeviceCommand::SetSettings { channel, auto_scan } => self.set(*channel, *auto_scan),
-            _ => return None,
-        })
-    }
-
-    fn set(&mut self, channel: u8, auto_scan: bool) -> Result<Settings, SettingsError> {
-        if channel != AUTO_CHANNEL && !(1..=MAX_CHANNEL).contains(&channel) {
-            return Err(SettingsError::InvalidChannel);
-        }
-        let next = Settings { channel, auto_scan };
-        self.store.save(&next)?; // only update in memory if flash accepted it
-        self.current = next;
-        Ok(next)
     }
 }

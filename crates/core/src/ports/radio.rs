@@ -12,6 +12,9 @@ pub trait RadioDriver {
     fn stop_sniffing(&mut self) -> Result<(), RadioError>;
     /// The channel the radio is on right now (changes while hopping).
     fn channel(&self) -> u8;
+    /// How to hop the next time scanning starts: dwell per channel and the channels in visiting order.
+    /// Drivers that cannot change their hopping keep the default (ignore it).
+    fn configure_hop(&mut self, _dwell_ms: u16, _order: &[u8]) {}
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

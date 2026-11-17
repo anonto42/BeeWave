@@ -8,6 +8,8 @@ use crate::ports::{RadioDriver, RadioError};
 pub struct RadioController<R: RadioDriver> {
     driver: R,
     mode: Mode,
+    /// The channel the owner pinned (0 = AUTO), restored after the self-test.
+    pinned: u8,
 }
 
 impl<R: RadioDriver> RadioController<R> {
@@ -15,6 +17,7 @@ impl<R: RadioDriver> RadioController<R> {
         Self {
             driver,
             mode: Mode::Idle,
+            pinned: AUTO_CHANNEL,
         }
     }
 
@@ -25,6 +28,19 @@ impl<R: RadioDriver> RadioController<R> {
     /// The channel the radio is on right now (the driver knows, it may be hopping).
     pub fn channel(&self) -> u8 {
         self.driver.channel()
+    }
+
+    /// How to hop the next time scanning starts (applied by the driver at that moment, never mid-hop).
+    pub fn configure_hop(&mut self, dwell_ms: u16, order: &[u8]) {
+        self.driver.configure_hop(dwell_ms, order);
+    }
+
+    /// Self-test: tune to channel 1 and 13, then restore the pinned channel. False if any step fails.
+    /// The caller must not run it while scanning.
+    pub fn self_test(&mut self) -> bool {
+        let ok = self.driver.set_channel(1).is_ok() && self.driver.set_channel(13).is_ok();
+        let restored = self.driver.set_channel(self.pinned).is_ok();
+        ok && restored
     }
 
     /// `None` means "not a radio command, someone else handles it".
@@ -42,7 +58,9 @@ impl<R: RadioDriver> RadioController<R> {
                 if *channel != AUTO_CHANNEL && !(1..=MAX_CHANNEL).contains(channel) {
                     return Some(Err(RadioError::InvalidChannel)); // rejected before touching hardware
                 }
-                self.driver.set_channel(*channel)
+                self.driver
+                    .set_channel(*channel)
+                    .map(|_| self.pinned = *channel)
             }
             _ => return None,
         })

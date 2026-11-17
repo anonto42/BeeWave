@@ -26,6 +26,23 @@ fn a_zero_threshold_turns_it_off() {
 }
 
 #[test]
+fn counts_over_a_longer_window_are_turned_into_a_rate() {
+    let d = DeauthDetector::new(); // 10 per second
+    assert!(
+        d.evaluate_window(&[(A, 19)], 2000).is_empty(),
+        "19 frames in 2 s is 9 per second"
+    );
+    let hits = d.evaluate_window(&[(A, 20)], 2000);
+    assert_eq!((hits[0].bssid, hits[0].count), (A, 10));
+    let hits = d.evaluate_window(&[(A, 6)], 200); // 30 per second in a short window
+    assert_eq!(hits[0].count, 30);
+    assert!(
+        d.evaluate_window(&[(A, 60_000)], 0).is_empty(),
+        "a zero window never divides"
+    );
+}
+
+#[test]
 fn the_threshold_is_configurable() {
     let mut d = DeauthDetector::new();
     d.set_threshold(3);

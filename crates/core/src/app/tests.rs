@@ -7,19 +7,34 @@ use super::*;
 use crate::features::auth::proof;
 use crate::features::scan::Observation;
 use crate::ports::{
-    OtaError, OtaWriter, RadioDriver, RadioError, Settings, SettingsError, SettingsStore, System,
-    TelemetrySink,
+    BuildFacts, OtaError, OtaWriter, PartitionInfo, RadioDriver, RadioError, Settings,
+    SettingsError, SettingsStore, System, TelemetrySink,
 };
 
+/// What the fake radio was asked to do, shared so a test can look after the radio moved into the `App`.
 #[derive(Default)]
-struct FakeRadio(u8);
+struct RadioLog {
+    hops: Vec<(u16, Vec<u8>)>,
+    channels: Vec<u8>,
+    fail_channel: Option<u8>,
+}
+
+#[derive(Default)]
+struct FakeRadio(u8, Rc<RefCell<RadioLog>>);
 impl RadioDriver for FakeRadio {
     fn channel(&self) -> u8 {
         self.0
     }
     fn set_channel(&mut self, c: u8) -> Result<(), RadioError> {
+        if self.1.borrow().fail_channel == Some(c) {
+            return Err(RadioError::Driver);
+        }
+        self.1.borrow_mut().channels.push(c);
         self.0 = c;
         Ok(())
+    }
+    fn configure_hop(&mut self, dwell_ms: u16, order: &[u8]) {
+        self.1.borrow_mut().hops.push((dwell_ms, order.to_vec()));
     }
     fn start_sniffing(&mut self) -> Result<(), RadioError> {
         Ok(())
@@ -35,14 +50,20 @@ struct FakeStore {
     /// Shared so a test can see what the device persisted after the store moved into the `App`.
     key: Rc<RefCell<Option<[u8; 32]>>>,
     key_save_fails: bool,
+    revision: Rc<RefCell<u32>>,
+    erased: Rc<RefCell<u32>>,
 }
 impl SettingsStore for FakeStore {
     fn load(&mut self) -> Settings {
-        self.settings.unwrap_or_default()
+        self.settings.clone().unwrap_or_default()
     }
     fn save(&mut self, s: &Settings) -> Result<(), SettingsError> {
-        self.settings = Some(*s);
+        self.settings = Some(s.clone());
+        *self.revision.borrow_mut() += 1;
         Ok(())
+    }
+    fn save_revision(&mut self) -> u32 {
+        *self.revision.borrow()
     }
     fn load_key(&mut self) -> Option<[u8; 32]> {
         *self.key.borrow()
@@ -52,6 +73,13 @@ impl SettingsStore for FakeStore {
             return Err(SettingsError::Storage);
         }
         *self.key.borrow_mut() = Some(*key);
+        Ok(())
+    }
+    fn erase_all(&mut self) -> Result<(), SettingsError> {
+        self.settings = None;
+        *self.key.borrow_mut() = None;
+        *self.revision.borrow_mut() = 0;
+        *self.erased.borrow_mut() += 1;
         Ok(())
     }
 }
@@ -71,8 +99,56 @@ impl OtaWriter for FakeOta {
 }
 
 /// `Rc<RefCell<..>>` = shared, mutable-through-a-check; lets the test see what the fake saw.
-struct FakeSystem(Rc<RefCell<bool>>);
+/// What the diagnostics report; flip a flag to make a self-test step fail.
+struct SysState {
+    nvs_ok: bool,
+    ble_ok: bool,
+    ota_ok: bool,
+}
+
+impl Default for SysState {
+    fn default() -> Self {
+        Self {
+            nvs_ok: true,
+            ble_ok: true,
+            ota_ok: true,
+        }
+    }
+}
+
+struct FakeSystem(Rc<RefCell<bool>>, Rc<RefCell<SysState>>);
 impl System for FakeSystem {
+    fn nvs_usage(&self) -> (u32, u32) {
+        (3000, 21_576)
+    }
+    fn partition_info(&self) -> PartitionInfo {
+        PartitionInfo {
+            ota0_active: true,
+            ota1_active: false,
+            ota0_size: 1_572_864,
+            ota1_size: 1_572_864,
+        }
+    }
+    fn build_facts(&self) -> BuildFacts {
+        BuildFacts {
+            version: "0.1.0",
+            git_sha: "a1b2c3d",
+            built: "2026-11-18T10:00:00Z",
+            ota_key_fp: [0xAB; 16],
+            request_conn_params: false,
+            coex_debug: false,
+            bonding: false,
+        }
+    }
+    fn self_test_nvs(&mut self) -> bool {
+        self.1.borrow().nvs_ok
+    }
+    fn self_test_ble(&self) -> bool {
+        self.1.borrow().ble_ok
+    }
+    fn self_test_ota_slot(&self) -> bool {
+        self.1.borrow().ota_ok
+    }
     fn free_heap(&self) -> u32 {
         100
     }
@@ -120,7 +196,7 @@ fn app_with_store(
     App::new(
         FakeRadio::default(),
         FakeOta,
-        FakeSystem(rebooted),
+        FakeSystem(rebooted, Rc::default()),
         sink,
         store,
         DeviceKeys {
@@ -212,16 +288,18 @@ fn counts_drops_when_sink_full() {
 fn start_applies_saved_settings_and_set_persists() {
     let sink = FakeSink::default();
     let store = FakeStore {
-        settings: Some(Settings {
-            channel: 9,
-            auto_scan: true,
+        settings: Some({
+            let mut s = Settings::default();
+            s.radio.default_channel = 9;
+            s.scan.scan_at_boot = true;
+            s
         }),
         ..Default::default()
     };
     let mut app = App::new(
         FakeRadio::default(),
         FakeOta,
-        FakeSystem(Default::default()),
+        FakeSystem(Default::default(), Rc::default()),
         sink.clone(),
         store,
         DeviceKeys {
@@ -538,7 +616,7 @@ fn monitor_commands_need_an_authenticated_session() {
 #[test]
 fn deauth_counts_at_the_threshold_raise_an_alert() {
     let (mut app, sink) = authed_app();
-    app.on_deauth_second(&[([1; 6], 9), ([2; 6], 12)]);
+    app.on_deauth_window(&[([1; 6], 9), ([2; 6], 12)]);
     assert_eq!(
         results(&sink),
         [TelemetryMessage::DeauthAlert {
@@ -553,11 +631,11 @@ fn deauth_alerts_follow_the_configured_threshold() {
     let (mut app, sink) = authed_app();
     set_monitor(&mut app, 0, false, 3);
     sink.got.borrow_mut().clear();
-    app.on_deauth_second(&[([2; 6], 5000)]);
+    app.on_deauth_window(&[([2; 6], 5000)]);
     assert!(results(&sink).is_empty(), "0 = off");
     set_monitor(&mut app, 3, false, 3);
     sink.got.borrow_mut().clear();
-    app.on_deauth_second(&[([2; 6], 3)]);
+    app.on_deauth_window(&[([2; 6], 3)]);
     assert_eq!(results(&sink).len(), 1);
 }
 
@@ -565,7 +643,7 @@ fn deauth_alerts_follow_the_configured_threshold() {
 fn deauth_alerts_are_withheld_until_authenticated() {
     let sink = FakeSink::default();
     let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
-    app.on_deauth_second(&[([2; 6], 500)]);
+    app.on_deauth_window(&[([2; 6], 500)]);
     assert!(results(&sink).is_empty());
 }
 
@@ -650,4 +728,414 @@ fn a_known_ssid_on_a_new_bssid_publishes_an_anomaly_after_the_learning_period() 
             ..
         } if *bssid == [2; 6]
     )));
+}
+
+// ---- settings management ------------------------------------------------------------------------
+
+use beewave_protocol::{HopOrder, RejectReason, SETTINGS_SCHEMA};
+
+/// An authenticated app with handles on what the fakes record.
+struct Rig {
+    app: TestApp,
+    sink: FakeSink,
+    radio: Rc<RefCell<RadioLog>>,
+    sys: Rc<RefCell<SysState>>,
+    rebooted: Rc<RefCell<bool>>,
+    revision: Rc<RefCell<u32>>,
+    erased: Rc<RefCell<u32>>,
+}
+
+fn rig(ota_key: Option<[u8; 32]>) -> Rig {
+    let sink = FakeSink::default();
+    let rebooted = Rc::new(RefCell::new(false));
+    let radio: Rc<RefCell<RadioLog>> = Rc::default();
+    let sys: Rc<RefCell<SysState>> = Rc::default();
+    let store = FakeStore::default();
+    let (revision, erased) = (store.revision.clone(), store.erased.clone());
+    let mut app = App::new(
+        FakeRadio(0, radio.clone()),
+        FakeOta,
+        FakeSystem(rebooted.clone(), sys.clone()),
+        sink.clone(),
+        store,
+        DeviceKeys {
+            auth: Some(KEY),
+            ota_signing: ota_key,
+        },
+    );
+    app.start();
+    authenticate(&mut app, &sink);
+    Rig {
+        app,
+        sink,
+        radio,
+        sys,
+        rebooted,
+        revision,
+        erased,
+    }
+}
+
+fn save(app: &mut TestApp, f: impl FnOnce(&mut Settings)) {
+    let mut s = Settings::default();
+    f(&mut s);
+    app.on_command(DeviceCommand::SaveSettingsAll {
+        scan: s.scan,
+        radio: s.radio,
+        telemetry: s.telemetry,
+        alerts: s.alerts,
+    });
+}
+
+fn last(sink: &FakeSink) -> TelemetryMessage {
+    sink.got.borrow().last().cloned().expect("a message")
+}
+
+#[test]
+fn get_settings_all_reports_the_defaults_with_schema_and_revision() {
+    let mut r = rig(None);
+    r.app.on_command(DeviceCommand::GetSettingsAll);
+    match last(&r.sink) {
+        TelemetryMessage::SettingsAll {
+            schema,
+            revision,
+            scan,
+            radio,
+            telemetry,
+            alerts,
+        } => {
+            assert_eq!((schema, revision), (SETTINGS_SCHEMA, 0));
+            let d = Settings::default();
+            assert_eq!(
+                (scan, radio, telemetry, alerts),
+                (d.scan, d.radio, d.telemetry, d.alerts)
+            );
+        }
+        other => panic!("expected SettingsAll, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_valid_save_is_acknowledged_with_the_new_revision_and_read_back() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.scan.dedup_rssi_db = 12);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::SettingsSaved {
+            revision: 1,
+            ok: true,
+            reason: None
+        }
+    );
+    save(&mut r.app, |s| s.scan.dedup_rssi_db = 13);
+    assert!(matches!(
+        last(&r.sink),
+        TelemetryMessage::SettingsSaved {
+            revision: 2,
+            ok: true,
+            ..
+        }
+    ));
+    r.app.on_command(DeviceCommand::GetSettingsAll);
+    assert!(
+        matches!(last(&r.sink), TelemetryMessage::SettingsAll { revision: 2, scan, .. } if scan.dedup_rssi_db == 13)
+    );
+}
+
+#[test]
+fn a_rejected_save_names_the_reason_and_leaves_the_stored_settings_alone() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.scan.dedup_rssi_db = 12);
+    let before = *r.revision.borrow();
+    save(&mut r.app, |s| s.alerts.deauth_window_ms = 100); // 2 x 250 ms interval does not fit
+    assert!(matches!(
+        last(&r.sink),
+        TelemetryMessage::SettingsSaved { ok: false, reason: Some(RejectReason::DeauthWindowRange), revision } if revision == before
+    ));
+    save(&mut r.app, |s| {
+        s.scan.scan_interval_ms = 600;
+        s.alerts.deauth_window_ms = 1000;
+    });
+    assert!(matches!(
+        last(&r.sink),
+        TelemetryMessage::SettingsSaved {
+            ok: false,
+            reason: Some(RejectReason::WindowTooShort),
+            ..
+        }
+    ));
+    assert_eq!(*r.revision.borrow(), before, "NVS was not written");
+    r.app.on_command(DeviceCommand::GetSettingsAll);
+    assert!(
+        matches!(last(&r.sink), TelemetryMessage::SettingsAll { scan, .. } if scan.dedup_rssi_db == 12)
+    );
+}
+
+#[test]
+fn settings_commands_need_an_authenticated_session() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    app.on_command(DeviceCommand::GetSettingsAll);
+    save(&mut app, |s| s.scan.dedup_rssi_db = 12);
+    app.on_command(DeviceCommand::FactoryReset);
+    app.on_command(DeviceCommand::RunSelfTest);
+    app.on_command(DeviceCommand::GetStorageInfo);
+    app.on_command(DeviceCommand::GetDeviceInfo);
+    let got = sink.got.borrow();
+    assert_eq!(got.len(), 6);
+    assert!(got
+        .iter()
+        .all(|m| matches!(m, TelemetryMessage::Event { code: 4, .. })));
+}
+
+#[test]
+fn saved_scan_settings_take_effect_on_the_next_beacons() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| {
+        s.scan.ssid_filter = "caf".try_into().unwrap();
+        s.scan.channel_filter_mask = 1 << 5; // channel 6 only
+    });
+    r.sink.got.borrow_mut().clear();
+    let beacon = |id: u8, ssid: &str, ch: u8| Observation {
+        bssid: [id; 6],
+        channel: ch,
+        rssi: -50,
+        ssid: ssid.try_into().unwrap(),
+    };
+    r.app.on_observation(beacon(1, "Cafe", 6));
+    r.app.on_observation(beacon(2, "Cafe", 1)); // wrong channel
+    r.app.on_observation(beacon(3, "Home", 6)); // wrong name
+    let reported: Vec<_> = results(&r.sink)
+        .into_iter()
+        .filter_map(|m| match m {
+            TelemetryMessage::ScanResult { bssid, .. } => Some(bssid),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reported, [[1; 6]]);
+}
+
+#[test]
+fn hop_settings_reach_the_radio_when_a_scan_starts_not_before() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| {
+        s.radio.hop_dwell_ms = 400;
+        s.radio.hop_order = HopOrder::Ascending1_6_11;
+    });
+    assert!(r.radio.borrow().hops.is_empty(), "nothing mid-hop");
+    r.app.on_command(DeviceCommand::StartScan { band_mask: 1 });
+    let hops = r.radio.borrow().hops.clone();
+    assert_eq!(hops.len(), 1);
+    assert_eq!(hops[0].0, 400);
+    assert_eq!(hops[0].1, [1, 6, 11, 2, 7, 12, 3, 8, 13, 4, 9, 5, 10]);
+
+    save(&mut r.app, |s| {
+        s.radio.hop_order = HopOrder::Custom;
+        s.radio.custom_hop_list = [11, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    });
+    r.app.on_command(DeviceCommand::StartScan { band_mask: 1 });
+    assert_eq!(r.radio.borrow().hops[1].1, [11, 1]);
+}
+
+#[test]
+fn the_default_channel_is_applied_when_saved() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.radio.default_channel = 9);
+    assert_eq!(r.radio.borrow().channels.last(), Some(&9));
+}
+
+#[test]
+fn the_status_period_and_deauth_window_follow_the_settings() {
+    let mut r = rig(None);
+    assert_eq!(
+        (r.app.status_period_ms(), r.app.deauth_window_ms()),
+        (1000, 1000)
+    );
+    save(&mut r.app, |s| {
+        s.telemetry.status_period_ms = 2500;
+        s.alerts.deauth_window_ms = 2000;
+    });
+    assert_eq!(
+        (r.app.status_period_ms(), r.app.deauth_window_ms()),
+        (2500, 2000)
+    );
+    // 19 frames in 2 s is 9 per second (below 10): no alert; 20 is
+    r.sink.got.borrow_mut().clear();
+    r.app.on_deauth_window(&[([1; 6], 19)]);
+    assert!(results(&r.sink).is_empty());
+    r.app.on_deauth_window(&[([1; 6], 20)]);
+    assert_eq!(
+        results(&r.sink),
+        [TelemetryMessage::DeauthAlert {
+            bssid: [1; 6],
+            count: 10
+        }]
+    );
+}
+
+#[test]
+fn a_saved_deauth_threshold_becomes_the_active_one() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.alerts.deauth_threshold = 3);
+    r.app.on_command(DeviceCommand::GetMonitor);
+    assert!(matches!(
+        last(&r.sink),
+        TelemetryMessage::MonitorConfig {
+            deauth_threshold: 3,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn factory_reset_erases_everything_and_reboots() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.scan.dedup_rssi_db = 12);
+    r.app.on_command(DeviceCommand::FactoryReset);
+    assert!(*r.rebooted.borrow());
+    assert_eq!(*r.erased.borrow(), 1);
+    assert_eq!(*r.revision.borrow(), 0);
+}
+
+#[test]
+fn factory_reset_is_refused_while_an_update_is_in_flight() {
+    let mut r = rig(Some([9; 32]));
+    r.app.on_command(DeviceCommand::OtaBegin {
+        size: 1000,
+        sha256: [0; 32],
+    });
+    r.sink.got.borrow_mut().clear();
+    r.app.on_command(DeviceCommand::FactoryReset);
+    assert_eq!(
+        results(&r.sink),
+        [TelemetryMessage::Rejected {
+            reason: RejectReason::Busy
+        }]
+    );
+    assert!(!*r.rebooted.borrow());
+    assert_eq!(*r.erased.borrow(), 0);
+}
+
+#[test]
+fn self_test_reports_each_step_and_restores_the_pinned_channel() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.radio.default_channel = 6);
+    r.app.on_command(DeviceCommand::RunSelfTest);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::SelfTestResult {
+            radio: true,
+            nvs: true,
+            ble: true,
+            ota_slot: true,
+            busy: false
+        }
+    );
+    let ch = r.radio.borrow().channels.clone();
+    assert_eq!(
+        &ch[ch.len() - 3..],
+        [1, 13, 6],
+        "1, then 13, then back to the pinned channel"
+    );
+
+    r.sys.borrow_mut().nvs_ok = false;
+    r.sys.borrow_mut().ota_ok = false;
+    r.radio.borrow_mut().fail_channel = Some(13);
+    r.app.on_command(DeviceCommand::RunSelfTest);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::SelfTestResult {
+            radio: false,
+            nvs: false,
+            ble: true,
+            ota_slot: false,
+            busy: false
+        }
+    );
+}
+
+#[test]
+fn self_test_does_not_touch_the_radio_while_scanning() {
+    let mut r = rig(None);
+    r.app.on_command(DeviceCommand::StartScan { band_mask: 1 });
+    let calls = r.radio.borrow().channels.len();
+    r.app.on_command(DeviceCommand::RunSelfTest);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::SelfTestResult {
+            radio: false,
+            nvs: false,
+            ble: false,
+            ota_slot: false,
+            busy: true
+        }
+    );
+    assert_eq!(r.radio.borrow().channels.len(), calls);
+}
+
+#[test]
+fn storage_and_device_info_come_from_the_system_port() {
+    let mut r = rig(None);
+    save(&mut r.app, |s| s.scan.dedup_rssi_db = 12);
+    r.app.on_command(DeviceCommand::GetStorageInfo);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::StorageInfo {
+            nvs_used: 3000,
+            nvs_free: 21_576,
+            ota0_active: true,
+            ota1_active: false,
+            ota0_size: 1_572_864,
+            ota1_size: 1_572_864,
+            settings_revision: 1,
+        }
+    );
+    r.app.on_command(DeviceCommand::GetDeviceInfo);
+    match last(&r.sink) {
+        TelemetryMessage::DeviceInfo {
+            version,
+            git_sha,
+            ota_key_fp,
+            request_conn_params,
+            bonding,
+            ..
+        } => {
+            assert_eq!((version.as_str(), git_sha.as_str()), ("0.1.0", "a1b2c3d"));
+            assert_eq!(ota_key_fp, [0xAB; 16]);
+            assert!(!request_conn_params && !bonding);
+        }
+        other => panic!("expected DeviceInfo, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_legacy_settings_commands_still_work() {
+    let mut r = rig(None);
+    r.app.on_command(DeviceCommand::SetSettings {
+        channel: 6,
+        auto_scan: true,
+    });
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::Settings {
+            channel: 6,
+            auto_scan: true
+        }
+    );
+    r.app.on_command(DeviceCommand::GetSettings);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::Settings {
+            channel: 6,
+            auto_scan: true
+        }
+    );
+    r.app.on_command(DeviceCommand::SetSettings {
+        channel: 99,
+        auto_scan: true,
+    });
+    assert!(matches!(
+        last(&r.sink),
+        TelemetryMessage::Event { code: 3, .. }
+    ));
 }

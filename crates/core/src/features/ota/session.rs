@@ -35,6 +35,11 @@ impl<W: OtaWriter> OtaSession<W> {
     }
 
     /// Drop any update in flight (the client went away).
+    /// Is an update being received right now?
+    pub fn in_progress(&self) -> bool {
+        self.state != super::state::State::Idle
+    }
+
     pub fn abort(&mut self) {
         if self.state != State::Idle {
             self.writer.abort();
