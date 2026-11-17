@@ -1,9 +1,8 @@
 import type { Command, Telemetry } from "../protocol";
+import { MockWorld } from "./mock-world";
 import type { Transport, TransportState } from "./types";
 
-const SSIDS = ["Home", "Office", "Cafe", "", "Guest"];
 const rand = (n: number) => Math.floor(Math.random() * n);
-const randomBssid = () => Array.from({ length: 6 }, () => rand(256).toString(16).padStart(2, "0")).join(":");
 
 /** Simulated device so the UI can be developed without hardware (`?mock`). */
 export class MockTransport implements Transport {
@@ -16,6 +15,8 @@ export class MockTransport implements Transport {
   private pinned = 0; // 0 = auto-hop
   /** True once a client has provisioned a key (the mock starts unclaimed, like fresh firmware). */
   private claimed = false;
+  /** The simulated radio environment (access points, deauth, BLE, anomalies). */
+  private readonly world = new MockWorld();
 
   onTelemetry(cb: (t: Telemetry) => void): void { this.onTele = cb; }
   onState(cb: (s: TransportState, info?: string) => void): void { this.onStateCb = cb; }
@@ -50,6 +51,14 @@ export class MockTransport implements Transport {
       this.onTele?.({ type: "authResult", ok: true }); // the mock accepts any key
       return;
     }
+    if (cmd.type === "getMonitor") {
+      this.onTele?.(this.world.report());
+      return;
+    }
+    if (cmd.type === "setMonitor") {
+      this.onTele?.(this.world.setMonitor({ deauthThreshold: cmd.deauthThreshold, bleEnabled: cmd.bleEnabled, bleSpikeFactor: cmd.bleSpikeFactor }));
+      return;
+    }
     if (cmd.type === "startScan") this.scanning = true;
     if (cmd.type === "stop") this.scanning = false;
     if (cmd.type === "configureRadio") {
@@ -61,8 +70,8 @@ export class MockTransport implements Transport {
 
   private tick(): void {
     this.onTele?.({ type: "status", activeChannel: this.channel, freeHeap: 90_000 + rand(2000), cpuLoad: 20 + rand(30), dropped: 0, scanning: this.scanning });
-    if (!this.scanning) return;
-    if (!this.pinned) this.channel = (this.channel % 13) + 1;
-    this.onTele?.({ type: "scan", bssid: randomBssid(), channel: this.channel, rssi: -40 - rand(50), ssid: SSIDS[rand(SSIDS.length)] });
+    const { telemetry, channel } = this.world.step(this.scanning, this.channel, this.pinned);
+    this.channel = channel;
+    telemetry.forEach((t) => this.onTele?.(t));
   }
 }

@@ -1,4 +1,5 @@
 import { Authenticator, KeyStore } from "../auth";
+import { createMonitorKernel } from "../monitor";
 import type { Telemetry } from "../protocol";
 import { TargetStore } from "../targets";
 import type { Transport, TransportState } from "../transport";
@@ -27,8 +28,16 @@ export function createContext(transport: Transport): AppContext {
     },
   };
   const auth = new Authenticator((c) => logged.send(c), keys);
+  const monitor = createMonitorKernel();
+  logSubs.push((m) => monitor.session.addLog(m));
+  auth.onChange((s) => {
+    monitor.session.addAuth(s);
+    // the monitors' settings live on the device: read them as soon as we are allowed to
+    if (s === "authenticated") void logged.send({ type: "getMonitor" }).catch(() => {});
+  });
 
   transport.onTelemetry((m) => {
+    monitor.ingest(m);
     void auth.handle(m);
     telemetrySubs.forEach(([kind, f]) => kind === m.type && (f as (m: Telemetry) => void)(m));
   });
@@ -44,6 +53,7 @@ export function createContext(transport: Transport): AppContext {
     auth,
     keys,
     targets: new TargetStore(),
+    monitor,
     onTelemetry: (kind, cb) => telemetrySubs.push([kind, cb as (m: never) => void]),
     onState: (cb) => stateSubs.push(cb),
     log,

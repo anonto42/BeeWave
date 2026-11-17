@@ -16,6 +16,15 @@ import * as targets from "./features/targets";
 import * as compat from "./features/compat";
 import * as alerts from "./features/alerts";
 import * as reboot from "./features/reboot";
+import * as results from "./features/results";
+import * as channelChart from "./features/channel-chart";
+import * as rssiHistory from "./features/rssi-history";
+import * as compare from "./features/compare";
+import * as anomalies from "./features/anomalies";
+import * as deauth from "./features/deauth";
+import * as bleMonitor from "./features/ble-monitor";
+import * as watchlist from "./features/watchlist";
+import * as exportSession from "./features/export";
 
 registerSW({ immediate: true });
 
@@ -26,6 +35,8 @@ const root = document.getElementById("app")!;
 const shell = createTabShell(root, `BEEWAVE${mock ? " [MOCK]" : ""}`, [
   { id: "device", label: "Device", icon: ICONS.device },
   { id: "scan", label: "Scan", icon: ICONS.scan },
+  { id: "analyze", label: "Analyze", icon: ICONS.analyze },
+  { id: "alerts", label: "Alerts", icon: ICONS.alerts },
   { id: "settings", label: "Settings", icon: ICONS.settings },
   { id: "log", label: "Log", icon: ICONS.log },
 ]);
@@ -33,7 +44,9 @@ const shell = createTabShell(root, `BEEWAVE${mock ? " [MOCK]" : ""}`, [
 const layout = {
   device: [compat, status],
   scan: [control, scanner, targets],
-  settings: [settings, auth, reboot, ota],
+  analyze: [results, channelChart, rssiHistory, compare],
+  alerts: [anomalies, deauth, bleMonitor, watchlist],
+  settings: [settings, auth, reboot, exportSession, ota],
   log: [log],
 } as const;
 for (const [tab, features] of Object.entries(layout)) for (const f of features) f.mount(shell.panes[tab], ctx);

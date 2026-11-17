@@ -1,6 +1,14 @@
 import { HEADER_LEN, PROTO_VERSION } from "./constants";
+import { AD_CLASSES, ANOMALY_KINDS } from "./monitor";
 import { Reader } from "./reader";
 import type { Telemetry, TelemetryPacket } from "./types";
+
+/** The name of an enum variant by its wire index; an unknown index is a decode error, never a guess. */
+function enumName<T extends string>(names: readonly T[], i: number): T {
+  const name = names[i];
+  if (name === undefined) throw new Error(`unknown enum variant ${i}`);
+  return name;
+}
 
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join(":");
 
@@ -36,6 +44,21 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
       break;
     case 7:
       msg = { type: "unclaimed" };
+      break;
+    case 8:
+      msg = { type: "deauth", bssid: hex(r.bytes(6)), count: r.varint() };
+      break;
+    case 9:
+      msg = { type: "bleStats", fastPair: r.varint(), ibeacon: r.varint(), proximity: r.varint(), generic: r.varint() };
+      break;
+    case 10:
+      msg = { type: "bleSpike", class: enumName(AD_CLASSES, r.varint()), count: r.varint(), baseline: r.varint() };
+      break;
+    case 11:
+      msg = { type: "anomaly", kind: enumName(ANOMALY_KINDS, r.varint()), bssid: hex(r.bytes(6)), detail: r.u8() };
+      break;
+    case 12:
+      msg = { type: "monitorConfig", deauthThreshold: r.u8(), bleEnabled: r.u8() !== 0, bleSpikeFactor: r.u8() };
       break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);

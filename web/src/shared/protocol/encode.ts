@@ -45,6 +45,8 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
       if (c.key.length !== 32) throw new Error("key must be 32 bytes");
       o.push(12, ...c.key);
       break;
+    case "getMonitor": o.push(13); break;
+    case "setMonitor": o.push(14, c.deauthThreshold, c.bleEnabled ? 1 : 0, c.bleSpikeFactor); break;
   }
   return Uint8Array.from(o);
 }

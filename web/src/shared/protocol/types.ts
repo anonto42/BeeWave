@@ -1,3 +1,5 @@
+import type { AdClassName, AnomalyKindName } from "./monitor";
+
 /** Device -> app messages. Mirrors `TelemetryMessage` in crates/protocol/src/types.rs. */
 export type Telemetry =
   | { type: "status"; activeChannel: number; freeHeap: number; cpuLoad: number; dropped: number; scanning: boolean }
@@ -7,7 +9,12 @@ export type Telemetry =
   | { type: "settings"; channel: number; autoScan: boolean }
   | { type: "authChallenge"; nonce: Uint8Array }
   | { type: "authResult"; ok: boolean }
-  | { type: "unclaimed" };
+  | { type: "unclaimed" }
+  | { type: "deauth"; bssid: string; count: number }
+  | { type: "bleStats"; fastPair: number; ibeacon: number; proximity: number; generic: number }
+  | { type: "bleSpike"; class: AdClassName; count: number; baseline: number }
+  | { type: "anomaly"; kind: AnomalyKindName; bssid: string; detail: number }
+  | { type: "monitorConfig"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =
@@ -23,7 +30,9 @@ export type Command =
   | { type: "authBegin" }
   | { type: "authProve"; mac: Uint8Array }
   | { type: "otaEndSigned"; signature: Uint8Array }
-  | { type: "provision"; key: Uint8Array };
+  | { type: "provision"; key: Uint8Array }
+  | { type: "getMonitor" }
+  | { type: "setMonitor"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

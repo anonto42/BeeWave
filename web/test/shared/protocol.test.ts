@@ -24,6 +24,18 @@ describe("telemetry decode (golden vectors from Rust)", () => {
     expect(decodeTelemetry(bytes(vectors.telemetry[6].hex)).msg).toEqual({ type: "authResult", ok: true });
     expect(decodeTelemetry(bytes(vectors.telemetry[7].hex)).msg).toEqual({ type: "unclaimed" });
   });
+  it("monitoring messages", () => {
+    const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;
+    expect(m(8)).toEqual({ type: "deauth", bssid: "01:02:03:04:05:06", count: 42 });
+    expect(m(9)).toEqual({ type: "bleStats", fastPair: 1, ibeacon: 2, proximity: 300, generic: 4000 });
+    expect(m(10)).toEqual({ type: "bleSpike", class: "proximity", count: 500, baseline: 40 });
+    expect(m(11)).toEqual({ type: "anomaly", kind: "rssiOutlier", bssid: "09:08:07:06:05:04", detail: 27 });
+    expect(m(12)).toEqual({ type: "monitorConfig", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 });
+  });
+  it("rejects an unknown enum variant", () => {
+    // BleSpike with class index 9
+    expect(() => decodeTelemetry(bytes("010a0a09f40328"))).toThrow(/unknown enum variant/);
+  });
   it("rejects bad version / truncated", () => {
     expect(() => decodeTelemetry(Uint8Array.from([9, 0, 0]))).toThrow();
     expect(() => decodeTelemetry(bytes("0101"))).toThrow();
@@ -45,6 +57,8 @@ describe("command encode (matches Rust bytes)", () => {
     { type: "authProve", mac: new Uint8Array(32).fill(5) },
     { type: "otaEndSigned", signature: Uint8Array.from([...new Uint8Array(32).fill(3), ...new Uint8Array(32).fill(4)]) },
     { type: "provision", key: new Uint8Array(32).fill(6) },
+    { type: "getMonitor" },
+    { type: "setMonitor", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 },
   ];
   cmds.forEach((c, i) => it(c.type, () => expect(hex(encodeCommand(i, c))).toBe(vectors.commands[i].hex)));
 });
