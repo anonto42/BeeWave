@@ -6,7 +6,15 @@ use std::sync::mpsc::SyncSender;
 use std::sync::OnceLock;
 
 use beewave_core::features::scan::{parse_beacon, Observation};
+
+use super::deauth;
 use esp_idf_svc::sys::{wifi_promiscuous_pkt_t, wifi_promiscuous_pkt_type_t};
+
+/// First frame-control byte of a deauthentication frame: management type, subtype 12 (0xC0).
+const DEAUTH_FC0: u8 = 0xC0;
+/// Offset of address 3 (the BSSID of a management frame) and the shortest frame that has it.
+const ADDR3: usize = 16;
+const MIN_MGMT_LEN: usize = 24;
 
 /// Longest frame we look at (beacons with many elements can be a few hundred bytes).
 const MAX_FRAME: usize = 512;
@@ -32,6 +40,14 @@ pub unsafe extern "C" fn on_packet(buf: *mut c_void, _kind: wifi_promiscuous_pkt
     let frame = core::slice::from_raw_parts(pkt.payload.as_ptr(), len);
     let rssi = pkt.rx_ctrl.rssi() as i8;
     let channel = pkt.rx_ctrl.channel() as u8;
+
+    // Receive-only: count deauthentication frames per BSSID (nothing is ever transmitted).
+    if len >= MIN_MGMT_LEN && frame[0] == DEAUTH_FC0 {
+        if let Ok(bssid) = <[u8; 6]>::try_from(&frame[ADDR3..ADDR3 + 6]) {
+            deauth::record(&bssid);
+        }
+        return;
+    }
 
     if let Some(obs) = parse_beacon(frame, rssi, channel) {
         if let Some(tx) = FRAMES.get() {

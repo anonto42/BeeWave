@@ -10,5 +10,5 @@ mod sink;
 mod tuning;
 mod uuids;
 
-pub use server::run;
+pub use server::{is_ready, run};
 pub use sink::BleSink;

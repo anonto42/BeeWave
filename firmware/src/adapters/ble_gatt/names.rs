@@ -16,6 +16,8 @@ pub fn command_name(c: &DeviceCommand) -> &'static str {
         DeviceCommand::AuthProve { .. } => "auth_prove",
         DeviceCommand::OtaEndSigned { .. } => "ota_end_signed",
         DeviceCommand::Provision { .. } => "provision",
+        DeviceCommand::GetMonitor => "get_monitor",
+        DeviceCommand::SetMonitor { .. } => "set_monitor",
     }
 }
 
@@ -27,6 +29,10 @@ pub fn notable_telemetry(m: &TelemetryMessage) -> Option<&'static str> {
         TelemetryMessage::AuthResult { ok: false } => Some("auth_result REFUSED"),
         TelemetryMessage::Unclaimed => Some("unclaimed"),
         TelemetryMessage::Event { .. } => Some("event"),
+        TelemetryMessage::DeauthAlert { .. } => Some("deauth_alert"),
+        TelemetryMessage::BleSpike { .. } => Some("ble_spike"),
+        TelemetryMessage::AnomalyAlert { .. } => Some("anomaly_alert"),
+        TelemetryMessage::MonitorConfig { .. } => Some("monitor_config"),
         _ => None,
     }
 }

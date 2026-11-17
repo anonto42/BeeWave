@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::time::{Duration, Instant};
 
@@ -10,6 +11,15 @@ use super::coex_diag::CoexDiag;
 use super::names::{command_name, notable_telemetry};
 use super::{tuning, uuids};
 use crate::runtime::{Event, Timed};
+
+/// Set once the NimBLE device exists and advertising has started. `BLEDevice::take()` lazily initialises a
+/// `static mut` without synchronisation, so any other thread that needs the device must wait for this.
+static READY: AtomicBool = AtomicBool::new(false);
+
+/// Has the BLE stack been brought up (safe for other threads to call `BLEDevice::take()`)?
+pub fn is_ready() -> bool {
+    READY.load(Ordering::Acquire)
+}
 
 /// Preferred ATT MTU (must be >= beewave_protocol::MIN_MTU).
 const PREFERRED_MTU: u16 = 247;
@@ -73,6 +83,7 @@ pub fn run(
             .add_service_uuid(uuids::SERVICE),
     )?;
     advertising.lock().start()?;
+    READY.store(true, Ordering::Release);
 
     let mut seq: u8 = 0;
     let mut buf = [0u8; MAX_BODY + 2];

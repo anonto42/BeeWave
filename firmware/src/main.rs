@@ -12,12 +12,18 @@ use esp_idf_svc::nvs::EspDefaultNvsPartition;
 
 use adapters::ble_gatt::{self, BleSink};
 use adapters::{
-    esp_system::EspSystem, flash_ota::FlashOta, nvs_settings::NvsSettings, wifi_radio::WifiRadio,
+    ble_observer,
+    esp_system::EspSystem,
+    flash_ota::FlashOta,
+    nvs_settings::NvsSettings,
+    wifi_radio::{self, WifiRadio},
 };
 use beewave_core::app::App;
 use runtime::{channels, core_id, run_app, spawn_worker};
 
 const BLE_STACK: usize = 6 * 1024;
+/// Passive BLE observer thread (scan loop + classifier).
+const BLE_OBSERVER_STACK: usize = 6 * 1024;
 const APP_STACK: usize = 16 * 1024;
 
 fn main() -> anyhow::Result<()> {
@@ -41,6 +47,12 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Passive BLE advertisement observer: idle until the owner switches the BLE monitor on.
+    let ble_tx = ch.ble_tx;
+    spawn_worker("ble_scan", BLE_OBSERVER_STACK, move || {
+        ble_observer::run(ble_tx, ble_gatt::is_ready)
+    });
+
     // App task: owns the core `App`, wired to the real adapters.
     let radio = WifiRadio::new(peripherals.modem, sysloop, ch.frames_tx)?;
     let settings = NvsSettings::new(nvs)?;
@@ -52,8 +64,17 @@ fn main() -> anyhow::Result<()> {
         settings,
         config::device_keys(),
     );
-    let (events_rx, frames_rx) = (ch.events_rx, ch.frames_rx);
-    spawn_worker("app", APP_STACK, move || run_app(app, events_rx, frames_rx));
+    let (events_rx, frames_rx, ble_rx) = (ch.events_rx, ch.frames_rx, ch.ble_rx);
+    spawn_worker("app", APP_STACK, move || {
+        run_app(
+            app,
+            events_rx,
+            frames_rx,
+            ble_rx,
+            wifi_radio::deauth::drain,
+            ble_observer::set_enabled,
+        )
+    });
 
     log::info!("beewave up on core {}", core_id());
     loop {
