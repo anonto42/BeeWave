@@ -7,7 +7,7 @@ mod event;
 mod timed;
 mod worker;
 
-pub use app_task::run_app;
+pub use app_task::{run_app, Hooks};
 pub use channels::channels;
 pub use cpu::core_id;
 pub use event::Event;

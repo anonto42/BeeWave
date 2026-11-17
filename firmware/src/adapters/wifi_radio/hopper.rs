@@ -8,11 +8,11 @@ use esp_idf_svc::sys::{self, esp, EspError};
 use super::shared::Shared;
 
 // ---- Tuning knobs (channel hopping) -----------------------------------------------------------
-/// How long to listen on each channel while hopping. Shorter = fresher results but more radio
+/// Default time to listen on each channel while hopping (the owner's `hop_dwell_ms` setting replaces it). Shorter = fresher results but more radio
 /// time lost to switching; the Wi-Fi radio also shares airtime with BLE.
 pub const DWELL: Duration = Duration::from_millis(250);
 
-/// The order channels are visited in. Sequential is the default; the commented alternative visits
+/// Default order channels are visited in (the owner's `hop_order` setting replaces it). Sequential is the default; the commented alternative visits
 /// the non-overlapping channels (1, 6, 11) first, which may find busy networks sooner:
 /// `[1, 6, 11, 2, 7, 12, 3, 8, 13, 4, 9, 5, 10]`. Must contain every channel 1..=13 exactly once.
 pub const HOP_ORDER: [u8; MAX_CHANNEL as usize] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -28,11 +28,15 @@ pub fn set_channel(channel: u8) -> Result<(), EspError> {
 /// Long-running thread: while sniffing and not pinned, step through `HOP_ORDER`.
 pub fn run(shared: Arc<Shared>) {
     loop {
-        std::thread::sleep(DWELL);
+        // the dwell and order are read every step; they only change when a scan starts (see `configure_hop`)
+        std::thread::sleep(Duration::from_millis(u64::from(
+            shared.dwell_ms.load(Ordering::Relaxed),
+        )));
         if !shared.sniffing.load(Ordering::Relaxed) || shared.pinned.load(Ordering::Relaxed) != 0 {
             continue;
         }
-        let next = next_in_order(&HOP_ORDER, shared.current.load(Ordering::Relaxed));
+        let (order, n) = shared.order();
+        let next = next_in_order(&order[..n], shared.current.load(Ordering::Relaxed));
         if set_channel(next).is_ok() {
             shared.current.store(next, Ordering::Relaxed);
         }

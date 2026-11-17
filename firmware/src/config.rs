@@ -37,6 +37,17 @@ fn auth_key(value: Option<&str>) -> Option<[u8; 32]> {
     }
 }
 
+/// First 16 bytes of the SHA-256 of the embedded OTA public key (all zero when there is none). The same
+/// value is printed by `make fw-fingerprint`, so a mismatch between the board and the signing key is visible.
+pub fn ota_fingerprint(keys: &DeviceKeys) -> [u8; 16] {
+    use sha2::{Digest, Sha256};
+    let mut fp = [0u8; 16];
+    if let Some(key) = keys.ota_signing {
+        fp.copy_from_slice(&Sha256::digest(key)[..16]);
+    }
+    fp
+}
+
 fn key(name: &str, value: Option<&str>, consequence: &str) -> Option<[u8; 32]> {
     let parsed = value.and_then(parse_hex_key);
     if parsed.is_none() {

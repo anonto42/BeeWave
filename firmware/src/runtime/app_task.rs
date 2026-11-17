@@ -4,15 +4,13 @@ use std::time::{Duration, Instant};
 use beewave_core::app::App;
 use beewave_core::features::scan::Observation;
 use beewave_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
-use beewave_protocol::AdClass;
+use beewave_protocol::{AdClass, LogLevel};
 
 use super::event::Event;
 
 /// How long to wait for a command before servicing frames and the heartbeat.
 const POLL: Duration = Duration::from_millis(10);
-/// Status heartbeat period.
-const TICK: Duration = Duration::from_secs(1);
-/// Per-second deauth counts: BSSIDs and how many frames each sent.
+/// Deauth counts over one window: BSSIDs and how many frames each sent.
 pub type DeauthCounts = [([u8; 6], u16); DEAUTH_SLOTS];
 /// Size of `DeauthCounts` (the sniffer's counter table).
 pub const DEAUTH_SLOTS: usize = 8;
@@ -21,19 +19,26 @@ const BLE_BATCH: usize = 32;
 /// Frames handled per loop turn, so a flood cannot delay the next command for long.
 const FRAME_BATCH: usize = 32;
 
+/// The adapter-side actions the app task needs, as plain function pointers so this file stays free of
+/// adapter types.
+pub struct Hooks {
+    /// Fill the deauth counts gathered since the last call; returns how many entries are valid.
+    pub drain_deauth: fn(&mut DeauthCounts) -> usize,
+    /// Mirror the owner's BLE-monitor switch into the observer thread.
+    pub set_ble_observer: fn(bool),
+    /// Apply the owner's log verbosity.
+    pub set_log_level: fn(LogLevel),
+}
+
 /// The single task that owns `App`. All state lives here, so no locks are needed.
-/// Commands are served first; sniffed frames and the heartbeat fill the gaps.
-///
-/// The two hooks keep this file free of adapter types: `drain_deauth` fills the per-second deauth counts
-/// from the sniffer's counters and returns how many entries are valid; `set_ble_observer` mirrors the
-/// owner's BLE-monitor switch into the observer thread.
+/// Commands are served first; sniffed frames and the timers fill the gaps. The status heartbeat and the
+/// deauth window follow the owner's settings (re-read each time they are scheduled).
 pub fn run_app<R, W, S, T, P>(
     mut app: App<R, W, S, T, P>,
     events: Receiver<Event>,
     frames: Receiver<Observation>,
     ble: Receiver<AdClass>,
-    drain_deauth: fn(&mut DeauthCounts) -> usize,
-    set_ble_observer: fn(bool),
+    hooks: Hooks,
 ) where
     R: RadioDriver,
     W: OtaWriter,
@@ -41,9 +46,13 @@ pub fn run_app<R, W, S, T, P>(
     T: TelemetrySink,
     P: SettingsStore,
 {
-    app.start(); // apply saved channel / auto-scan
+    app.start(); // apply the saved settings (channel, filters, scan at boot)
+    (hooks.set_log_level)(app.log_level());
 
-    let mut next_tick = Instant::now() + TICK;
+    let ms = |n: u64| Duration::from_millis(n);
+    let mut next_tick = Instant::now() + ms(u64::from(app.status_period_ms()));
+    let mut next_deauth = Instant::now() + ms(u64::from(app.deauth_window_ms()));
+    let mut log_level = app.log_level();
     loop {
         match events.recv_timeout(POLL) {
             Ok(Event::Command(c)) => app.on_command(c),
@@ -64,15 +73,22 @@ pub fn run_app<R, W, S, T, P>(
             }
         }
         let now = Instant::now();
-        if now >= next_tick {
+        if now >= next_deauth {
             let mut counts: DeauthCounts = [([0; 6], 0); DEAUTH_SLOTS];
-            let n = drain_deauth(&mut counts);
+            let n = (hooks.drain_deauth)(&mut counts);
             if n > 0 {
-                app.on_deauth_second(&counts[..n]);
+                app.on_deauth_window(&counts[..n]);
             }
-            set_ble_observer(app.ble_monitor_enabled());
+            next_deauth = now + ms(u64::from(app.deauth_window_ms()));
+        }
+        if now >= next_tick {
+            (hooks.set_ble_observer)(app.ble_monitor_enabled());
+            if app.log_level() != log_level {
+                log_level = app.log_level();
+                (hooks.set_log_level)(log_level);
+            }
             app.on_tick();
-            next_tick = now + TICK;
+            next_tick = now + ms(u64::from(app.status_period_ms()));
         }
     }
 }

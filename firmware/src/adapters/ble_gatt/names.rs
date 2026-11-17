@@ -18,6 +18,12 @@ pub fn command_name(c: &DeviceCommand) -> &'static str {
         DeviceCommand::Provision { .. } => "provision",
         DeviceCommand::GetMonitor => "get_monitor",
         DeviceCommand::SetMonitor { .. } => "set_monitor",
+        DeviceCommand::GetSettingsAll => "get_settings_all",
+        DeviceCommand::SaveSettingsAll { .. } => "save_settings_all",
+        DeviceCommand::FactoryReset => "factory_reset",
+        DeviceCommand::RunSelfTest => "run_self_test",
+        DeviceCommand::GetStorageInfo => "get_storage_info",
+        DeviceCommand::GetDeviceInfo => "get_device_info",
     }
 }
 
@@ -33,6 +39,10 @@ pub fn notable_telemetry(m: &TelemetryMessage) -> Option<&'static str> {
         TelemetryMessage::BleSpike { .. } => Some("ble_spike"),
         TelemetryMessage::AnomalyAlert { .. } => Some("anomaly_alert"),
         TelemetryMessage::MonitorConfig { .. } => Some("monitor_config"),
+        TelemetryMessage::SettingsSaved { ok: true, .. } => Some("settings_saved ok"),
+        TelemetryMessage::SettingsSaved { ok: false, .. } => Some("settings_saved REFUSED"),
+        TelemetryMessage::SelfTestResult { .. } => Some("self_test_result"),
+        TelemetryMessage::Rejected { .. } => Some("rejected"),
         _ => None,
     }
 }

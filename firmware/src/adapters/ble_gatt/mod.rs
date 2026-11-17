@@ -12,3 +12,4 @@ mod uuids;
 
 pub use server::{is_ready, run};
 pub use sink::BleSink;
+pub use tuning::REQUEST_CONN_PARAMS;

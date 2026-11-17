@@ -64,7 +64,7 @@ web-test: ## Web unit tests (codec vs Rust golden vectors)
 	cd web && pnpm test
 
 # ---- firmware ----------------------------------------------------------------
-.PHONY: fw-build fw-flash fw-monitor fw-run fw-image fw-size fw-clean fw-unclaim board-info
+.PHONY: fw-build fw-flash fw-monitor fw-run fw-image fw-size fw-clean fw-unclaim fw-fingerprint board-info
 fw-key: ## Create the device key once (untracked) and print it for the PWA
 	@test -f $(KEY_FILE) || (umask 077 && head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > $(KEY_FILE))
 	@echo "Device key (enter it in the PWA, keep it secret): $$(cat $(KEY_FILE))"
@@ -78,6 +78,9 @@ fw-build: $(FW_KEY_DEP) fw-ota-key ## Build release firmware
 	$(FW) cargo build --release $(CARGO_FEAT)
 fw-flash: $(FW_KEY_DEP) fw-ota-key ## Flash release firmware to $(PORT)
 	$(FW) cargo espflash flash --release --port $(PORT) $(CARGO_FEAT)
+fw-fingerprint: ## Fingerprint of the OTA signing public key (the board shows the same value in Settings > OTA)
+	@test -f $(OTA_PUB) || (echo "$(OTA_PUB) missing: run 'make fw-ota-key'" >&2 && exit 1)
+	@python3 -c "import hashlib,sys; print(hashlib.sha256(bytes.fromhex(open(sys.argv[1]).read().strip())).hexdigest()[:32])" $(OTA_PUB)
 fw-unclaim: ## Forget the stored device key (erases the NVS partition) so the next phone can claim it
 	. $(ESP_EXPORT) && espflash erase-region --port $(PORT) 0x9000 0x6000
 fw-monitor: ## Serial monitor
@@ -91,6 +94,7 @@ fw-image: $(FW_KEY_DEP) fw-ota-key ## OTA update image dist/beewave-app.bin (+ .
 
 fw-sign: fw-ota-key ## Sign dist/beewave-app.bin with the OTA key -> dist/beewave-app.bin.sig
 	@test -f dist/beewave-app.bin || (echo "dist/beewave-app.bin missing: run 'make fw-image'" && exit 1)
+	@echo "OTA signing key fingerprint: $$($(MAKE) --no-print-directory -s fw-fingerprint)"
 	cd dist && openssl dgst -sha256 -binary beewave-app.bin > beewave-app.digest \
 	  && openssl pkeyutl -sign -inkey ../$(OTA_KEY) -rawin -in beewave-app.digest -out beewave-app.bin.sig \
 	  && rm beewave-app.digest && ls -l beewave-app.bin.sig

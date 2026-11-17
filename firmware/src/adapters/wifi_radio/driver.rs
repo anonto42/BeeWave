@@ -93,4 +93,9 @@ impl RadioDriver for WifiRadio {
     fn channel(&self) -> u8 {
         self.shared.current.load(Ordering::Relaxed)
     }
+
+    fn configure_hop(&mut self, dwell_ms: u16, order: &[u8]) {
+        self.shared.dwell_ms.store(dwell_ms, Ordering::Relaxed);
+        self.shared.set_order(order);
+    }
 }
