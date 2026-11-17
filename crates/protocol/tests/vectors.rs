@@ -204,3 +204,38 @@ fn roundtrip_and_emit_golden_vectors() {
     )
     .unwrap();
 }
+
+/// The firmware stores `SettingsAll` as one NVS blob, so the largest possible value must fit and round-trip.
+#[test]
+fn the_largest_settings_all_fits_the_storage_buffer_and_round_trips() {
+    let msg = TelemetryMessage::SettingsAll {
+        schema: SETTINGS_SCHEMA,
+        revision: u32::MAX,
+        scan: ScanSettings {
+            scan_at_boot: true,
+            scan_interval_ms: u32::MAX,
+            dedup_rssi_db: u8::MAX,
+            ssid_filter: s("0123456789abcdef0123456789abcdef"),
+            channel_filter_mask: u16::MAX,
+        },
+        radio: RadioSettings {
+            default_channel: u8::MAX,
+            hop_dwell_ms: u16::MAX,
+            hop_order: HopOrder::Custom,
+            custom_hop_list: [255; HOP_LIST_LEN],
+        },
+        telemetry: TelemetrySettings {
+            status_period_ms: u32::MAX,
+            log_level: LogLevel::Debug,
+        },
+        alerts: AlertSettings {
+            deauth_threshold: u8::MAX,
+            deauth_window_ms: u16::MAX,
+        },
+    };
+    // the buffer the firmware uses: header + MAX_BODY + 8
+    let mut buf = [0u8; HEADER_LEN + MAX_BODY + 8];
+    let n = encode_telemetry(0, &msg, &mut buf).unwrap();
+    assert!(n < buf.len() - 8, "{n} bytes leaves no headroom");
+    assert_eq!(decode_telemetry(&buf[..n]).unwrap(), (0, msg));
+}
