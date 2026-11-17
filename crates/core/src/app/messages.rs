@@ -9,6 +9,7 @@ pub const EVENT_RADIO_ERROR: u16 = 1;
 pub const EVENT_OTA_ERROR: u16 = 2;
 pub const EVENT_SETTINGS_ERROR: u16 = 3;
 pub const EVENT_UNAUTHORIZED: u16 = 4;
+pub const EVENT_MONITOR_ERROR: u16 = 5;
 
 pub fn event(code: u16, text: &str) -> TelemetryMessage {
     let mut message = String::new();

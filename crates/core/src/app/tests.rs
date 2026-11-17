@@ -465,3 +465,189 @@ fn app_is_authenticated(app: &mut TestApp, sink: &FakeSink) -> bool {
     app.on_tick();
     !sink.got.borrow().is_empty()
 }
+
+// ---- passive monitoring ------------------------------------------------------------------------
+
+use beewave_protocol::{AdClass, AnomalyKind};
+
+fn authed_app() -> (TestApp, FakeSink) {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    authenticate(&mut app, &sink);
+    (app, sink)
+}
+
+fn set_monitor(app: &mut TestApp, deauth: u8, ble: bool, factor: u8) {
+    app.on_command(DeviceCommand::SetMonitor {
+        deauth_threshold: deauth,
+        ble_enabled: ble,
+        ble_spike_factor: factor,
+    });
+}
+
+#[test]
+fn monitor_config_defaults_and_round_trips() {
+    let (mut app, sink) = authed_app();
+    app.on_command(DeviceCommand::GetMonitor);
+    assert_eq!(
+        results(&sink),
+        [TelemetryMessage::MonitorConfig {
+            deauth_threshold: 10,
+            ble_enabled: false,
+            ble_spike_factor: 3
+        }]
+    );
+    assert!(!app.ble_monitor_enabled());
+
+    sink.got.borrow_mut().clear();
+    set_monitor(&mut app, 25, true, 5);
+    assert_eq!(
+        results(&sink),
+        [TelemetryMessage::MonitorConfig {
+            deauth_threshold: 25,
+            ble_enabled: true,
+            ble_spike_factor: 5
+        }]
+    );
+    assert!(app.ble_monitor_enabled());
+}
+
+#[test]
+fn an_out_of_range_factor_is_refused_and_changes_nothing() {
+    let (mut app, sink) = authed_app();
+    set_monitor(&mut app, 25, true, 99);
+    assert!(matches!(
+        results(&sink)[0],
+        TelemetryMessage::Event { code: 5, .. }
+    ));
+    assert!(!app.ble_monitor_enabled(), "the whole request is rejected");
+}
+
+#[test]
+fn monitor_commands_need_an_authenticated_session() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    set_monitor(&mut app, 1, true, 3);
+    assert!(matches!(
+        results(&sink)[0],
+        TelemetryMessage::Event { code: 4, .. }
+    ));
+    assert!(!app.ble_monitor_enabled());
+}
+
+#[test]
+fn deauth_counts_at_the_threshold_raise_an_alert() {
+    let (mut app, sink) = authed_app();
+    app.on_deauth_second(&[([1; 6], 9), ([2; 6], 12)]);
+    assert_eq!(
+        results(&sink),
+        [TelemetryMessage::DeauthAlert {
+            bssid: [2; 6],
+            count: 12
+        }]
+    );
+}
+
+#[test]
+fn deauth_alerts_follow_the_configured_threshold() {
+    let (mut app, sink) = authed_app();
+    set_monitor(&mut app, 0, false, 3);
+    sink.got.borrow_mut().clear();
+    app.on_deauth_second(&[([2; 6], 5000)]);
+    assert!(results(&sink).is_empty(), "0 = off");
+    set_monitor(&mut app, 3, false, 3);
+    sink.got.borrow_mut().clear();
+    app.on_deauth_second(&[([2; 6], 3)]);
+    assert_eq!(results(&sink).len(), 1);
+}
+
+#[test]
+fn deauth_alerts_are_withheld_until_authenticated() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    app.on_deauth_second(&[([2; 6], 500)]);
+    assert!(results(&sink).is_empty());
+}
+
+#[test]
+fn ble_advertisements_are_ignored_while_the_monitor_is_off() {
+    let (mut app, sink) = authed_app();
+    for _ in 0..30 {
+        app.on_ble_adv(AdClass::Generic);
+        app.on_tick();
+    }
+    assert!(!results(&sink)
+        .iter()
+        .any(|m| matches!(m, TelemetryMessage::BleStats { .. })));
+}
+
+#[test]
+fn ble_stats_are_published_every_ten_seconds_while_on() {
+    let (mut app, sink) = authed_app();
+    set_monitor(&mut app, 10, true, 3);
+    sink.got.borrow_mut().clear();
+    for _ in 0..10 {
+        app.on_ble_adv(AdClass::IBeacon);
+        app.on_tick();
+    }
+    let stats: Vec<_> = results(&sink)
+        .into_iter()
+        .filter(|m| matches!(m, TelemetryMessage::BleStats { .. }))
+        .collect();
+    assert_eq!(
+        stats,
+        [TelemetryMessage::BleStats {
+            fast_pair: 0,
+            ibeacon: 10,
+            proximity: 0,
+            generic: 0
+        }]
+    );
+}
+
+#[test]
+fn switching_the_ble_monitor_on_starts_from_a_clean_slate() {
+    let (mut app, sink) = authed_app();
+    set_monitor(&mut app, 10, true, 3);
+    for _ in 0..5 {
+        app.on_ble_adv(AdClass::Generic);
+    }
+    set_monitor(&mut app, 10, false, 3);
+    set_monitor(&mut app, 10, true, 3);
+    sink.got.borrow_mut().clear();
+    for _ in 0..10 {
+        app.on_tick();
+    }
+    assert!(results(&sink).iter().any(|m| *m
+        == TelemetryMessage::BleStats {
+            fast_pair: 0,
+            ibeacon: 0,
+            proximity: 0,
+            generic: 0
+        }));
+}
+
+#[test]
+fn a_known_ssid_on_a_new_bssid_publishes_an_anomaly_after_the_learning_period() {
+    let (mut app, sink) = authed_app();
+    let beacon = |id: u8| Observation {
+        bssid: [id; 6],
+        channel: 6,
+        rssi: -50,
+        ssid: "home".try_into().unwrap(),
+    };
+    app.on_observation(beacon(1));
+    for _ in 0..40 {
+        app.on_tick();
+    }
+    sink.got.borrow_mut().clear();
+    app.on_observation(beacon(2));
+    assert!(results(&sink).iter().any(|m| matches!(
+        m,
+        TelemetryMessage::AnomalyAlert {
+            kind: AnomalyKind::NewBssidForSsid,
+            bssid,
+            ..
+        } if *bssid == [2; 6]
+    )));
+}

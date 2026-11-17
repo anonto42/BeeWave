@@ -1,10 +1,11 @@
-use beewave_protocol::{DeviceCommand, TelemetryMessage, AUTH_NONCE_LEN};
+use beewave_protocol::{AdClass, DeviceCommand, TelemetryMessage, AUTH_NONCE_LEN};
 
 use super::keys::DeviceKeys;
 use super::messages::{
-    event, ota_error_text, radio_error_text, EVENT_OTA_ERROR, EVENT_RADIO_ERROR,
-    EVENT_SETTINGS_ERROR, EVENT_UNAUTHORIZED,
+    event, ota_error_text, radio_error_text, EVENT_MONITOR_ERROR, EVENT_OTA_ERROR,
+    EVENT_RADIO_ERROR, EVENT_SETTINGS_ERROR, EVENT_UNAUTHORIZED,
 };
+use super::monitoring::{MonitorConfig, Monitoring};
 use crate::features::auth::AuthGate;
 use crate::features::ota::OtaSession;
 use crate::features::radio::{Mode, RadioController};
@@ -28,6 +29,7 @@ where
     ota: OtaSession<W>,
     settings: SettingsService<P>,
     scans: ScanTable,
+    monitoring: Monitoring,
     sys: S,
     sink: T,
     dropped: u16,
@@ -53,6 +55,7 @@ where
             ota: OtaSession::new(ota, keys.ota_signing),
             settings,
             scans: ScanTable::new(),
+            monitoring: Monitoring::new(),
             sys,
             sink,
             dropped: 0,
@@ -110,6 +113,33 @@ where
             self.sys.restart();
             return;
         }
+        match cmd {
+            DeviceCommand::GetMonitor => {
+                let report = self.monitoring.report();
+                self.emit(report);
+                return;
+            }
+            DeviceCommand::SetMonitor {
+                deauth_threshold,
+                ble_enabled,
+                ble_spike_factor,
+            } => {
+                let cfg = MonitorConfig {
+                    deauth_threshold,
+                    ble_enabled,
+                    ble_spike_factor,
+                };
+                match self.monitoring.set(cfg) {
+                    Ok(()) => {
+                        let report = self.monitoring.report();
+                        self.emit(report);
+                    }
+                    Err(_) => self.emit(event(EVENT_MONITOR_ERROR, "monitor config out of range")),
+                }
+                return;
+            }
+            _ => {}
+        }
         if let Some(result) = self.settings.handle(&cmd) {
             match result {
                 Ok(s) => {
@@ -148,16 +178,40 @@ where
 
     /// Driving port: the sniffer saw a frame.
     pub fn on_observation(&mut self, o: Observation) {
+        if let Some(alert) = self.monitoring.on_observation(&o) {
+            self.emit(alert);
+        }
         if let Some(m) = self.scans.observe(o) {
             self.emit(m);
         }
     }
 
-    /// Driving port: periodic tick (status heartbeat).
+    /// Driving port: one second of deauthentication frame counts per BSSID, drained from the
+    /// sniffer's counters. Publishes an alert for each BSSID at or above the threshold.
+    pub fn on_deauth_second(&mut self, counts: &[([u8; 6], u16)]) {
+        for alert in self.monitoring.on_deauth_second(counts) {
+            self.emit(alert);
+        }
+    }
+
+    /// Driving port: a passively received BLE advertisement, already classified.
+    pub fn on_ble_adv(&mut self, class: AdClass) {
+        self.monitoring.on_ble_adv(class);
+    }
+
+    /// Whether the passive BLE observer should be running (the firmware mirrors this into it).
+    pub fn ble_monitor_enabled(&self) -> bool {
+        self.monitoring.config().ble_enabled
+    }
+
+    /// Driving port: periodic tick (status heartbeat, BLE monitor statistics).
     pub fn on_tick(&mut self) {
         let scanning = self.radio.mode() == Mode::Scanning;
         let m = status::sample(&self.sys, self.radio.channel(), self.dropped, scanning);
         self.emit(m);
+        for m in self.monitoring.on_tick() {
+            self.emit(m);
+        }
     }
 
     /// Claim the device for `key`: only while unclaimed, and the key is persisted *before* the gate

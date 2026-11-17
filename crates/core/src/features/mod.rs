@@ -6,7 +6,10 @@
 //! - `types.rs` / `state.rs`: data types and constants
 //! - `<logic>.rs`: the behaviour
 //! - `tests.rs`: unit tests with fake ports
+pub mod anomaly;
 pub mod auth;
+pub mod ble_monitor;
+pub mod deauth_detect;
 pub mod latency;
 pub mod ota;
 pub mod radio;
