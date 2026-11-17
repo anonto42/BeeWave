@@ -7,7 +7,7 @@ use super::messages::{
 };
 use crate::features::auth::AuthGate;
 use crate::features::ota::OtaSession;
-use crate::features::radio::RadioController;
+use crate::features::radio::{Mode, RadioController};
 use crate::features::scan::{Observation, ScanTable};
 use crate::features::settings::SettingsService;
 use crate::features::status;
@@ -41,13 +41,17 @@ where
     T: TelemetrySink,
     P: SettingsStore,
 {
-    /// `keys` are the build-time secrets; a missing key fails closed (see `DeviceKeys`).
+    /// `keys` are the build-time secrets. Without a build-time or stored auth key the device is
+    /// unclaimed: the first client to `Provision` one owns it (see `AuthGate::claim`).
     pub fn new(radio: R, ota: W, sys: S, sink: T, settings_store: P, keys: DeviceKeys) -> Self {
+        let mut settings = SettingsService::new(settings_store);
+        // A build-time key wins; otherwise the key a client provisioned earlier; otherwise unclaimed.
+        let auth_key = keys.auth.or_else(|| settings.load_key());
         Self {
-            auth: AuthGate::new(keys.auth),
+            auth: AuthGate::new(auth_key),
             radio: RadioController::new(radio),
             ota: OtaSession::new(ota, keys.ota_signing),
-            settings: SettingsService::new(settings_store),
+            settings,
             scans: ScanTable::new(),
             sys,
             sink,
@@ -74,6 +78,10 @@ where
     pub fn on_command(&mut self, cmd: DeviceCommand) {
         match cmd {
             DeviceCommand::AuthBegin => {
+                if !self.auth.is_claimed() {
+                    self.emit(TelemetryMessage::Unclaimed);
+                    return;
+                }
                 let mut nonce = [0u8; AUTH_NONCE_LEN];
                 self.sys.fill_random(&mut nonce);
                 let challenge = self.auth.begin(nonce);
@@ -83,6 +91,10 @@ where
             DeviceCommand::AuthProve { mac } => {
                 let result = self.auth.prove(&mac);
                 self.emit(result);
+                return;
+            }
+            DeviceCommand::Provision { key } => {
+                self.provision(key);
                 return;
             }
             _ => {}
@@ -143,8 +155,18 @@ where
 
     /// Driving port: periodic tick (status heartbeat).
     pub fn on_tick(&mut self) {
-        let m = status::sample(&self.sys, self.radio.channel(), self.dropped);
+        let scanning = self.radio.mode() == Mode::Scanning;
+        let m = status::sample(&self.sys, self.radio.channel(), self.dropped, scanning);
         self.emit(m);
+    }
+
+    /// Claim the device for `key`: only while unclaimed, and the key is persisted *before* the gate
+    /// accepts it, so a storage failure leaves the device unclaimed rather than claimed-but-forgetful.
+    fn provision(&mut self, key: [u8; 32]) {
+        let ok = !self.auth.is_claimed() && key != [0u8; 32];
+        let ok = ok && self.settings.save_key(&key).is_ok();
+        let ok = ok && self.auth.claim(key);
+        self.emit(TelemetryMessage::AuthResult { ok });
     }
 
     fn apply_channel(&mut self, s: Settings) {
@@ -159,6 +181,7 @@ where
                 m,
                 TelemetryMessage::AuthChallenge { .. }
                     | TelemetryMessage::AuthResult { .. }
+                    | TelemetryMessage::Unclaimed
                     | TelemetryMessage::Event {
                         code: EVENT_UNAUTHORIZED,
                         ..

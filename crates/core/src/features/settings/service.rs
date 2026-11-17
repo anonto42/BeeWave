@@ -18,6 +18,15 @@ impl<S: SettingsStore> SettingsService<S> {
         self.current
     }
 
+    /// The device key stored by an earlier provisioning, if any.
+    pub fn load_key(&mut self) -> Option<[u8; 32]> {
+        self.store.load_key()
+    }
+
+    pub fn save_key(&mut self, key: &[u8; 32]) -> Result<(), SettingsError> {
+        self.store.save_key(key)
+    }
+
     /// `None` if not a settings command. `Some(Ok(settings))` carries the settings to report back.
     pub fn handle(&mut self, cmd: &DeviceCommand) -> Option<Result<Settings, SettingsError>> {
         Some(match cmd {

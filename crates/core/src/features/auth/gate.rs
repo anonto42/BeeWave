@@ -6,7 +6,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 /// Per-connection session state. The caller supplies the random nonce so this stays pure.
 ///
-/// With no key the gate is *locked*: every proof fails, so nothing can ever authenticate.
+/// With no key the gate is *unclaimed*: every proof fails until a client claims it with `claim`.
 pub struct AuthGate {
     key: Option<[u8; 32]>,
     nonce: Option<[u8; AUTH_NONCE_LEN]>,
@@ -24,6 +24,23 @@ impl AuthGate {
 
     pub fn is_authenticated(&self) -> bool {
         self.authenticated
+    }
+
+    /// Does the device have a key (built in, stored or provisioned)?
+    pub fn is_claimed(&self) -> bool {
+        self.key.is_some()
+    }
+
+    /// First-time provisioning: succeeds only while there is no key, and refuses the all-zero key.
+    /// The claiming client is authenticated for this session (it just chose the key).
+    pub fn claim(&mut self, key: [u8; 32]) -> bool {
+        if self.key.is_some() || key == [0u8; 32] {
+            return false;
+        }
+        self.key = Some(key);
+        self.nonce = None;
+        self.authenticated = true;
+        true
     }
 
     /// Start a handshake with a fresh nonce (replaces any pending one).

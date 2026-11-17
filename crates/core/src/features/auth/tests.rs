@@ -91,3 +91,23 @@ fn reset_ends_the_session() {
     g.reset();
     assert!(!g.is_authenticated());
 }
+
+#[test]
+fn an_unclaimed_gate_can_be_claimed_once() {
+    let mut g = AuthGate::new(None);
+    assert!(!g.is_claimed());
+    assert!(g.claim(KEY));
+    assert!(g.is_claimed() && g.is_authenticated());
+    assert!(!g.claim([9; 32]), "second claim is refused");
+    // the original key still verifies
+    g.reset();
+    g.begin(NONCE);
+    assert!(ok(g.prove(&proof(&KEY, &NONCE).unwrap())));
+}
+
+#[test]
+fn the_all_zero_key_cannot_claim() {
+    let mut g = AuthGate::new(None);
+    assert!(!g.claim([0; 32]));
+    assert!(!g.is_claimed());
+}

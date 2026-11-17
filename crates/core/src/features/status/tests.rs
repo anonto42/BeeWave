@@ -19,12 +19,13 @@ impl System for FakeSystem {
 #[test]
 fn builds_status() {
     assert_eq!(
-        sample(&FakeSystem, 3, 2),
+        sample(&FakeSystem, 3, 2, true),
         TelemetryMessage::Status {
             active_channel: 3,
             free_heap: 1234,
             cpu_load: 7,
-            dropped: 2
+            dropped: 2,
+            scanning: true
         }
     );
 }

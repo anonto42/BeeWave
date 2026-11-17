@@ -20,6 +20,12 @@ impl SettingsStore for FakeStore {
         self.saved = Some(*s);
         Ok(())
     }
+    fn load_key(&mut self) -> Option<[u8; 32]> {
+        None
+    }
+    fn save_key(&mut self, _: &[u8; 32]) -> Result<(), SettingsError> {
+        Ok(())
+    }
 }
 
 #[test]

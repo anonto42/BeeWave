@@ -29,4 +29,7 @@ pub trait SettingsStore {
     /// Saved settings, or defaults if nothing valid is stored.
     fn load(&mut self) -> Settings;
     fn save(&mut self, settings: &Settings) -> Result<(), SettingsError>;
+    /// The device key a client provisioned, if any (persisted across reboots).
+    fn load_key(&mut self) -> Option<[u8; 32]>;
+    fn save_key(&mut self, key: &[u8; 32]) -> Result<(), SettingsError>;
 }
