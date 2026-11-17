@@ -33,6 +33,12 @@ Slices depend on `ports` and `protocol`, never on each other. `App` is the only 
 Driving adapters push `Event`s into one bounded channel; the `app` task owns `App` (no locks needed).
 Telemetry is lossy by contract: `BleSink::publish` never blocks, drops are counted and reported in `Status.dropped`.
 
+## Passive monitoring
+Three receive-only core slices (`deauth_detect`, `ble_monitor`, `anomaly`) are composed in `app/monitoring.rs`. The sniffer callback counts
+deauth frames into lock-free counters (`wifi_radio/deauth.rs`), a passive NimBLE observer (`ble_observer/`, opt-in) feeds classified
+advertisements, and the app task drains both once a second. The phone builds everything else from the telemetry
+(`web/src/shared/monitor`); see `docs/MONITORING.md`.
+
 ## Command authentication
 The BLE link is not encrypted, so commands are protected at the application level. `features/auth` (`AuthGate`)
 runs an HMAC-SHA256 challenge-response with a shared 32-byte key. The key is either built in (`FW_KEY=file`, `make fw-key`) or provisioned by the first client (`Provision`, answered to `Unclaimed`) and kept in NVS; `make fw-unclaim` erases it.

@@ -43,6 +43,10 @@ Make the update files with `make fw-image`: it writes the image, its `.sig` (sig
 public key is built into the firmware, so the **first** signed update needs one cable flash of a build that has it.
 A device built without an OTA public key refuses all updates.
 
+## Monitoring
+The **Analyze** and **Alerts** tabs hold the results table, channel chart, RSSI history, scan comparison, deauth detector, BLE monitor,
+alert feed and watchlist; **Settings > Export session** saves the session as JSON or CSV. See `docs/MONITORING.md`.
+
 ## Limits to know
 - One phone at a time (one BLE connection).
 - Wi-Fi scanning and BLE share one radio, so notifications can be delayed while hopping; the BLE LOST counter shows real loss.
