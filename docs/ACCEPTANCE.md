@@ -34,7 +34,7 @@ One copy per firmware build you sign off; commit it with the results.
 | 2.6 | OTA rollback | Update with a deliberately crashing (signed) image | Device returns to the previous image | |
 | 2.7 | Scan de-dup | Watch SCANNER | A network reappears only when new or RSSI moved >= 6 dB | |
 | 2.8 | Channel pin | Pick a RADIO CHANNEL, then AUTO | Stays on the pinned channel; AUTO resumes hopping | |
-| 2.9 | Settings persistence | SAVE TO DEVICE, power-cycle | Channel and scan-at-boot restored | |
+| 2.9 | Settings persistence | Settings > Apply, power-cycle (see BENCH_RUNBOOK 6) | Values restored and `settings_revision` unchanged after the cycle | |
 | 2.10 | Reboot command | REBOOT | Device restarts, link drops, re-authenticates on reconnect | |
 
 Notes / anomalies:

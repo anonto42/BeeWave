@@ -72,16 +72,17 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
 - **If it fails, send:** S4, the sequence of DEVICE KEY texts, LOG lines, serial lines.
 
 ## 6. Scan, pin, save, reboot (authenticated)
-Make sure DEVICE KEY shows `authenticated` first.
+Make sure the top bar says `connected` (green) first; Settings > Connection shows `authenticated`.
 - [ ] **Scan.** **Do:** START SCAN, watch SCANNER for a minute, then STOP. **Expect, PWA:** rows appear; a network reappears only
   when it is new or its RSSI moved by about 6 dB or more; no new rows after STOP. **Pass (2.7):** de-dup holds. **Row:** **2.7**
 - [ ] **Pin and AUTO.** **Do:** START SCAN, choose a channel under **RADIO CHANNEL** (it applies at once); then choose AUTO.
   **Expect, PWA:** STATUS CHANNEL stays on the pinned number; with AUTO it changes (hops every 250 ms, shown once per second).
   **Pass (2.8):** stays on the pinned channel; AUTO resumes hopping. **Row:** **2.8**
-- [ ] **Save and power-cycle.** **Do:** in SETTINGS choose a channel and tick SCAN AT BOOT, tap **SAVE TO DEVICE**, unplug and replug
-  the board, reconnect (authenticates by itself). **Expect, PWA:** after it authenticates, the SETTINGS panel shows the channel you saved, SCAN AT BOOT
-  ticked and `saved on device`; STATUS CHANNEL sits on the saved channel and SCANNER fills without you tapping START SCAN.
-  **Pass (2.9):** channel and scan-at-boot restored. **Row:** **2.9**
+- [ ] **Settings persistence, end to end.** **Do:** Settings > Storage > REFRESH and write down the **settings revision** (call it R). Settings > Scan: set *Re-report
+  threshold* to 12 dB and tick *Scan at boot*; Settings > Radio: set *Default channel* to 6 and *Hop dwell* to 400 ms. Check the bar says `4 unsaved changes`, tap **APPLY TO DEVICE**.
+  **Expect, PWA:** a spinner, then `no changes (saved R+1 times)`; the changed rows lose their yellow mark. Unplug and replug the board, reconnect (it authenticates by itself),
+  open Settings > Scan and Radio and Storage > REFRESH. **Expect, PWA:** every value you set is still there (12 dB, scan at boot ticked, channel 6, 400 ms), STATUS CHANNEL sits on 6, SCANNER fills
+  without tapping START SCAN, and the settings revision is **still R+1** (it did not reset or grow: this is the proof of persistence). **Pass (2.9):** values and revision survive a power cycle. **Row:** **2.9**
 - [ ] **Reboot.** **Do:** tap **REBOOT**. **Expect, serial:** a fresh boot and `beewave up on core <N>`, `BLE disconnected: ...`.
   **Expect, PWA:** state `disconnected`; reconnect authenticates again by itself. **Pass (2.10):** restarts, link drops, re-authenticates.
   **Row:** **2.10**
@@ -145,3 +146,19 @@ After both, restore the normal build with `make fw-run`.
 - **Pass (2.4):** shell renders < 100 ms after load.
 - **Row:** **2.4**
 - **If it fails, send:** the row ID, the Pages URL, the workflow run result, what the phone showed (a screenshot is fine).
+
+## 12. Settings sections (needs the board and a phone)
+Do these in order; each step says what proves it. A section that only changes the phone needs no board. Record the applied `hop_dwell_ms` / `hop_order` with any coexistence result (row 2.2).
+1. **Before auth.** Reload the PWA and open Settings without connecting. **Expect:** a banner "Device settings load after the key handshake", the Scan/Radio/Telemetry/Alerts sections greyed, APPLY disabled. Connect: the banner disappears only after `authenticated`.
+2. **Connection.** The state line and the top bar agree; the lock icon in the top bar opens this section. Toggle *Remember key* off, reload: the key is gone (it was memory only); toggle it on, enter the key again, reload: it stays. **Forget key** (two steps) drops the link and clears scans. **Rotate device key** only shows instructions.
+3. **Scan.** Drag *Re-report threshold* and watch the line "re-report only when RSSI moves by N dB". Set an *SSID filter* of one of your networks and channel boxes for its channel; Apply; START SCAN: only matching networks appear. Clear the filter, tick ALL then NONE (NONE = all channels), Apply.
+4. **Radio.** *Default channel* = 6, Apply: STATUS stays on 6 and the Scan tab's channel buttons show 6 (and the reverse: tap 11 there, the dropdown shows 11 with `1 unsaved change`). Set *Hop order* to Custom: the list unlocks; tick 1, 6, 11 and Apply; STATUS CHANNEL visits only those (start a new scan: hop changes apply at scan start). Try Custom with no channel: APPLY shows the reason and highlights the list; nothing changes on the device.
+5. **Telemetry.** *Status period* 2000 ms, Apply: STATUS updates every 2 s. Set it back. Set *Device log level* to Warn: the serial log goes quiet apart from warnings.
+6. **Alerts.** *Deauth window* below twice the re-report interval is refused (`window too short`) and highlighted. Valid values apply. (Detection itself is bench step 3 in `docs/MONITORING.md`.)
+7. **OTA.** Version, git commit, build time and fingerprint are shown; **the fingerprint equals `make fw-fingerprint`**. Enter an expected version that differs, tick *Check version on connect*: the warning appears.
+8. **Storage.** REFRESH: NVS used/free, ota_0 marked active, revision R. Apply any change: REFRESH again, R+1. **Erase NVS settings** (two steps): settings return to the defaults, the device does not reboot, the key still works.
+9. **System.** *Self-test* with the scan stopped: all four pass. Start a scan and run it again: `Busy ... stop the scan first`. **Factory reset** needs typing `RESET`; afterwards the device reboots unclaimed, this phone forgets the key, and the next connect claims it again.
+10. **UI.** Theme, signal unit, density, columns, refresh rate and log auto-scroll each take effect at once and survive a reload.
+11. **Watchlist.** PIN a network from a Scanner row; stop and restart scanning with that AP off (or move away): a "disappeared" alert after about 5 cycles in the Alerts feed, the Log and Status "last event".
+12. **Import/Export.** Export phone settings, change something, import the file: a diff is shown first and nothing changes until you confirm; add an unknown key by hand and the import is refused. Export device settings, change a device value, import the file, then APPLY: one save, revision +1.
+

@@ -16,8 +16,8 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 | Alerts | **Alerts** (feed) | `DeauthAlert`, `BleSpike`, `AnomalyAlert`, watchlist |
 | Alerts | **Deauth detector** | `DeauthAlert`, `MonitorConfig` |
 | Alerts | **BLE monitor** | `BleStats`, `BleSpike`, `MonitorConfig` |
-| Alerts | **Watchlist** | `ScanResult` (rules run on the phone) |
-| Settings | **Export session** | everything the phone already received |
+| Settings | **Watchlist** (section) | `ScanResult` (rules run on the phone) |
+| Settings | **Import/Export** (section) | everything the phone already received |
 
 ## Results table
 SSID, BSSID, vendor, RSSI, channel, first seen, last seen and scan count. Tap a header to sort (tap again to flip); filter by SSID
@@ -63,11 +63,11 @@ A scan is saved when you stop scanning (or with **Snapshot now**) and holds only
 new, disappeared, signal-changed (6 dB or more) and channel-changed networks. **Export JSON** saves the diff.
 
 ## Watchlist (phone only)
-Pin BSSIDs (from the networks heard so far, or by typing one). Alerts: it **appears**, it has been **missing** for more than 5 cycles, or
+Pin BSSIDs in Settings > Watchlist (from the networks heard so far, by typing one, or with the PIN button on a Scanner row), each with a label and its own rules. Alerts: it **appears**, it has been **missing** for more than 5 cycles, or
 it **moves** by 6 dB or more. Pins are kept in this browser's `localStorage`; the device never sees them, so there is no device-side watchlist.
 
 ## Export session
-One button each for JSON and CSV, assembled on the phone from what the app has already seen: scan reports, alerts, log lines, key/link
+In Settings > Import/Export, one button saves the session in the chosen format (JSON, CSV or both), assembled on the phone from what the app has already seen: scan reports, alerts, log lines, key/link
 events and saved scans. The CSV is one flat file with a `kind` column. Cells that a spreadsheet could read as formulas (starting with
 `=`, `+`, `-` or `@`) are prefixed with an apostrophe, because SSIDs are attacker-controlled text.
 
@@ -80,4 +80,4 @@ every anomaly kind, and honours the same thresholds and validation as the device
 2. Alerts > BLE monitor: turn on, wait a minute with a phone nearby; per-class counts appear; **BLE LOST** stays near 0. Turn it off again.
 3. Alerts > Deauth: with a test network you own and a deauth source you are authorised to use, confirm an alert above the threshold. (Not
    tested on air yet: only the host tests and the mock have exercised this path.)
-4. Settings > Export session: both files download and open.
+4. Settings > Import/Export > Export session: the file(s) download and open.

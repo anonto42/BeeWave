@@ -32,9 +32,12 @@ Wi-Fi sniffing and BLE share one radio. To measure notification latency while ho
    for the BLE task) and `coex notify: ...` (time the notify call took). Percentiles are bucket upper edges.
 3. Watch BLE LOST in the STATUS panel for the same period.
 4. Target: queue p99 at or under 50000 us and BLE LOST not growing over 10 minutes.
-5. If it misses, change one knob at a time and re-measure: `DWELL` and `HOP_ORDER` in
-   `firmware/src/adapters/wifi_radio/hopper.rs`, `REQUEST_CONN_PARAMS` and the interval/latency constants in
+5. If it misses, change one knob at a time and re-measure: **Hop dwell** and **Hop order** in Settings > Radio (they are NVS-backed settings; the constants `DWELL` and
+   `HOP_ORDER` in `firmware/src/adapters/wifi_radio/hopper.rs` are only their defaults), `REQUEST_CONN_PARAMS` and the interval/latency constants in
    `firmware/src/adapters/ble_gatt/tuning.rs`, queue depths in `firmware/src/runtime/channels.rs`.
+
+**Row 2.2 depends on `hop_dwell_ms` and `hop_order`.** Write the values that were applied (Settings > Radio, and the settings revision from Settings > Storage) next to the
+result when you report it, and after changing either, run the 10-minute measurement again.
 
 Note: `REQUEST_CONN_PARAMS` is `false` in this build. The connection-interval and slave-latency constants exist in
 `ble_gatt/tuning.rs` but are not applied. If row 2.2 fails (BLE disconnects during the 10-minute hop), the first lever is
@@ -42,3 +45,12 @@ to enable `REQUEST_CONN_PARAMS` and retest.
 
 ## Acceptance sign-off
 Record the full hardware results (security checks and performance targets) in `docs/ACCEPTANCE.md`.
+
+## Signed OTA
+Firmware updates must be signed with the Ed25519 key whose public half is built into the firmware (`BEEWAVE_OTA_PUBKEY`; private key `firmware/.beewave-ota.pem`,
+never committed). Consequences:
+- The **first** signed update needs one cable flash of a build that already contains the public key (`make fw-flash`); a device built without it refuses every update.
+- `make fw-image` writes `dist/beewave-app.bin` and its `.sig`; `make fw-sign` prints the signing key's fingerprint, and `make fw-fingerprint` prints it on its own.
+- Settings > OTA shows the fingerprint of the key the **running firmware** trusts. If it differs from `make fw-fingerprint`, the board was built with a different key and will refuse
+  your signed images.
+- A bad signature is refused after the full upload; a good image that fails to boot rolls back to the previous slot.
