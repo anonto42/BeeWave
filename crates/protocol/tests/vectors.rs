@@ -4,6 +4,39 @@ fn s<const N: usize>(x: &str) -> heapless::String<N> {
     x.try_into().unwrap()
 }
 
+fn sample_scan() -> ScanSettings {
+    ScanSettings {
+        scan_at_boot: true,
+        scan_interval_ms: 500,
+        dedup_rssi_db: 6,
+        ssid_filter: s("Cafe"),
+        channel_filter_mask: 0b1_0000_0100_0001,
+    }
+}
+
+fn sample_radio() -> RadioSettings {
+    RadioSettings {
+        default_channel: 0,
+        hop_dwell_ms: 250,
+        hop_order: HopOrder::Custom,
+        custom_hop_list: [1, 6, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }
+}
+
+fn sample_telemetry() -> TelemetrySettings {
+    TelemetrySettings {
+        status_period_ms: 1000,
+        log_level: LogLevel::Info,
+    }
+}
+
+fn sample_alerts() -> AlertSettings {
+    AlertSettings {
+        deauth_threshold: 10,
+        deauth_window_ms: 1000,
+    }
+}
+
 #[test]
 fn roundtrip_and_emit_golden_vectors() {
     let tele = [
@@ -57,6 +90,52 @@ fn roundtrip_and_emit_golden_vectors() {
             ble_enabled: true,
             ble_spike_factor: 3,
         },
+        TelemetryMessage::SettingsAll {
+            schema: SETTINGS_SCHEMA,
+            revision: 300,
+            scan: sample_scan(),
+            radio: sample_radio(),
+            telemetry: sample_telemetry(),
+            alerts: sample_alerts(),
+        },
+        TelemetryMessage::SettingsSaved {
+            revision: 7,
+            ok: false,
+            reason: Some(RejectReason::WindowTooShort),
+        },
+        TelemetryMessage::SettingsSaved {
+            revision: 8,
+            ok: true,
+            reason: None,
+        },
+        TelemetryMessage::StorageInfo {
+            nvs_used: 3000,
+            nvs_free: 21576,
+            ota0_active: true,
+            ota1_active: false,
+            ota0_size: 1_572_864,
+            ota1_size: 1_572_864,
+            settings_revision: 9,
+        },
+        TelemetryMessage::SelfTestResult {
+            radio: true,
+            nvs: true,
+            ble: false,
+            ota_slot: true,
+            busy: false,
+        },
+        TelemetryMessage::DeviceInfo {
+            version: s("0.1.0"),
+            git_sha: s("a1b2c3d"),
+            built: s("2026-11-18T10:00:00Z"),
+            ota_key_fp: [0xAB; 16],
+            request_conn_params: false,
+            coex_debug: false,
+            bonding: false,
+        },
+        TelemetryMessage::Rejected {
+            reason: RejectReason::Busy,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -90,6 +169,17 @@ fn roundtrip_and_emit_golden_vectors() {
             ble_enabled: true,
             ble_spike_factor: 3,
         },
+        DeviceCommand::GetSettingsAll,
+        DeviceCommand::SaveSettingsAll {
+            scan: sample_scan(),
+            radio: sample_radio(),
+            telemetry: sample_telemetry(),
+            alerts: sample_alerts(),
+        },
+        DeviceCommand::FactoryReset,
+        DeviceCommand::RunSelfTest,
+        DeviceCommand::GetStorageInfo,
+        DeviceCommand::GetDeviceInfo,
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];

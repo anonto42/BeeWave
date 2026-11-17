@@ -78,6 +78,119 @@ pub enum DeviceCommand {
         /// A class spikes when its count exceeds its baseline times this (2..=20).
         ble_spike_factor: u8,
     },
+    /// Ask for every persisted setting (answered with `SettingsAll`).
+    GetSettingsAll,
+    /// Validate and persist every setting at once (answered with `SettingsSaved`; nothing is written
+    /// when any field is rejected).
+    SaveSettingsAll {
+        scan: ScanSettings,
+        radio: RadioSettings,
+        telemetry: TelemetrySettings,
+        alerts: AlertSettings,
+    },
+    /// Erase the stored settings, the claimed key and the revision counter, then reboot. Refused while
+    /// an update is in flight.
+    FactoryReset,
+    /// Run the short diagnostic sequence (answered with `SelfTestResult`).
+    RunSelfTest,
+    /// NVS usage, partition layout and the settings revision (answered with `StorageInfo`).
+    GetStorageInfo,
+    /// Firmware version, build, key fingerprint and build-time flags (answered with `DeviceInfo`).
+    GetDeviceInfo,
+}
+
+/// Version of the settings layout, sent in `SettingsAll` so an older or newer client can tell.
+pub const SETTINGS_SCHEMA: u8 = 1;
+/// Longest SSID filter.
+pub const MAX_SSID_FILTER: usize = 32;
+/// Slots in a custom hop list (0 = unused slot).
+pub const HOP_LIST_LEN: usize = 13;
+
+/// Order in which the sniffer visits channels while hopping. Append new variants at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HopOrder {
+    /// 1, 2, 3 ... 13.
+    Ascending,
+    /// The non-overlapping channels first: 1, 6, 11, 2, 7, 12, 3, 8, 13, 4, 9, 5, 10.
+    Ascending1_6_11,
+    /// The channels in `custom_hop_list`, in that order.
+    Custom,
+}
+
+/// Verbosity of the device's own log output. Append new variants at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+}
+
+/// Why a request was refused. Each field-level reason names the field so a client can highlight it.
+/// Append new variants at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RejectReason {
+    ScanIntervalRange,
+    DedupRssiRange,
+    ChannelMaskRange,
+    DefaultChannelRange,
+    HopDwellRange,
+    /// `hop_order` is Custom but the list has no channel.
+    HopListEmpty,
+    /// A custom hop list entry is not 0 or 1-13, or a channel appears twice.
+    HopListInvalid,
+    StatusPeriodRange,
+    DeauthThresholdRange,
+    DeauthWindowRange,
+    /// `deauth_window_ms` is shorter than twice `scan_interval_ms`.
+    WindowTooShort,
+    /// An update (or a scan) is in progress.
+    Busy,
+    /// Flash refused the write.
+    Storage,
+}
+
+/// Scan behaviour, persisted on the device.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ScanSettings {
+    pub scan_at_boot: bool,
+    /// Minimum time between re-reports of the same network, 100..=10000 ms (new networks are reported at once).
+    pub scan_interval_ms: u32,
+    /// A known network is re-reported only when RSSI moves by this many dB, 1..=30.
+    pub dedup_rssi_db: u8,
+    /// Report only networks whose SSID contains this text (case-insensitive); empty = no filter.
+    pub ssid_filter: String<MAX_SSID_FILTER>,
+    /// Bit 0 = channel 1 ... bit 12 = channel 13. 0 = all channels.
+    pub channel_filter_mask: u16,
+}
+
+/// Radio behaviour, persisted on the device.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct RadioSettings {
+    /// 0 = AUTO (hop), else 1..=13 (pinned).
+    pub default_channel: u8,
+    /// Time on each channel while hopping, 100..=2000 ms.
+    pub hop_dwell_ms: u16,
+    pub hop_order: HopOrder,
+    /// Used when `hop_order` is Custom: channels 1-13 in visiting order, unused slots 0.
+    pub custom_hop_list: [u8; HOP_LIST_LEN],
+}
+
+/// Telemetry cadence and device log verbosity, persisted on the device.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TelemetrySettings {
+    /// Status heartbeat period, 250..=5000 ms.
+    pub status_period_ms: u32,
+    pub log_level: LogLevel,
+}
+
+/// Receive-only alert tuning, persisted on the device.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct AlertSettings {
+    /// Deauth frames per second that raise an alert, 1..=100.
+    pub deauth_threshold: u8,
+    /// Window the frames are counted over, 200..=5000 ms.
+    pub deauth_window_ms: u16,
 }
 
 /// Class of a received BLE advertisement (receive-only monitor). Append new classes at the end.
@@ -174,5 +287,55 @@ pub enum TelemetryMessage {
         deauth_threshold: u8,
         ble_enabled: bool,
         ble_spike_factor: u8,
+    },
+    /// Every persisted setting (reply to `GetSettingsAll`).
+    SettingsAll {
+        /// `SETTINGS_SCHEMA` of the firmware.
+        schema: u8,
+        /// How many times the settings were saved (proves persistence across reboots).
+        revision: u32,
+        scan: ScanSettings,
+        radio: RadioSettings,
+        telemetry: TelemetrySettings,
+        alerts: AlertSettings,
+    },
+    /// Outcome of `SaveSettingsAll`. On `ok: false` nothing was written and `reason` says why.
+    SettingsSaved {
+        revision: u32,
+        ok: bool,
+        reason: Option<RejectReason>,
+    },
+    /// NVS usage and flash layout (reply to `GetStorageInfo`).
+    StorageInfo {
+        nvs_used: u32,
+        nvs_free: u32,
+        ota0_active: bool,
+        ota1_active: bool,
+        ota0_size: u32,
+        ota1_size: u32,
+        settings_revision: u32,
+    },
+    /// Outcome of `RunSelfTest`. `busy`: a scan is running, nothing was tested.
+    SelfTestResult {
+        radio: bool,
+        nvs: bool,
+        ble: bool,
+        ota_slot: bool,
+        busy: bool,
+    },
+    /// Firmware identity and build-time flags (reply to `GetDeviceInfo`).
+    DeviceInfo {
+        version: String<16>,
+        git_sha: String<12>,
+        built: String<24>,
+        /// First 16 bytes of the SHA-256 of the embedded OTA public key; all zero when there is none.
+        ota_key_fp: [u8; 16],
+        request_conn_params: bool,
+        coex_debug: bool,
+        bonding: bool,
+    },
+    /// A request was refused outright (not a per-field settings error).
+    Rejected {
+        reason: RejectReason,
     },
 }

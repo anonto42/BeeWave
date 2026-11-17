@@ -59,6 +59,30 @@
     {
       "hex": "010e0e0a0103",
       "msg": "SetMonitor { deauth_threshold: 10, ble_enabled: true, ble_spike_factor: 3 }"
+    },
+    {
+      "hex": "010f0f",
+      "msg": "GetSettingsAll"
+    },
+    {
+      "hex": "01101001f403060443616665c12000fa010201060b00000000000000000000e807020ae807",
+      "msg": "SaveSettingsAll { scan: ScanSettings { scan_at_boot: true, scan_interval_ms: 500, dedup_rssi_db: 6, ssid_filter: \"Cafe\", channel_filter_mask: 4161 }, radio: RadioSettings { default_channel: 0, hop_dwell_ms: 250, hop_order: Custom, custom_hop_list: [1, 6, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, telemetry: TelemetrySettings { status_period_ms: 1000, log_level: Info }, alerts: AlertSettings { deauth_threshold: 10, deauth_window_ms: 1000 } }"
+    },
+    {
+      "hex": "011111",
+      "msg": "FactoryReset"
+    },
+    {
+      "hex": "011212",
+      "msg": "RunSelfTest"
+    },
+    {
+      "hex": "011313",
+      "msg": "GetStorageInfo"
+    },
+    {
+      "hex": "011414",
+      "msg": "GetDeviceInfo"
     }
   ],
   "telemetry": [
@@ -113,6 +137,34 @@
     {
       "hex": "010c0c0a0103",
       "msg": "MonitorConfig { deauth_threshold: 10, ble_enabled: true, ble_spike_factor: 3 }"
+    },
+    {
+      "hex": "010d0d01ac0201f403060443616665c12000fa010201060b00000000000000000000e807020ae807",
+      "msg": "SettingsAll { schema: 1, revision: 300, scan: ScanSettings { scan_at_boot: true, scan_interval_ms: 500, dedup_rssi_db: 6, ssid_filter: \"Cafe\", channel_filter_mask: 4161 }, radio: RadioSettings { default_channel: 0, hop_dwell_ms: 250, hop_order: Custom, custom_hop_list: [1, 6, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, telemetry: TelemetrySettings { status_period_ms: 1000, log_level: Info }, alerts: AlertSettings { deauth_threshold: 10, deauth_window_ms: 1000 } }"
+    },
+    {
+      "hex": "010e0e0700010a",
+      "msg": "SettingsSaved { revision: 7, ok: false, reason: Some(WindowTooShort) }"
+    },
+    {
+      "hex": "010f0e080100",
+      "msg": "SettingsSaved { revision: 8, ok: true, reason: None }"
+    },
+    {
+      "hex": "01100fb817c8a801010080806080806009",
+      "msg": "StorageInfo { nvs_used: 3000, nvs_free: 21576, ota0_active: true, ota1_active: false, ota0_size: 1572864, ota1_size: 1572864, settings_revision: 9 }"
+    },
+    {
+      "hex": "0111100101000100",
+      "msg": "SelfTestResult { radio: true, nvs: true, ble: false, ota_slot: true, busy: false }"
+    },
+    {
+      "hex": "01121105302e312e30076131623263336414323032362d31312d31385431303a30303a30305aabababababababababababababababab000000",
+      "msg": "DeviceInfo { version: \"0.1.0\", git_sha: \"a1b2c3d\", built: \"2026-11-18T10:00:00Z\", ota_key_fp: [171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171], request_conn_params: false, coex_debug: false, bonding: false }"
+    },
+    {
+      "hex": "0113120b",
+      "msg": "Rejected { reason: Busy }"
     }
   ]
 }
