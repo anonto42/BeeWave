@@ -35,9 +35,9 @@ Telemetry is lossy by contract: `BleSink::publish` never blocks, drops are count
 
 ## Command authentication
 The BLE link is not encrypted, so commands are protected at the application level. `features/auth` (`AuthGate`)
-runs an HMAC-SHA256 challenge-response with a shared 32-byte key (`BEEWAVE_KEY` at build time, see `make fw-key`).
+runs an HMAC-SHA256 challenge-response with a shared 32-byte key. The key is either built in (`FW_KEY=file`, `make fw-key`) or provisioned by the first client (`Provision`, answered to `Unclaimed`) and kept in NVS; `make fw-unclaim` erases it.
 `App` drops every command and withholds status/scan telemetry until the session is authenticated; the BLE adapter
-sends `Event::LinkReset` on every connect and disconnect so a session never outlives its connection. No key = locked.
+sends `Event::LinkReset` on every connect and disconnect so a session never outlives its connection. A claimed device accepts only its own key; an unclaimed one lets the first client claim it, so claim it right after flashing.
 
 ## Signed firmware updates
 `features/ota` verifies an Ed25519 signature over the image SHA-256 (`OtaEndSigned`) before the writer may finish; any

@@ -6,9 +6,9 @@ the `no_std` build, the web tests (codec vs the Rust golden vectors, auth, OTA u
 `make fw-build` and `make fw-build FEATURES=coex_debug` only prove the firmware compiles.
 
 ## Hardware preparation
-1. `make fw-key` and `make fw-ota-key` (once; they create the untracked device key and OTA signing key).
-2. `make fw-run` (builds with both keys, flashes, opens the monitor). Add `FEATURES=coex_debug` for latency logging.
-3. Open the PWA on the phone, paste the key printed by `make fw-key` into **DEVICE KEY**, tap **SAVE KEY**.
+1. `make fw-ota-key` (once; creates the untracked OTA signing key).
+2. `make fw-run` (builds with the OTA public key, flashes, opens the monitor). The device starts unclaimed; `make fw-run FW_KEY=file` bakes in a key from `make fw-key` instead. Add `FEATURES=coex_debug` for latency logging.
+3. Open the PWA on the phone and tap **CONNECT**. The first connection claims the device automatically (the top bar goes to `connected`). With `FW_KEY=file`, paste the key printed by `make fw-key` into **DEVICE KEY** instead.
 
 ## Smoke test (about 10 minutes)
 Tick each line. The exact texts are what the UI shows.
@@ -19,7 +19,7 @@ Tick each line. The exact texts are what the UI shows.
 - [ ] **No key:** press **FORGET**, CONNECT: the panel shows `no key saved`, STATUS stays empty, and START SCAN adds `event 4: not authenticated` to the LOG.
 - [ ] After a disconnect and reconnect the session is gone: with the right key saved, it authenticates again by itself.
 - [ ] START SCAN lists nearby networks; STOP stops new rows.
-- [ ] SET CHANNEL pins the channel shown in STATUS; AUTO makes it change.
+- [ ] Picking a RADIO CHANNEL pins the channel shown in STATUS; AUTO makes it change.
 - [ ] SAVE TO DEVICE, power-cycle the board, reconnect: the settings are restored.
 - [ ] REBOOT from the UI, reconnect: it authenticates again automatically.
 - [ ] Firmware update with `dist/beewave-app.bin` + `.bin.sig` (from `make fw-image`) completes and the new image boots.

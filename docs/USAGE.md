@@ -9,9 +9,13 @@
 ## What the phone does
 1. Open the PWA (hosted over HTTPS, see `docs/DEPLOYMENT.md`) in **Chrome/Edge on Android** (or desktop).
    iPhone: use the **Bluefy** browser. Safari cannot do Web Bluetooth.
-2. Tap **CONNECT**. Chrome shows a chooser listing devices named `BeeWave`. Pick it.
-3. First time only: run `make fw-key` on your computer, which prints the device key (and `make fw-run`
-   builds it into the firmware). Paste the key into the **DEVICE KEY** panel and tap **SAVE KEY**.
+2. The app has four tabs along the bottom: **Device**, **Scan**, **Settings** and **Log**. Tap **CONNECT** in the top bar (it
+   also shows the link and key state: `connected`, `connected, no key`, `authenticating...`, `wrong key`). Chrome shows a chooser listing devices named `BeeWave`. Pick it.
+3. First connect: nothing to enter. A fresh device is *unclaimed*; the PWA generates a random key, sends it once and
+   saves it in this browser (the top bar goes to `authenticating...`, then `connected`). The device keeps the key in flash.
+   A claimed device only accepts that key: another browser must paste it into **DEVICE KEY** (Settings tab; use COPY KEY in the first browser), and
+   `make fw-unclaim` resets the device so the next phone can claim it. Firmware built with `FW_KEY=file` has the key from
+   `make fw-key` baked in instead.
 4. After connecting, the phone proves it knows the key automatically; the panel shows `authenticated`.
    The status panel then updates once per second (channel, free heap, CPU %, packets dropped on the
    device, packets lost on the BLE link).
@@ -19,18 +23,20 @@
 > **Security:** the device accepts no command, and sends no status or scan data, until the phone proves it
 > knows the key (HMAC challenge-response, see `openspec/specs/ble-link/spec.md`). The Bluetooth link itself is
 > **not encrypted**, so someone nearby can still read traffic; they just cannot control the device. A firmware
-> built without a valid `BEEWAVE_KEY` stays locked. The key is stored in `firmware/.beewave-key` (not in git)
-> and in your browser; keep both private. Changing the key means rebuilding and reflashing.
+> that already has a key accepts only that key. **An unclaimed device can be claimed by anyone in range**, so connect
+> right after flashing. The key lives in the device's flash and in your browser; keep both private.
 
 ## Operations
 | You do | What happens |
 |---|---|
-| START SCAN / STOP | Device sniffs beacons and hops channels 1-13 (or stays on a pinned channel). New or changed networks appear in the SCANNER table. |
-| Pick a channel + SET CHANNEL | Pin the radio to that channel (AUTO = hop). |
-| Tap a network row | Adds it to the TARGETS tray (saved in your browser). |
+| START SCAN / STOP SCAN (Scan tab) | One button: it starts a scan while idle and stops it while scanning; the CONTROL panel shows IDLE or SCANNING. Device sniffs beacons and hops channels 1-13 (or stays on a pinned channel). New or changed networks appear in the SCANNER table. |
+| RADIO CHANNEL (Scan tab) | Picking a channel pins the radio to it at once (AUTO = hop). |
+| SORT / CLEAR (Scan tab) | Sort the scanner table by signal, channel or name; CLEAR empties it (the device keeps scanning). |
+| Tap a network | Marks it as a target (saved in your browser); TARGETS lists them with a REMOVE button. Signal is shown as bars plus dBm. |
 | SETTINGS -> SAVE TO DEVICE | Channel and scan-at-boot are written to flash and survive power loss. |
 | FIRMWARE UPDATE | Choose `dist/beewave-app.bin` and its `dist/beewave-app.bin.sig`. The phone sends the image over BLE in 96-byte chunks with acks; the device verifies the SHA-256 **and the Ed25519 signature**, switches slot and reboots. A missing or wrong signature is refused. If the new image fails to boot, the bootloader rolls back. |
-| REBOOT | Restarts the device. |
+| REBOOT DEVICE (Settings tab) | Restarts the device after a second tap on **CONFIRM REBOOT** (it disarms itself after 5 s). |
+| Device error | Radio, update, settings and "locked" errors also pop up as a tap-to-dismiss alert above the tab bar (and stay in the Log tab). |
 
 Make the update files with `make fw-image`: it writes the image, its `.sig` (signed with the private key in
 `firmware/.beewave-ota.pem`, created once by `make fw-ota-key`, never leaves your computer) and the SHA-256. The matching

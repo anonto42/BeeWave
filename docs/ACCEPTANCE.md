@@ -18,7 +18,7 @@ One copy per firmware build you sign off; commit it with the results.
 | S2 | Wrong key | Save a different 64-hex key, connect | `rejected`; no status or scan data; commands do nothing | |
 | S3 | No key saved | Press FORGET, connect | Nothing shown or accepted | |
 | S4 | Session ends on disconnect | Authenticate, disconnect, reconnect with no key | Commands refused until the handshake runs again | |
-| S5 | Locked build | Flash a build without `BEEWAVE_KEY` | Serial log says `LOCKED`; nothing authenticates | |
+| S5 | Claim once | Flash a build without `BEEWAVE_KEY`, connect from phone A, then from browser B without the key | A claims it automatically and sees status; B shows `needs key` and gets no status | |
 | S6 | Signed OTA | `make fw-image`, update with `.bin` + `.sig` | Completes, new image boots | |
 | S7 | Bad signature | Use a `.sig` from another build | Upload reaches 100%, then it is refused with "bad signature" (the signature is checked after the full image, before boot); old firmware keeps running | |
 | S8 | No OTA key | Flash a build without `BEEWAVE_OTA_PUBKEY` | Any update is refused | |
@@ -33,7 +33,7 @@ One copy per firmware build you sign off; commit it with the results.
 | 2.5 | OTA works | FIRMWARE UPDATE panel | New image boots, status resumes | |
 | 2.6 | OTA rollback | Update with a deliberately crashing (signed) image | Device returns to the previous image | |
 | 2.7 | Scan de-dup | Watch SCANNER | A network reappears only when new or RSSI moved >= 6 dB | |
-| 2.8 | Channel pin | SET CHANNEL, then AUTO | Stays on the pinned channel; AUTO resumes hopping | |
+| 2.8 | Channel pin | Pick a RADIO CHANNEL, then AUTO | Stays on the pinned channel; AUTO resumes hopping | |
 | 2.9 | Settings persistence | SAVE TO DEVICE, power-cycle | Channel and scan-at-boot restored | |
 | 2.10 | Reboot command | REBOOT | Device restarts, link drops, re-authenticates on reconnect | |
 

@@ -11,7 +11,9 @@ Do the steps in order and tick each one. Results go in `docs/ACCEPTANCE.md`; row
   Auth and OTA outcomes are visible only in the PWA (DEVICE KEY panel, LOG panel, FIRMWARE UPDATE status).
 - PWA texts you will see: DEVICE KEY panel = `no key saved` / `key saved, not connected` / `authenticating...` /
   `authenticated` / `rejected: wrong key?`. LOG lines look like `event 4: not authenticated`.
-  STATUS cells: CHANNEL, FREE HEAP (in K), CPU %, DEV DROPPED, BLE LOST.
+  STATUS cells: CHANNEL, FREE HEAP (in K), CPU %, DEV DROPPED, BLE LOST. Connect/Disconnect and the link state are in the
+  top bar; REBOOT is on the Settings tab behind CONFIRM REBOOT; START SCAN / STOP SCAN is one button on the Scan tab (CONTROL shows IDLE / SCANNING).
+  Until the key handshake succeeds, STATUS shows a "Locked..." note instead of values.
 - Fill in the header of `docs/ACCEPTANCE.md` first (date, `make board-info`, `git rev-parse --short HEAD`, phone + browser).
 
 ## How to report a failure
@@ -73,7 +75,7 @@ wrong behaviour (what you did, what you expected, what happened). If a step is u
 Make sure DEVICE KEY shows `authenticated` first.
 - [ ] **Scan.** **Do:** START SCAN, watch SCANNER for a minute, then STOP. **Expect, PWA:** rows appear; a network reappears only
   when it is new or its RSSI moved by about 6 dB or more; no new rows after STOP. **Pass (2.7):** de-dup holds. **Row:** **2.7**
-- [ ] **Pin and AUTO.** **Do:** START SCAN, choose a channel, tap **SET CHANNEL**; then choose AUTO and tap **SET CHANNEL**.
+- [ ] **Pin and AUTO.** **Do:** START SCAN, choose a channel under **RADIO CHANNEL** (it applies at once); then choose AUTO.
   **Expect, PWA:** STATUS CHANNEL stays on the pinned number; with AUTO it changes (hops every 250 ms, shown once per second).
   **Pass (2.8):** stays on the pinned channel; AUTO resumes hopping. **Row:** **2.8**
 - [ ] **Save and power-cycle.** **Do:** in SETTINGS choose a channel and tick SCAN AT BOOT, tap **SAVE TO DEVICE**, unplug and replug
