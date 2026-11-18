@@ -4,6 +4,7 @@
 use heapless::String;
 
 use super::types::Observation;
+use super::wps::parse_wps_element;
 
 /// 802.11 management header is 24 bytes; a beacon body starts with 12 fixed bytes
 /// (timestamp 8, interval 2, capabilities 2), then tagged information elements.
@@ -19,6 +20,7 @@ const SUBTYPE_PROBE_RESPONSE: u8 = 0x50;
 
 const IE_SSID: u8 = 0;
 const IE_DS_PARAMS: u8 = 3;
+const IE_VENDOR_SPECIFIC: u8 = 221;
 
 /// `None` if the frame is not a well-formed beacon/probe response.
 /// `rx_channel` is the channel the radio was on; the DS Parameter Set element overrides it when present.
@@ -34,6 +36,7 @@ pub fn parse_beacon(frame: &[u8], rssi: i8, rx_channel: u8) -> Option<Observatio
 
     let mut ssid = String::new();
     let mut channel = rx_channel;
+    let mut wps = None;
     let mut i = IE_START;
     while i + 2 <= frame.len() {
         let id = frame[i];
@@ -46,6 +49,11 @@ pub fn parse_beacon(frame: &[u8], rssi: i8, rx_channel: u8) -> Option<Observatio
         match id {
             IE_SSID => ssid = parse_ssid(body),
             IE_DS_PARAMS if len == 1 => channel = body[0],
+            IE_VENDOR_SPECIFIC if wps.is_none() => {
+                if let Some(info) = parse_wps_element(bssid, body) {
+                    wps = Some(info);
+                }
+            }
             _ => {}
         }
         i = end;
@@ -55,6 +63,7 @@ pub fn parse_beacon(frame: &[u8], rssi: i8, rx_channel: u8) -> Option<Observatio
         channel,
         rssi,
         ssid,
+        wps,
     })
 }
 

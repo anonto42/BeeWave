@@ -6,6 +6,7 @@ fn obs(rssi: i8) -> Observation {
         channel: 1,
         rssi,
         ssid: "x".try_into().unwrap(),
+        wps: None,
     }
 }
 
@@ -87,6 +88,7 @@ fn named(bssid: u8, ssid: &str, channel: u8, rssi: i8) -> Observation {
         channel,
         rssi,
         ssid: ssid.try_into().unwrap(),
+        wps: None,
     }
 }
 
@@ -169,4 +171,104 @@ fn the_channel_mask_limits_reports_and_zero_means_all() {
     s.channel_filter_mask = 0;
     t.configure(&s);
     assert!(t.observe(named(2, "b", 6, -50), 0).is_some());
+}
+
+#[test]
+fn parses_wps_element_and_attributes() {
+    let bssid = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
+    let mut body = [0u8; 128];
+    // OUI
+    body[0..4].copy_from_slice(&[0x00, 0x50, 0xF2, 0x04]);
+    let mut o = 4;
+
+    // Version 2.0 (0x104A)
+    body[o..o + 2].copy_from_slice(&0x104Au16.to_be_bytes());
+    body[o + 2..o + 4].copy_from_slice(&1u16.to_be_bytes());
+    body[o + 4] = 0x20;
+    o += 5;
+
+    // State 2 (Configured)
+    body[o..o + 2].copy_from_slice(&0x1044u16.to_be_bytes());
+    body[o + 2..o + 4].copy_from_slice(&1u16.to_be_bytes());
+    body[o + 4] = 0x02;
+    o += 5;
+
+    // Locked = 1
+    body[o..o + 2].copy_from_slice(&0x1057u16.to_be_bytes());
+    body[o + 2..o + 4].copy_from_slice(&1u16.to_be_bytes());
+    body[o + 4] = 0x01;
+    o += 5;
+
+    // Device Name = "RouterAX"
+    let dev = b"RouterAX";
+    body[o..o + 2].copy_from_slice(&0x1011u16.to_be_bytes());
+    body[o + 2..o + 4].copy_from_slice(&(dev.len() as u16).to_be_bytes());
+    body[o + 4..o + 4 + dev.len()].copy_from_slice(dev);
+    o += 4 + dev.len();
+
+    let info = parse_wps_element(bssid, &body[..o]).expect("should parse");
+    assert_eq!(info.bssid, bssid);
+    assert_eq!(info.version, 0x20);
+    assert_eq!(info.state, 2);
+    assert!(info.locked);
+    assert!(!info.selected_registrar);
+    assert_eq!(info.device_name.as_str(), "RouterAX");
+}
+
+#[test]
+fn wps_tracker_suppresses_unchanged_attributes() {
+    let mut tracker = WpsTracker::new();
+    let bssid = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
+    let mut info = WpsInfo {
+        bssid,
+        version: 0x20,
+        state: 2,
+        locked: true,
+        selected_registrar: false,
+        device_name: "MyAP".try_into().unwrap(),
+        manufacturer: "Vendor".try_into().unwrap(),
+        model_name: "Model1".try_into().unwrap(),
+    };
+
+    // First observation: emitted
+    assert!(tracker.observe(&info));
+
+    // Identical observation: suppressed
+    assert!(!tracker.observe(&info));
+
+    // Status change (unlocked): emitted
+    info.locked = false;
+    assert!(tracker.observe(&info));
+}
+
+#[test]
+fn beacon_with_wps_element_extracts_wps_info() {
+    let mut frame = [0u8; 128];
+    frame[0] = 0x80; // Beacon
+    frame[16..22].copy_from_slice(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55]);
+
+    // Fixed params = 12 bytes at 24..36
+    // IE_SSID at 36: tag 0, len 4, "WiFi"
+    frame[36] = 0;
+    frame[37] = 4;
+    frame[38..42].copy_from_slice(b"WiFi");
+
+    // IE_DS_PARAMS at 42: tag 3, len 1, channel 6
+    frame[42] = 3;
+    frame[43] = 1;
+    frame[44] = 6;
+
+    // IE_VENDOR_SPECIFIC at 45: tag 221
+    frame[45] = 221;
+    frame[46] = 9; // len = 4 OUI + 5 version attr
+    frame[47..51].copy_from_slice(&[0x00, 0x50, 0xF2, 0x04]);
+    frame[51..53].copy_from_slice(&0x104Au16.to_be_bytes());
+    frame[53..55].copy_from_slice(&1u16.to_be_bytes());
+    frame[55] = 0x20;
+
+    let obs = parse_beacon(&frame[..56], -60, 1).expect("should parse");
+    assert_eq!(obs.ssid.as_str(), "WiFi");
+    assert_eq!(obs.channel, 6);
+    let wps = obs.wps.expect("should have wps info");
+    assert_eq!(wps.version, 0x20);
 }

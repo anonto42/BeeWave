@@ -228,6 +228,7 @@ fn routes_commands_and_observations() {
         channel: 6,
         rssi: -40,
         ssid: "a".try_into().unwrap(),
+        wps: None,
     });
     app.on_tick();
 
@@ -368,6 +369,7 @@ fn withholds_telemetry_until_authenticated() {
         channel: 6,
         rssi: -40,
         ssid: "a".try_into().unwrap(),
+        wps: None,
     });
     assert!(sink.got.borrow().is_empty());
     assert_eq!(app.dropped(), 0, "withheld is not dropped");
@@ -713,6 +715,7 @@ fn a_known_ssid_on_a_new_bssid_publishes_an_anomaly_after_the_learning_period() 
         channel: 6,
         rssi: -50,
         ssid: "home".try_into().unwrap(),
+        wps: None,
     };
     app.on_observation(beacon(1));
     for _ in 0..40 {
@@ -901,6 +904,7 @@ fn saved_scan_settings_take_effect_on_the_next_beacons() {
         channel: ch,
         rssi: -50,
         ssid: ssid.try_into().unwrap(),
+        wps: None,
     };
     r.app.on_observation(beacon(1, "Cafe", 6));
     r.app.on_observation(beacon(2, "Cafe", 1)); // wrong channel
@@ -1321,4 +1325,43 @@ fn routes_assoc_observations_with_deduplication() {
     r.sink.got.borrow_mut().clear();
     r.app.on_assoc(assoc);
     assert!(results(&r.sink).is_empty());
+}
+
+#[test]
+fn routes_wps_observations_with_deduplication() {
+    let mut r = rig(None);
+    let bssid = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
+    let obs = Observation {
+        bssid,
+        channel: 6,
+        rssi: -50,
+        ssid: "RouterAX".try_into().unwrap(),
+        wps: Some(crate::features::scan::WpsInfo {
+            bssid,
+            version: 0x20,
+            state: 2,
+            locked: true,
+            selected_registrar: false,
+            device_name: "RouterAX".try_into().unwrap(),
+            manufacturer: "TP-Link".try_into().unwrap(),
+            model_name: "AX50".try_into().unwrap(),
+        }),
+    };
+    r.app.on_observation(obs.clone());
+    let got = results(&r.sink);
+    assert!(got.iter().any(|m| matches!(
+        m,
+        TelemetryMessage::WpsResult {
+            version: 0x20,
+            locked: true,
+            ..
+        }
+    )));
+
+    // Duplicate WPS is suppressed
+    r.sink.got.borrow_mut().clear();
+    r.app.on_observation(obs);
+    assert!(!results(&r.sink)
+        .iter()
+        .any(|m| matches!(m, TelemetryMessage::WpsResult { .. })));
 }

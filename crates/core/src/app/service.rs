@@ -199,6 +199,11 @@ where
         if let Some(alert) = self.monitoring.on_observation(&o) {
             self.emit(alert);
         }
+        if let Some(wps) = &o.wps {
+            if let Some(m) = self.monitoring.on_wps(wps) {
+                self.emit(m);
+            }
+        }
         if let Some(m) = self.scans.observe(o, self.elapsed_ms) {
             self.emit(m);
         }

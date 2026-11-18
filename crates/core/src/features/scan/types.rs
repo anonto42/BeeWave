@@ -1,5 +1,7 @@
 use heapless::String;
 
+use super::wps::WpsInfo;
+
 /// Table capacity. Must be a power of two (required by `FnvIndexMap`).
 pub const TABLE_CAP: usize = 64;
 /// Report a known network again only if its RSSI moved at least this many dB.
@@ -12,4 +14,5 @@ pub struct Observation {
     pub channel: u8,
     pub rssi: i8,
     pub ssid: String<32>,
+    pub wps: Option<WpsInfo>,
 }
