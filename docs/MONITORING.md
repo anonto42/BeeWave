@@ -89,6 +89,11 @@ them with the threshold (default 10 per second, 0 = off) and publishes `DeauthAl
 shows a live table with a sparkline of frames per second and lets you change the threshold (`SetMonitor`; kept in RAM, back to the
 default after a reboot).
 
+## Beacon flood detector (device slice `scan`)
+Attack tools (such as Hydra-ESP's `attack_beacon_spam.c` or ESP32 Marauder) flood the 2.4 GHz band with dozens of fake beacons with spoofed BSSIDs to jam scanner lists. The device tracks beacon arrival velocity and unique BSSIDs in 1-second sliding windows without allocation.
+When beacon rate reaches or exceeds the threshold (25+ frames/s) with at least 8 unique BSSIDs in a 1-second window, the device publishes `BeaconFloodAlert { rate, unique_bssids }`. Alerts are rate-limited to at most one every 5 seconds to prevent BLE saturation.
+In the PWA, beacon flood alerts appear as critical red alerts in the feed and toast notifications with the observed rate and unique BSSID count.
+
 ## BLE monitor (device slice `ble_monitor`)
 Off by default. When switched on, a passive NimBLE scan (25 % duty cycle) classifies each advertisement as **Fast Pair** (service data
 0xFE2C), **iBeacon** (Apple type 0x02, length 0x15), **Proximity pairing** (Apple type 0x07, AirPods-style) or **Generic**, and the core
