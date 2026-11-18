@@ -4,11 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#2B3035" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <meta name="description" content="Wi-Fi and Bluetooth environment monitor for the BeeWave ESP32." />
+  <link rel="icon" href="favicon.ico" sizes="48x48" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <title>BeeWave</title>
+  <style>
+    /* shown until the app has started: the crest on the app's colour */
+    html { background: #2B3035; }
+    .splash { display: grid; place-items: center; min-height: 100vh; }
+    .splash img { width: 112px; height: 112px; }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app"><div class="splash"><img src="icon.svg" width="112" height="112" alt="BeeWave" /></div></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

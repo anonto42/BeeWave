@@ -5,7 +5,12 @@ body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 ui-monospa
 
 /* app bar (top) */
 .appbar { position:fixed; top:0; left:0; right:0; z-index:10; height:calc(var(--top-h) + env(safe-area-inset-top)); padding:env(safe-area-inset-top) 16px 0; display:flex; align-items:center; justify-content:space-between; background:var(--bg); border-bottom:1px solid var(--line); }
-h1 { font-size:16px; letter-spacing:.2em; margin:0; }
+h1 { font-size:16px; margin:0; }
+/* the app's name stays for screen readers; sighted users see the logo */
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.brand { display:flex; align-items:center; gap:10px; min-width:0; }
+.badge { flex:0 0 auto; font-size:9px; letter-spacing:.1em; padding:1px 5px; border:1px solid var(--dim); color:var(--dim); }
+.crest { --crest-ink:var(--fg); --crest-paper:var(--bg); flex:0 0 auto; }
 .appbar-slot { display:flex; align-items:center; }
 .link { display:flex; align-items:center; gap:8px; }
 .link-text { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; }
@@ -54,7 +59,8 @@ progress { height: 10px; accent-color: var(--fg); background: var(--bg); border:
 
 @media (max-width: 420px) {
   .appbar { padding-left:10px; padding-right:10px; }
-  h1 { font-size:13px; letter-spacing:.1em; }
+  .brand { gap:6px; }
+  .badge { display:none; }
   .link { gap:6px; }
 }
 

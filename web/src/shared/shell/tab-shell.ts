@@ -1,13 +1,14 @@
+import { crestSvg } from "../brand";
 import { NAVIGATE_EVENT } from "./events";
 import { tabFromHash } from "./tab-id";
 import type { TabDef, TabShell } from "./types";
 
 /** Builds the title bar, one pane per tab and the bottom tab bar inside `root`. */
-export function createTabShell(root: HTMLElement, title: string, tabs: readonly TabDef[]): TabShell {
+export function createTabShell(root: HTMLElement, title: string, tabs: readonly TabDef[], badge?: string): TabShell {
   const ids = tabs.map((t) => t.id);
   const header = document.createElement("header");
   header.className = "appbar";
-  header.innerHTML = `<h1>${title}</h1><div class="appbar-slot"></div>`;
+  header.innerHTML = `<span class="brand">${crestSvg(34)}<h1 class="sr-only">${title}</h1>${badge ? `<span class="badge">${badge}</span>` : ""}</span><div class="appbar-slot"></div>`;
 
   const main = document.createElement("main");
   const panes: Record<string, HTMLElement> = {};

@@ -28,14 +28,15 @@ const mock = new URLSearchParams(location.search).has("mock");
 const ctx = createContext(mock ? new MockTransport() : new BleTransport());
 
 const root = document.getElementById("app")!;
-const shell = createTabShell(root, `BEEWAVE${mock ? " [MOCK]" : ""}`, [
+root.replaceChildren(); // drop the splash from index.html
+const shell = createTabShell(root, "BEEWAVE", [
   { id: "device", label: "Device", icon: ICONS.device },
   { id: "scan", label: "Scan", icon: ICONS.scan },
   { id: "analyze", label: "Analyze", icon: ICONS.analyze },
   { id: "alerts", label: "Alerts", icon: ICONS.alerts },
   { id: "settings", label: "Settings", icon: ICONS.settings },
   { id: "log", label: "Log", icon: ICONS.log },
-]);
+], mock ? "MOCK" : undefined);
 
 const layout = {
   device: [compat, status],
