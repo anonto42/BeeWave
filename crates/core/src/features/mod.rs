@@ -10,6 +10,7 @@ pub mod anomaly;
 pub mod auth;
 pub mod ble_monitor;
 pub mod deauth_detect;
+pub mod handshake;
 pub mod latency;
 pub mod ota;
 pub mod radio;

@@ -1139,3 +1139,130 @@ fn the_legacy_settings_commands_still_work() {
         TelemetryMessage::Event { code: 3, .. }
     ));
 }
+
+// ---- passive handshake capture ------------------------------------------------------------------
+
+use crate::features::handshake::parse_eapol;
+
+/// A minimal 802.11 data frame carrying one EAPOL-Key message with the given key-info bits.
+fn eapol_frame(key_info: u16, from_ds: bool, bssid: [u8; 6], client: [u8; 6]) -> std::vec::Vec<u8> {
+    let mut f = std::vec::Vec::new();
+    let fc1 = if from_ds { 0x02 } else { 0x01 };
+    f.extend_from_slice(&[0x08, fc1]);
+    f.extend_from_slice(&[0; 2]);
+    let (addr1, addr2) = if from_ds {
+        (client, bssid)
+    } else {
+        (bssid, client)
+    };
+    f.extend_from_slice(&addr1);
+    f.extend_from_slice(&addr2);
+    f.extend_from_slice(&bssid);
+    f.extend_from_slice(&[0; 2]);
+    f.extend_from_slice(&[0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8E]);
+    f.extend_from_slice(&[1, 3, 0, 0]);
+    f.push(2);
+    f.extend_from_slice(&key_info.to_be_bytes());
+    f.extend_from_slice(&[0; 2]);
+    f.extend_from_slice(&[0u8; 8]); // replay counter
+    f.extend_from_slice(&[0x11; 32]); // nonce
+    f.extend_from_slice(&[0; 16]);
+    f.extend_from_slice(&[0; 8]);
+    f.extend_from_slice(&[0; 8]);
+    f.extend_from_slice(&[0x22; 16]); // MIC
+    f.extend_from_slice(&[0; 2]); // key data length
+    f
+}
+
+const PAIRWISE: u16 = 1 << 3;
+const MSG1: u16 = PAIRWISE | (1 << 7);
+const MSG2: u16 = PAIRWISE | (1 << 8);
+
+#[test]
+fn handshake_capture_is_off_by_default_and_toggles() {
+    let mut r = rig(None);
+    r.app.on_command(DeviceCommand::GetHandshakeCapture);
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::HandshakeCaptureState { enabled: false }
+    );
+    r.app
+        .on_command(DeviceCommand::SetHandshakeCapture { enabled: true });
+    assert_eq!(
+        last(&r.sink),
+        TelemetryMessage::HandshakeCaptureState { enabled: true }
+    );
+    assert!(r.app.handshake_capture_enabled());
+}
+
+#[test]
+fn handshake_commands_need_an_authenticated_session() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    app.on_command(DeviceCommand::GetHandshakeCapture);
+    app.on_command(DeviceCommand::SetHandshakeCapture { enabled: true });
+    let got = sink.got.borrow();
+    assert_eq!(got.len(), 2);
+    assert!(got
+        .iter()
+        .all(|m| matches!(m, TelemetryMessage::Event { code: 4, .. })));
+}
+
+#[test]
+fn eapol_frames_are_ignored_while_the_listener_is_off() {
+    let mut r = rig(None);
+    let f = parse_eapol(&eapol_frame(MSG1, true, [1; 6], [2; 6])).unwrap();
+    r.app.on_eapol_frame(f);
+    assert!(results(&r.sink).is_empty());
+}
+
+#[test]
+fn a_classified_frame_is_reported_and_completion_fires_once() {
+    let mut r = rig(None);
+    r.app
+        .on_command(DeviceCommand::SetHandshakeCapture { enabled: true });
+    r.sink.got.borrow_mut().clear();
+
+    let m1 = parse_eapol(&eapol_frame(MSG1, true, [1; 6], [2; 6])).unwrap();
+    r.app.on_eapol_frame(m1);
+    assert!(matches!(
+        results(&r.sink)[0],
+        TelemetryMessage::HandshakeFrame { message: 1, .. }
+    ));
+
+    r.sink.got.borrow_mut().clear();
+    let m2 = parse_eapol(&eapol_frame(MSG2, false, [1; 6], [2; 6])).unwrap();
+    r.app.on_eapol_frame(m2);
+    let got = results(&r.sink);
+    assert!(matches!(
+        got[0],
+        TelemetryMessage::HandshakeFrame { message: 2, .. }
+    ));
+    assert_eq!(
+        got[1],
+        TelemetryMessage::HandshakeComplete {
+            bssid: [1; 6],
+            client: [2; 6]
+        }
+    );
+}
+
+#[test]
+fn switching_the_listener_back_on_forgets_earlier_progress() {
+    let mut r = rig(None);
+    r.app
+        .on_command(DeviceCommand::SetHandshakeCapture { enabled: true });
+    r.app
+        .on_eapol_frame(parse_eapol(&eapol_frame(MSG1, true, [1; 6], [2; 6])).unwrap());
+    r.app
+        .on_command(DeviceCommand::SetHandshakeCapture { enabled: false });
+    r.app
+        .on_command(DeviceCommand::SetHandshakeCapture { enabled: true });
+    r.sink.got.borrow_mut().clear();
+    r.app
+        .on_eapol_frame(parse_eapol(&eapol_frame(MSG2, false, [1; 6], [2; 6])).unwrap());
+    // message 2 alone (message 1 was forgotten on the reset) must not complete the pair
+    assert!(!results(&r.sink)
+        .iter()
+        .any(|m| matches!(m, TelemetryMessage::HandshakeComplete { .. })));
+}

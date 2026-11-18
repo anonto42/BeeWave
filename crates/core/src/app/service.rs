@@ -158,6 +158,16 @@ where
                 }
                 return;
             }
+            DeviceCommand::GetHandshakeCapture => {
+                let enabled = self.monitoring.handshake_capture_enabled();
+                self.emit(TelemetryMessage::HandshakeCaptureState { enabled });
+                return;
+            }
+            DeviceCommand::SetHandshakeCapture { enabled } => {
+                self.monitoring.set_handshake_capture(enabled);
+                self.emit(TelemetryMessage::HandshakeCaptureState { enabled });
+                return;
+            }
             _ => {}
         }
         if self.handle_settings_command(&cmd) {
@@ -206,6 +216,20 @@ where
     /// Driving port: a passively received BLE advertisement, already classified.
     pub fn on_ble_adv(&mut self, class: AdClass) {
         self.monitoring.on_ble_adv(class);
+    }
+
+    /// Driving port: a classified EAPOL-Key frame from a handshake happening on its own (nothing was
+    /// sent to cause it). Ignored while the listener is off.
+    pub fn on_eapol_frame(&mut self, f: crate::features::handshake::EapolFrame) {
+        for m in self.monitoring.on_eapol_frame(f) {
+            self.emit(m);
+        }
+    }
+
+    /// Whether the passive handshake listener should be running (the firmware mirrors this; the radio
+    /// stays receive-only either way).
+    pub fn handshake_capture_enabled(&self) -> bool {
+        self.monitoring.handshake_capture_enabled()
     }
 
     /// Whether the passive BLE observer should be running (the firmware mirrors this into it).

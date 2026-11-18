@@ -6,6 +6,7 @@ use heapless::Vec;
 use crate::features::anomaly::AnomalyDetector;
 use crate::features::ble_monitor::BleMonitor;
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
+use crate::features::handshake::{EapolFrame, HandshakeTracker};
 use crate::features::scan::Observation;
 
 /// Allowed `ble_spike_factor` values.
@@ -40,6 +41,10 @@ pub struct Monitoring {
     deauth: DeauthDetector,
     ble: BleMonitor,
     anomaly: AnomalyDetector,
+    handshake: HandshakeTracker,
+    /// Off by default, like the BLE monitor; kept outside `MonitorConfig` since it has its own
+    /// command pair (`SetHandshakeCapture` / `GetHandshakeCapture`) rather than `SetMonitor`.
+    handshake_enabled: bool,
     tick: u32,
 }
 
@@ -51,6 +56,8 @@ impl Monitoring {
             deauth: DeauthDetector::new(),
             ble: BleMonitor::new(),
             anomaly: AnomalyDetector::new(),
+            handshake: HandshakeTracker::new(),
+            handshake_enabled: false,
             tick: 0,
         };
         m.apply(cfg);
@@ -115,6 +122,42 @@ impl Monitoring {
             let _ = out.push(TelemetryMessage::DeauthAlert {
                 bssid: hit.bssid,
                 count: hit.count,
+            });
+        }
+        out
+    }
+
+    pub fn handshake_capture_enabled(&self) -> bool {
+        self.handshake_enabled
+    }
+
+    /// Turn the passive handshake listener on or off; a fresh start forgets every pair in progress.
+    pub fn set_handshake_capture(&mut self, enabled: bool) {
+        if enabled && !self.handshake_enabled {
+            self.handshake.reset();
+        }
+        self.handshake_enabled = enabled;
+    }
+
+    /// A classified EAPOL-Key frame. Ignored while the listener is off. Returns the frame telemetry
+    /// (always, when on) and the completion telemetry (only the moment a pair becomes complete).
+    pub fn on_eapol_frame(&mut self, f: EapolFrame) -> Vec<TelemetryMessage, 2> {
+        let mut out = Vec::new();
+        if !self.handshake_enabled {
+            return out;
+        }
+        let _ = out.push(TelemetryMessage::HandshakeFrame {
+            bssid: f.bssid,
+            client: f.client,
+            message: f.message,
+            replay_counter: f.replay_counter,
+            truncated: f.truncated,
+            eapol: f.eapol.clone(),
+        });
+        if let Some(done) = self.handshake.observe(&f) {
+            let _ = out.push(TelemetryMessage::HandshakeComplete {
+                bssid: done.bssid,
+                client: done.client,
             });
         }
         out
