@@ -14,14 +14,16 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   const render = () => {
     body.innerHTML = networks.size
       ? sortNetworks([...networks.values()], sortSel.value as SortKey)
-          .map((n) =>
-            rowHtml(
+          .map((n) => {
+            const rec = ctx.monitor.scans.get(n.bssid);
+            return rowHtml(
               n,
               ctx.targets.has(n.bssid),
               ctx.monitor.watchlist.has(n.bssid),
-              ctx.monitor.scans.get(n.bssid)?.wps,
-            ),
-          )
+              rec?.wps,
+              rec?.security,
+            );
+          })
           .join("")
       : emptyHtml;
     $(el, "[data-count]").textContent = `${networks.size} network${networks.size === 1 ? "" : "s"}`;

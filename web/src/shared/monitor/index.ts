@@ -13,5 +13,5 @@ export { DEFAULT_CONFIG, MonitorState, type BleCounts, type DeauthSource, type M
 export { ProbeStore, type DiscoveredClient } from "./probe-store";
 export { ScanStore, type ScanInput } from "./scan-store";
 export { csvText, SessionRecorder, sessionToCsv, sessionToJson, type SessionData } from "./session";
-export type { AlertRecord, AlertSource, NetworkRecord, RssiPoint, ScanEvent, Severity, Snapshot, SnapshotNetwork, WpsRecord } from "./types";
+export type { AlertRecord, AlertSource, NetworkRecord, RssiPoint, ScanEvent, SecurityRecord, Severity, Snapshot, SnapshotNetwork, WpsRecord } from "./types";
 export { MISSING_CYCLES, WatchlistEngine, WatchlistStore, fullEntry, type WatchEntry } from "./watchlist";

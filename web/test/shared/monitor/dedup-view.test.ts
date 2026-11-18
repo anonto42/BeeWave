@@ -133,4 +133,27 @@ describe("snapshots hold what one scan heard", () => {
     });
     expect(changeFired).toBe(true);
   });
+
+  it("attaches Security metadata to existing network records and emits changes", () => {
+    const { s } = store();
+    let changeFired = false;
+    s.onChange(() => {
+      changeFired = true;
+    });
+    s.ingest(scan("aa:bb:cc:dd:ee:ff", -50));
+    expect(s.get("aa:bb:cc:dd:ee:ff")?.security).toBeUndefined();
+
+    s.ingestSecurity({
+      bssid: "aa:bb:cc:dd:ee:ff",
+      protocol: "wpa3",
+      pmf: "required",
+    });
+
+    const net = s.get("aa:bb:cc:dd:ee:ff");
+    expect(net?.security).toEqual({
+      protocol: "wpa3",
+      pmf: "required",
+    });
+    expect(changeFired).toBe(true);
+  });
 });

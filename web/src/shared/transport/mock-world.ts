@@ -109,6 +109,7 @@ export class MockWorld {
       this.probes(ch, out);
       this.associations(ch, out);
       this.wps(out);
+      this.security(out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -195,6 +196,23 @@ export class MockWorld {
         deviceName: "Archer AX50",
         manufacturer: "TP-Link",
         modelName: "AX3000",
+      });
+    }
+  }
+
+  private security(out: Telemetry[]): void {
+    if (this.scanTicks === 2) {
+      out.push({
+        type: "securityResult",
+        bssid: APS[3].bssid,
+        protocol: "wpa2",
+        pmf: "capable",
+      });
+      out.push({
+        type: "securityResult",
+        bssid: APS[0].bssid,
+        protocol: "wpa3",
+        pmf: "required",
       });
     }
   }

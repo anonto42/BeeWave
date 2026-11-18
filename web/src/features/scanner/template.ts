@@ -1,5 +1,5 @@
 import { esc } from "../../shared/app";
-import { rssiHtml, type WpsRecord } from "../../shared/monitor";
+import { rssiHtml, type SecurityRecord, type WpsRecord } from "../../shared/monitor";
 import type { ScanResult } from "./types";
 
 export const scannerHtml = `<div class="toolbar">
@@ -13,7 +13,26 @@ export const scannerHtml = `<div class="toolbar">
 
 export const emptyHtml = `<li class="empty dim">No networks yet. Press START SCAN.</li>`;
 
-export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean, wps?: WpsRecord) => {
+export const securityLabel = (sec: SecurityRecord): string => {
+  const protoMap: Record<string, string> = {
+    open: "OPEN",
+    wep: "WEP",
+    wpa: "WPA",
+    wpa2: "WPA2",
+    wpa3: "WPA3",
+    wpa2Wpa3: "WPA2/WPA3",
+    owe: "OWE",
+    enterprise: "802.1X",
+  };
+  const proto = protoMap[sec.protocol] ?? sec.protocol.toUpperCase();
+  const pmf = sec.pmf === "required" ? " · PMF" : sec.pmf === "capable" ? " · PMF OPT" : "";
+  return `${proto}${pmf}`;
+};
+
+export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean, wps?: WpsRecord, security?: SecurityRecord) => {
+  const secBadge = security
+    ? `<span class="badge small${security.protocol === "open" ? " warn" : security.protocol === "wep" ? " alert" : ""}">${securityLabel(security)}</span>`
+    : "";
   const wpsBadge = wps
     ? `<span class="badge small" title="${esc(wps.manufacturer)} ${esc(wps.modelName)}">${wps.version === 0x20 ? "WPS 2.0" : "WPS"}${wps.locked ? " · LOCKED" : ""}${wps.selectedRegistrar ? " · PBC" : ""}</span>`
     : "";
@@ -21,5 +40,5 @@ export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean, wps?:
   return `<li class="net${isTarget ? " target" : ""}" data-bssid="${n.bssid}" data-ssid="${esc(n.ssid)}">` +
     `<span class="mark${isTarget ? " on" : ""}" aria-hidden="true"></span>` +
     `<span class="net-main"><b>${esc(n.ssid || "(hidden)")}</b><small>${n.bssid} · CH ${n.channel}${devSubtitle}</small></span>` +
-    `${wpsBadge}${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;
+    `${secBadge}${wpsBadge}${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;
 };

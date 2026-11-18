@@ -1,5 +1,6 @@
 import { CYCLE_TICKS, EVENT_CAP, HISTORY_CAP, SNAPSHOT_CAP } from "./constants";
-import type { NetworkRecord, ScanEvent, Snapshot, WpsRecord } from "./types";
+import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
+import type { NetworkRecord, ScanEvent, SecurityRecord, Snapshot, WpsRecord } from "./types";
 
 export interface ScanInput {
   bssid: string;
@@ -113,6 +114,37 @@ export class ScanStore {
         count: 1,
         history: [{ cycle, rssi: -90, at }],
         wps,
+      });
+      this.emit();
+    }
+  }
+
+  ingestSecurity(m: {
+    bssid: string;
+    protocol: WifiSecurityProtocol;
+    pmf: WifiPmfMode;
+  }): void {
+    const rec = this.records.get(m.bssid);
+    const security: SecurityRecord = {
+      protocol: m.protocol,
+      pmf: m.pmf,
+    };
+    if (rec) {
+      rec.security = security;
+      this.emit();
+    } else {
+      const at = this.now();
+      const cycle = this.cycle;
+      this.records.set(m.bssid, {
+        bssid: m.bssid,
+        ssid: "",
+        channel: 1,
+        rssi: -90,
+        firstSeen: at,
+        lastSeen: at,
+        count: 1,
+        history: [{ cycle, rssi: -90, at }],
+        security,
       });
       this.emit();
     }

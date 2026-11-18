@@ -72,3 +72,22 @@ describe("rowHtml with WPS", () => {
     expect(r).toContain("Archer AX50");
   });
 });
+
+describe("rowHtml with Security", () => {
+  it("renders security and PMF badges when present", () => {
+    const r = rowHtml(net("SecureNet", 6, -50), false, false, undefined, {
+      protocol: "wpa3",
+      pmf: "required",
+    });
+    expect(r).toContain("WPA3 · PMF");
+  });
+
+  it("renders OPEN warning badge for open networks", () => {
+    const r = rowHtml(net("OpenNet", 1, -60), false, false, undefined, {
+      protocol: "open",
+      pmf: "none",
+    });
+    expect(r).toContain("badge small warn");
+    expect(r).toContain("OPEN");
+  });
+});

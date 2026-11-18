@@ -1,3 +1,10 @@
+import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
+
+export interface SecurityRecord {
+  protocol: WifiSecurityProtocol;
+  pmf: WifiPmfMode;
+}
+
 export interface WpsRecord {
   version: number;
   state: number;
@@ -23,6 +30,7 @@ export interface NetworkRecord {
   /** RSSI over the scan cycles in which the device reported it (oldest first, capped). */
   history: RssiPoint[];
   wps?: WpsRecord;
+  security?: SecurityRecord;
 }
 
 export interface RssiPoint {
