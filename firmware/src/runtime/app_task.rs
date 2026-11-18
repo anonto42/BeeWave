@@ -2,6 +2,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use beewave_core::app::App;
+use beewave_core::features::handshake::EapolFrame;
 use beewave_core::features::scan::Observation;
 use beewave_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
 use beewave_protocol::{AdClass, LogLevel};
@@ -16,6 +17,8 @@ pub type DeauthCounts = [([u8; 6], u16); DEAUTH_SLOTS];
 pub const DEAUTH_SLOTS: usize = 8;
 /// Advertisements handled per loop turn.
 const BLE_BATCH: usize = 32;
+/// Handshake frames handled per loop turn (a real handshake is 2-4 frames; this is generous headroom).
+const HANDSHAKE_BATCH: usize = 16;
 /// Frames handled per loop turn, so a flood cannot delay the next command for long.
 const FRAME_BATCH: usize = 32;
 
@@ -26,6 +29,8 @@ pub struct Hooks {
     pub drain_deauth: fn(&mut DeauthCounts) -> usize,
     /// Mirror the owner's BLE-monitor switch into the observer thread.
     pub set_ble_observer: fn(bool),
+    /// Mirror the owner's handshake-capture switch into the sniffer callback.
+    pub set_handshake_capture: fn(bool),
     /// Apply the owner's log verbosity.
     pub set_log_level: fn(LogLevel),
 }
@@ -38,6 +43,7 @@ pub fn run_app<R, W, S, T, P>(
     events: Receiver<Event>,
     frames: Receiver<Observation>,
     ble: Receiver<AdClass>,
+    handshake: Receiver<EapolFrame>,
     hooks: Hooks,
 ) where
     R: RadioDriver,
@@ -72,6 +78,12 @@ pub fn run_app<R, W, S, T, P>(
                 Err(_) => break,
             }
         }
+        for _ in 0..HANDSHAKE_BATCH {
+            match handshake.try_recv() {
+                Ok(f) => app.on_eapol_frame(f),
+                Err(_) => break,
+            }
+        }
         let now = Instant::now();
         if now >= next_deauth {
             let mut counts: DeauthCounts = [([0; 6], 0); DEAUTH_SLOTS];
@@ -83,6 +95,7 @@ pub fn run_app<R, W, S, T, P>(
         }
         if now >= next_tick {
             (hooks.set_ble_observer)(app.ble_monitor_enabled());
+            (hooks.set_handshake_capture)(app.handshake_capture_enabled());
             if app.log_level() != log_level {
                 log_level = app.log_level();
                 (hooks.set_log_level)(log_level);

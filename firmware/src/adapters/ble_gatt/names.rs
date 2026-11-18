@@ -24,6 +24,8 @@ pub fn command_name(c: &DeviceCommand) -> &'static str {
         DeviceCommand::RunSelfTest => "run_self_test",
         DeviceCommand::GetStorageInfo => "get_storage_info",
         DeviceCommand::GetDeviceInfo => "get_device_info",
+        DeviceCommand::SetHandshakeCapture { .. } => "set_handshake_capture",
+        DeviceCommand::GetHandshakeCapture => "get_handshake_capture",
     }
 }
 
@@ -43,6 +45,12 @@ pub fn notable_telemetry(m: &TelemetryMessage) -> Option<&'static str> {
         TelemetryMessage::SettingsSaved { ok: false, .. } => Some("settings_saved REFUSED"),
         TelemetryMessage::SelfTestResult { .. } => Some("self_test_result"),
         TelemetryMessage::Rejected { .. } => Some("rejected"),
+        TelemetryMessage::HandshakeCaptureState { enabled } => Some(if *enabled {
+            "handshake_capture on"
+        } else {
+            "handshake_capture off"
+        }),
+        TelemetryMessage::HandshakeComplete { .. } => Some("handshake_complete"),
         _ => None,
     }
 }

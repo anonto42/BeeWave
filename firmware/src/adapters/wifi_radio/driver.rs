@@ -39,8 +39,11 @@ impl WifiRadio {
         wifi.start()?;
 
         callback::install(frames);
+        // DATA is admitted so the callback can see EAPOL-Key frames (crates::core::features::handshake);
+        // it only classifies them, and only while the owner has switched the listener on
+        // (`callback::set_handshake_capture`); frames are discarded cheaply otherwise.
         let filter = wifi_promiscuous_filter_t {
-            filter_mask: sys::WIFI_PROMIS_FILTER_MASK_MGMT,
+            filter_mask: sys::WIFI_PROMIS_FILTER_MASK_MGMT | sys::WIFI_PROMIS_FILTER_MASK_DATA,
         };
         // SAFETY: Wi-Fi is started; `filter` is copied by the driver; `on_packet` has the required C signature.
         unsafe {
