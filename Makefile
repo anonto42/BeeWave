@@ -22,7 +22,7 @@ CARGO_FEAT  = $(if $(FEATURES),--features $(FEATURES))
 # Load the Xtensa env and the keys, then run in firmware/
 FW = . $(ESP_EXPORT) && cd firmware && $(KEY_EXPORT) && export BEEWAVE_OTA_PUBKEY=$$(cat .beewave-ota.pub) &&
 
-.PHONY: help
+.PHONY: help logo
 help: ## Show this help
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  \033[1m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -51,13 +51,16 @@ check-nostd: ## Core must build without std
 	cargo build -p beewave-core
 
 # ---- web ---------------------------------------------------------------------
-.PHONY: web-dev web-mock web-lan web-build web-test
+.PHONY: web-dev web-mock web-lan web-build web-test logo
 web-dev: ## Dev server (https needed for BLE off-localhost)
 	cd web && pnpm run dev
 web-mock: ## Dev server with the fake device (open /?mock)
 	cd web && pnpm run dev --open '/?mock'
 web-lan: ## HTTPS dev server reachable from your phone on the same Wi-Fi
 	cd web && HTTPS=1 pnpm run dev --host
+logo: ## Regenerate the logo assets (SVG and PNG icons) from web/src/shared/brand/crest.svg
+	./scripts/make-logo.sh
+
 web-build: ## Production PWA bundle -> web/dist
 	cd web && pnpm run build
 web-test: ## Web unit tests (codec vs Rust golden vectors)
