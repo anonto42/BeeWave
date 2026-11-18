@@ -37,6 +37,20 @@ In the **Analyze > Client stations** panel, the app displays:
 - Probed Networks list (the device's Preferred Network List, PNL).
 - Active signal level (dBm / bars), probe count, and last seen timestamp.
 
+## Client-to-AP association tracking (device slice `assoc`)
+When clients are actively communicating with an Access Point, they exchange 802.11 Data and QoS Data frames
+(`type 0x08`). By inspecting the `ToDS` and `FromDS` control bits in the MAC header:
+- `ToDS=1, FromDS=0` (Client to AP): Transmitter Address (TA) is the client station, Receiver Address (RA) is the AP BSSID.
+- `ToDS=0, FromDS=1` (AP to Client): Receiver Address (RA) is the client station, Transmitter Address (TA) is the AP BSSID.
+
+The device core parses these headers zero-copy without allocating memory, rejects multicast and invalid addresses,
+and tracks associations in a bounded 32-entry LRU table (`AssocTracker`). Reports (`AssocResult`) are deduplicated
+and re-emitted only on significant signal movement (6 dB+) or after 5 seconds.
+
+In the PWA:
+- Under **Scan > Targets**: Each targeted Access Point lists its actively communicating stations with hardware vendor name, signal strength, and packet count.
+- Under **Analyze > Client stations**: Probed stations indicate their active AP association (or "Unassociated").
+
 ## Channels
 Two bars per channel 1-13: access points, and **reports in the last 60 s**. The second series is a proxy for how busy a channel is,
 not airtime utilisation: the device only sees beacons and only re-reports a network when it changes.
