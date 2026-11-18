@@ -57,6 +57,7 @@ fn main() -> anyhow::Result<()> {
     let radio = WifiRadio::new(peripherals.modem, sysloop, ch.frames_tx)?;
     wifi_radio::install_handshake(ch.handshake_tx);
     wifi_radio::install_probes(ch.probes_tx);
+    wifi_radio::install_assoc(ch.assoc_tx);
     let nvs_for_system = nvs.clone();
     let settings = NvsSettings::new(nvs)?;
     let keys = config::device_keys();
@@ -68,8 +69,8 @@ fn main() -> anyhow::Result<()> {
         settings,
         keys,
     );
-    let (events_rx, frames_rx, ble_rx, handshake_rx, probes_rx) =
-        (ch.events_rx, ch.frames_rx, ch.ble_rx, ch.handshake_rx, ch.probes_rx);
+    let (events_rx, frames_rx, ble_rx, handshake_rx, probes_rx, assoc_rx) =
+        (ch.events_rx, ch.frames_rx, ch.ble_rx, ch.handshake_rx, ch.probes_rx, ch.assoc_rx);
     spawn_worker("app", APP_STACK, move || {
         run_app(
             app,
@@ -78,6 +79,7 @@ fn main() -> anyhow::Result<()> {
             ble_rx,
             handshake_rx,
             probes_rx,
+            assoc_rx,
             Hooks {
                 drain_deauth: wifi_radio::deauth::drain,
                 set_ble_observer: ble_observer::set_enabled,

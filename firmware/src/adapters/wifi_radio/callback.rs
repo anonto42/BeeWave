@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::sync::OnceLock;
 
+use beewave_core::features::assoc::{parse_data_association, AssocObservation};
 use beewave_core::features::handshake::{parse_eapol, EapolFrame};
 use beewave_core::features::probe::{parse_probe_request, ProbeObservation};
 use beewave_core::features::scan::{parse_beacon, Observation};
@@ -28,6 +29,7 @@ const MAX_FRAME: usize = 512;
 /// The callback is a plain C function pointer, so its output queue lives in a static.
 static FRAMES: OnceLock<SyncSender<Observation>> = OnceLock::new();
 static PROBES: OnceLock<SyncSender<ProbeObservation>> = OnceLock::new();
+static ASSOC: OnceLock<SyncSender<AssocObservation>> = OnceLock::new();
 static HANDSHAKE: OnceLock<SyncSender<EapolFrame>> = OnceLock::new();
 
 /// Off by default: the owner's `SetHandshakeCapture` switch, mirrored here so data frames are rejected
@@ -43,6 +45,10 @@ pub fn install(tx: SyncSender<Observation>) {
 
 pub fn install_probes(tx: SyncSender<ProbeObservation>) {
     let _ = PROBES.set(tx);
+}
+
+pub fn install_assoc(tx: SyncSender<AssocObservation>) {
+    let _ = ASSOC.set(tx);
 }
 
 pub fn install_handshake(tx: SyncSender<EapolFrame>) {
@@ -92,13 +98,23 @@ pub unsafe extern "C" fn on_packet(buf: *mut c_void, kind: wifi_promiscuous_pkt_
         return;
     }
 
-    // Receive-only: classify EAPOL-Key frames from a handshake that is happening on its own. Rejected in
-    // the first branch, cheaply, whenever the owner has not switched this on.
-    if kind == PKT_DATA && HANDSHAKE_CAPTURE.load(Ordering::Relaxed) {
-        if let Some(f) = parse_eapol(frame) {
-            if let Some(tx) = HANDSHAKE.get() {
-                if tx.try_send(f).is_err() {
+    // Receive-only: classify 802.11 Data frame associations and EAPOL-Key frames from a handshake
+    // that is happening on its own.
+    if kind == PKT_DATA {
+        if let Some(assoc) = parse_data_association(frame, rssi, channel) {
+            if let Some(tx) = ASSOC.get() {
+                if tx.try_send(assoc).is_err() {
                     DROPPED.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
+
+        if HANDSHAKE_CAPTURE.load(Ordering::Relaxed) {
+            if let Some(f) = parse_eapol(frame) {
+                if let Some(tx) = HANDSHAKE.get() {
+                    if tx.try_send(f).is_err() {
+                        DROPPED.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
+use beewave_core::features::assoc::AssocObservation;
 use beewave_core::features::handshake::EapolFrame;
 use beewave_core::features::probe::ProbeObservation;
 use beewave_core::features::scan::Observation;
@@ -19,6 +20,8 @@ pub const BLE_ADV_DEPTH: usize = 64;
 pub const HANDSHAKE_DEPTH: usize = 16;
 /// Wi-Fi sniffer -> app task (probe request frames; lossy when full).
 pub const PROBE_DEPTH: usize = 32;
+/// Wi-Fi sniffer -> app task (data association frames; lossy when full).
+pub const ASSOC_DEPTH: usize = 32;
 /// App task -> BLE (telemetry; lossy when full).
 pub const TELEMETRY_DEPTH: usize = 32;
 /// Wi-Fi sniffer -> app task (observations; lossy when full).
@@ -41,6 +44,8 @@ pub struct Channels {
     pub handshake_rx: Receiver<EapolFrame>,
     pub probes_tx: SyncSender<ProbeObservation>,
     pub probes_rx: Receiver<ProbeObservation>,
+    pub assoc_tx: SyncSender<AssocObservation>,
+    pub assoc_rx: Receiver<AssocObservation>,
     pub tele_tx: SyncSender<Timed<TelemetryMessage>>,
     pub tele_rx: Receiver<Timed<TelemetryMessage>>,
 }
@@ -51,6 +56,7 @@ pub fn channels() -> Channels {
     let (ble_tx, ble_rx) = sync_channel(BLE_ADV_DEPTH);
     let (handshake_tx, handshake_rx) = sync_channel(HANDSHAKE_DEPTH);
     let (probes_tx, probes_rx) = sync_channel(PROBE_DEPTH);
+    let (assoc_tx, assoc_rx) = sync_channel(ASSOC_DEPTH);
     let (tele_tx, tele_rx) = sync_channel(TELEMETRY_DEPTH);
     Channels {
         events_tx,
@@ -63,6 +69,8 @@ pub fn channels() -> Channels {
         handshake_rx,
         probes_tx,
         probes_rx,
+        assoc_tx,
+        assoc_rx,
         tele_tx,
         tele_rx,
     }
