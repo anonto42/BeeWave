@@ -146,6 +146,19 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         rssi: r.i8(),
       };
       break;
+    case 25:
+      msg = {
+        type: "wpsResult",
+        bssid: hex(r.bytes(6)),
+        version: r.u8(),
+        state: r.u8(),
+        locked: r.u8() !== 0,
+        selectedRegistrar: r.u8() !== 0,
+        deviceName: r.str(),
+        manufacturer: r.str(),
+        modelName: r.str(),
+      };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

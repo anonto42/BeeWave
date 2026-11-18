@@ -392,4 +392,15 @@ pub enum TelemetryMessage {
         channel: u8,
         rssi: i8,
     },
+    /// Wi-Fi Protected Setup (WPS) information and hardware device details from an Access Point (passively heard).
+    WpsResult {
+        bssid: [u8; 6],
+        version: u8,
+        state: u8,
+        locked: bool,
+        selected_registrar: bool,
+        device_name: String<32>,
+        manufacturer: String<32>,
+        model_name: String<32>,
+    },
 }

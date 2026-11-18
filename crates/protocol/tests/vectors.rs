@@ -174,6 +174,16 @@ fn roundtrip_and_emit_golden_vectors() {
             channel: 6,
             rssi: -58,
         },
+        TelemetryMessage::WpsResult {
+            bssid: [9; 6],
+            version: 0x20,
+            state: 2,
+            locked: true,
+            selected_registrar: false,
+            device_name: s("Archer AX50"),
+            manufacturer: s("TP-Link"),
+            model_name: s("Archer AX50"),
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

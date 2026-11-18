@@ -75,6 +75,17 @@ export type Telemetry =
       client: string;
       channel: number;
       rssi: number;
+    }
+  | {
+      type: "wpsResult";
+      bssid: string;
+      version: number;
+      state: number;
+      locked: boolean;
+      selectedRegistrar: boolean;
+      deviceName: string;
+      manufacturer: string;
+      modelName: string;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

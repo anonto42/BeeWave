@@ -201,6 +201,10 @@
     {
       "hex": "011a1809090909090907070707070706c6",
       "msg": "AssocResult { bssid: [9, 9, 9, 9, 9, 9], client: [7, 7, 7, 7, 7, 7], channel: 6, rssi: -58 }"
+    },
+    {
+      "hex": "011b19090909090909200201000b41726368657220415835300754502d4c696e6b0b4172636865722041583530",
+      "msg": "WpsResult { bssid: [9, 9, 9, 9, 9, 9], version: 32, state: 2, locked: true, selected_registrar: false, device_name: \"Archer AX50\", manufacturer: \"TP-Link\", model_name: \"Archer AX50\" }"
     }
   ]
 }
