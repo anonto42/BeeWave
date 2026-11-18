@@ -83,6 +83,14 @@
     {
       "hex": "011414",
       "msg": "GetDeviceInfo"
+    },
+    {
+      "hex": "01151501",
+      "msg": "SetHandshakeCapture { enabled: true }"
+    },
+    {
+      "hex": "011616",
+      "msg": "GetHandshakeCapture"
     }
   ],
   "telemetry": [
@@ -165,6 +173,22 @@
     {
       "hex": "0113120b",
       "msg": "Rejected { reason: Busy }"
+    },
+    {
+      "hex": "01141301",
+      "msg": "HandshakeCaptureState { enabled: true }"
+    },
+    {
+      "hex": "011514090909090909080808080808022a0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "msg": "HandshakeFrame { bssid: [9, 9, 9, 9, 9, 9], client: [8, 8, 8, 8, 8, 8], message: 2, replay_counter: 42, truncated: false, eapol: [170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170] }"
+    },
+    {
+      "hex": "011615090909090909080808080808",
+      "msg": "HandshakeComplete { bssid: [9, 9, 9, 9, 9, 9], client: [8, 8, 8, 8, 8, 8] }"
+    },
+    {
+      "hex": "01171409090909090908080808080803ffffffffffffffffff010164bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "msg": "HandshakeFrame { bssid: [9, 9, 9, 9, 9, 9], client: [8, 8, 8, 8, 8, 8], message: 3, replay_counter: 18446744073709551615, truncated: true, eapol: [187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187] }"
     }
   ]
 }

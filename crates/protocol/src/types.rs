@@ -97,7 +97,19 @@ pub enum DeviceCommand {
     GetStorageInfo,
     /// Firmware version, build, key fingerprint and build-time flags (answered with `DeviceInfo`).
     GetDeviceInfo,
+    /// Turn the passive EAPOL handshake listener on or off (answered with `HandshakeCaptureState`). Off by
+    /// default; never transmits anything, even while on.
+    SetHandshakeCapture {
+        enabled: bool,
+    },
+    /// Ask for the current handshake-capture state.
+    GetHandshakeCapture,
 }
+
+/// Longest raw EAPOL frame (from its own first byte) kept in one `HandshakeFrame`; longer frames are truncated
+/// and flagged, to stay inside `MAX_BODY`. The fixed EAPOL-Key layout alone (header + nonce + MIC, no key
+/// data) is 99 bytes, so this must be at least that; it leaves a few bytes of key data on top.
+pub const MAX_EAPOL_CAPTURE: usize = 100;
 
 /// Version of the settings layout, sent in `SettingsAll` so an older or newer client can tell.
 pub const SETTINGS_SCHEMA: u8 = 1;
@@ -337,5 +349,27 @@ pub enum TelemetryMessage {
     /// A request was refused outright (not a per-field settings error).
     Rejected {
         reason: RejectReason,
+    },
+    /// Whether the passive handshake listener is on (reply to `SetHandshakeCapture` / `GetHandshakeCapture`).
+    HandshakeCaptureState {
+        enabled: bool,
+    },
+    /// One EAPOL-Key frame of a WPA/WPA2 four-way handshake, heard passively (nothing was sent to cause it).
+    HandshakeFrame {
+        bssid: [u8; 6],
+        client: [u8; 6],
+        /// 1-4: which of the four handshake messages this is.
+        message: u8,
+        replay_counter: u64,
+        /// True if the real frame was longer than `MAX_EAPOL_CAPTURE` and `eapol` holds only the start of it.
+        truncated: bool,
+        /// The raw EAPOL frame (from its own version byte), capped to `MAX_EAPOL_CAPTURE`.
+        eapol: heapless::Vec<u8, MAX_EAPOL_CAPTURE>,
+    },
+    /// A BSSID/client pair now has enough messages (an ANonce-carrying one plus the SNonce+MIC one) for an
+    /// offline cracking attempt, subject to the capture note on `HandshakeFrame.truncated`.
+    HandshakeComplete {
+        bssid: [u8; 6],
+        client: [u8; 6],
     },
 }

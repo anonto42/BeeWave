@@ -136,6 +136,27 @@ fn roundtrip_and_emit_golden_vectors() {
         TelemetryMessage::Rejected {
             reason: RejectReason::Busy,
         },
+        TelemetryMessage::HandshakeCaptureState { enabled: true },
+        TelemetryMessage::HandshakeFrame {
+            bssid: [9; 6],
+            client: [8; 6],
+            message: 2,
+            replay_counter: 42,
+            truncated: false,
+            eapol: heapless::Vec::from_slice(&[0xAA; 20]).unwrap(),
+        },
+        TelemetryMessage::HandshakeComplete {
+            bssid: [9; 6],
+            client: [8; 6],
+        },
+        TelemetryMessage::HandshakeFrame {
+            bssid: [9; 6],
+            client: [8; 6],
+            message: 3,
+            replay_counter: u64::MAX,
+            truncated: true,
+            eapol: heapless::Vec::from_slice(&[0xBB; MAX_EAPOL_CAPTURE]).unwrap(),
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
@@ -180,6 +201,8 @@ fn roundtrip_and_emit_golden_vectors() {
         DeviceCommand::RunSelfTest,
         DeviceCommand::GetStorageInfo,
         DeviceCommand::GetDeviceInfo,
+        DeviceCommand::SetHandshakeCapture { enabled: true },
+        DeviceCommand::GetHandshakeCapture,
     ];
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
     let mut buf = [0u8; MAX_BODY + 2];

@@ -18,5 +18,6 @@ pub use error::Error;
 pub use types::{
     AdClass, AlertSettings, AnomalyKind, DeviceCommand, HopOrder, LogLevel, RadioSettings,
     RejectReason, ScanSettings, TelemetryMessage, TelemetrySettings, AUTH_CONTEXT, AUTH_NONCE_LEN,
-    HEADER_LEN, HOP_LIST_LEN, MAX_BODY, MAX_SSID_FILTER, MIN_MTU, PROTO_VERSION, SETTINGS_SCHEMA,
+    HEADER_LEN, HOP_LIST_LEN, MAX_BODY, MAX_EAPOL_CAPTURE, MAX_SSID_FILTER, MIN_MTU, PROTO_VERSION,
+    SETTINGS_SCHEMA,
 };
