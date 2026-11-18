@@ -8,7 +8,7 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 
 | Tab | Panel | Data source |
 |---|---|---|
-| Scan | Control, Scanner, Targets | `Status`, `ScanResult` |
+| Scan | Control, Scanner, Targets, **Handshake capture** | `Status`, `ScanResult`, `HandshakeCaptureState`, `HandshakeFrame`, `HandshakeComplete` |
 | Analyze | **Results** (expanded table) | `ScanResult`, local OUI lookup |
 | Analyze | **Channels** | `ScanResult` (client-side) |
 | Analyze | **RSSI history** | `ScanResult` history per BSSID |
@@ -17,7 +17,6 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 | Alerts | **Deauth detector** | `DeauthAlert`, `MonitorConfig` |
 | Alerts | **BLE monitor** | `BleStats`, `BleSpike`, `MonitorConfig` |
 | Settings | **Watchlist** (section) | `ScanResult` (rules run on the phone) |
-| Alerts | **Handshake capture** | `HandshakeCaptureState`, `HandshakeFrame`, `HandshakeComplete` |
 | Settings | **Import/Export** (section) | everything the phone already received |
 
 ## Results table
@@ -67,17 +66,28 @@ new, disappeared, signal-changed (6 dB or more) and channel-changed networks. **
 Pin BSSIDs in Settings > Watchlist (from the networks heard so far, by typing one, or with the PIN button on a Scanner row), each with a label and its own rules. Alerts: it **appears**, it has been **missing** for more than 5 cycles, or
 it **moves** by 6 dB or more. Pins are kept in this browser's `localStorage`; the device never sees them, so there is no device-side watchlist.
 
-## Handshake capture (device slice `handshake`)
-Off by default. When switched on, the sniffer's promiscuous filter also admits data frames; EAPOL-Key frames from a
-WPA/WPA2 four-way handshake are classified by message number (1-4) from their key-info bits and reported per
-BSSID/client pair. **Nothing is transmitted to cause a handshake.** If no client re-authenticates on its own nearby,
-there is nothing to capture; that is inherent to a receive-only tool.
+## Handshake capture (device slice `handshake`, Scan tab, below Targets)
+Per **target**: tap a network in the Scanner to target it (the existing Targets mechanism), then a **CAPTURE
+HANDSHAKE** button appears for it. Tapping that button is the toolbar for that target — for now it has one action.
+The device itself has a single on/off switch (`SetHandshakeCapture`), not one per network, so the panel keeps the
+switch on exactly while at least one target has capture requested, and shows each target only the pairs whose BSSID
+matches it (several clients handshaking with the same AP each get their own row).
+
+When switched on, the sniffer's promiscuous filter also admits data frames; EAPOL-Key frames from a WPA/WPA2 four-way
+handshake are classified by message number (1-4) from their key-info bits. **Nothing is transmitted to cause a
+handshake.** If no client re-authenticates on its own nearby, there is nothing to capture; that is inherent to a
+receive-only tool.
 
 A pair is marked complete once it has a message carrying the ANonce (1 or 3) and the message carrying the SNonce and
-MIC (2) — the minimum an offline cracking attempt needs. Each `HandshakeFrame` carries the raw EAPOL bytes, capped at
-100 bytes to fit one BLE packet; a message longer than that is still classified but flagged **truncated**, and may not
-be enough for an external tool. The panel exports a pair's captured messages as a hex dump; it is a detection and
-logging feature, not a guaranteed capture pipeline.
+MIC (2) — the minimum an offline cracking attempt needs; its row then offers **.CAP** and **.PCAP** downloads (the
+same classic pcap format; the two extensions just name it differently). The file is built on the phone from the
+captured EAPOL bytes, wrapped in synthetic 802.11 Data frame headers (direction inferred from which message it is)
+and the constant LLC/SNAP header the device itself stripped off — so it is openable in Wireshark and readable by
+tools such as aircrack-ng or hcxpcapngtool. The filename carries the network's SSID and BSSID (for example
+`Home_50c7bfaabb01.pcap`), with the client's MAC appended only when more than one client's handshake was captured
+for that target. Each `HandshakeFrame` carries the raw EAPOL bytes, capped at 100 bytes to fit one BLE packet; a
+message longer than that is still classified but flagged **truncated**, and the exported file notes it (`orig_len`
+cannot be known past the cap) — this is a detection and logging feature, not a guaranteed capture pipeline.
 
 **What this explicitly does not do:** force a client to reconnect. A technique sometimes paired with handshake capture
 sends spoofed deauthentication frames to knock a connected client off the network so it reconnects immediately. That is
@@ -100,6 +110,7 @@ every anomaly kind, and honours the same thresholds and validation as the device
 3. Alerts > Deauth: with a test network you own and a deauth source you are authorised to use, confirm an alert above the threshold. (Not
    tested on air yet: only the host tests and the mock have exercised this path.)
 4. Settings > Import/Export > Export session: the file(s) download and open.
-5. Alerts > Handshake capture: turn on, then (on a network you own or are authorised to test) let an already-connected
-   client reconnect on its own (toggle its Wi-Fi, or walk out of range and back). Two dots light up, EXPORT downloads a
-   hex dump. With no client reconnecting, nothing appears — that is expected, not a fault.
+5. Scan tab > target a network you own or are authorised to test, then CAPTURE HANDSHAKE below Targets; let an
+   already-connected client reconnect on its own (toggle its Wi-Fi, or walk out of range and back). Two dots light up
+   and the row offers .CAP/.PCAP once complete; open the file in Wireshark to confirm it holds the EAPOL frames. With
+   no client reconnecting, nothing appears — that is expected, not a fault.
