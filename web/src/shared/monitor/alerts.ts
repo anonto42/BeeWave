@@ -48,6 +48,13 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         m.kind === "rssiOutlier" ? `${m.detail} dB between cycles` : m.kind === "returned" ? `after ${m.detail} cycles` : t.detail;
       return { source: "anomaly", severity: t.severity, title: t.title, detail: `${m.bssid} (${vendorOf(m.bssid)}): ${extra}`, bssid: m.bssid };
     }
+    case "beaconFloodAlert":
+      return {
+        source: "beaconFlood",
+        severity: "alert",
+        title: `Beacon flood attack: ${m.rate}/s`,
+        detail: `${m.uniqueBssids} unique BSSIDs in 1s window (possible Hydra-ESP / Marauder beacon spam)`,
+      };
     default:
       return null;
   }

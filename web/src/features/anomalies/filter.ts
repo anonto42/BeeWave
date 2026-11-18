@@ -7,6 +7,7 @@ export const FILTERS: Array<[FeedFilter, string]> = [
   ["anomaly", "ANOMALY"],
   ["deauth", "DEAUTH"],
   ["ble", "BLE"],
+  ["beaconFlood", "FLOOD"],
   ["watchlist", "WATCH"],
 ];
 

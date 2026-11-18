@@ -45,6 +45,16 @@ describe("anomaly alerts", () => {
     k.ingest({ type: "anomaly", kind: "returned", bssid: BSSID, detail: 7 });
     expect(k.alerts.list().map((a) => a.title)).toEqual(["Network came back", "Same BSSID on two channels"]);
   });
+
+  it("formats beacon flood alerts with high severity", () => {
+    const alert = alertFromTelemetry({ type: "beaconFloodAlert", rate: 65, uniqueBssids: 42 })!;
+    expect(alert).toMatchObject({
+      source: "beaconFlood",
+      severity: "alert",
+      title: "Beacon flood attack: 65/s",
+    });
+    expect(alert.detail).toContain("42 unique BSSIDs");
+  });
 });
 
 describe("watchlist rules (phone only)", () => {
