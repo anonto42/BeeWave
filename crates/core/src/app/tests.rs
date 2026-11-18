@@ -1405,3 +1405,27 @@ fn routes_security_observations_with_deduplication() {
         .iter()
         .any(|m| matches!(m, TelemetryMessage::SecurityResult { .. })));
 }
+
+#[test]
+fn beacon_flood_alerts_through_app_service() {
+    let (mut app, sink) = authed_app();
+    // Simulate flood of 30 beacons from 10 distinct BSSIDs
+    for i in 0..10u8 {
+        for _ in 0..3 {
+            app.on_observation(Observation {
+                bssid: [0, 0, 0, 0, 1, i],
+                channel: 6,
+                rssi: -50,
+                ssid: "Flood".try_into().unwrap(),
+                wps: None,
+                security: None,
+            });
+        }
+    }
+    sink.got.borrow_mut().clear();
+    app.on_tick();
+    assert!(results(&sink).iter().any(|m| matches!(
+        m,
+        TelemetryMessage::BeaconFloodAlert { rate, unique_bssids } if *rate >= 30 && *unique_bssids >= 10
+    )));
+}

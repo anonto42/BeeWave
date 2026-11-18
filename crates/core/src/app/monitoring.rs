@@ -9,7 +9,9 @@ use crate::features::ble_monitor::BleMonitor;
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
 use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
 use crate::features::probe::{ProbeObservation, ProbeTracker};
-use crate::features::scan::{Observation, SecurityInfo, SecurityTracker, WpsInfo, WpsTracker};
+use crate::features::scan::{
+    BeaconFloodDetector, Observation, SecurityInfo, SecurityTracker, WpsInfo, WpsTracker,
+};
 
 /// Allowed `ble_spike_factor` values.
 pub const FACTOR_RANGE: core::ops::RangeInclusive<u8> = 2..=20;
@@ -48,6 +50,7 @@ pub struct Monitoring {
     assoc: AssocTracker,
     wps: WpsTracker,
     security: SecurityTracker,
+    flood: BeaconFloodDetector,
     /// Off by default, like the BLE monitor; kept outside `MonitorConfig` since it has its own
     /// command pair (`SetHandshakeCapture` / `GetHandshakeCapture`) rather than `SetMonitor`.
     handshake_enabled: bool,
@@ -67,6 +70,7 @@ impl Monitoring {
             assoc: AssocTracker::new(),
             wps: WpsTracker::new(),
             security: SecurityTracker::new(),
+            flood: BeaconFloodDetector::new(),
             handshake_enabled: false,
             tick: 0,
         };
@@ -106,6 +110,7 @@ impl Monitoring {
 
     /// A beacon the sniffer heard (before de-duplication).
     pub fn on_observation(&mut self, o: &Observation) -> Option<TelemetryMessage> {
+        self.flood.observe(&o.bssid);
         self.anomaly
             .observe(o, self.tick)
             .map(|a| TelemetryMessage::AnomalyAlert {
@@ -249,11 +254,14 @@ impl Monitoring {
     }
 
     /// 1 Hz: advance time; returns the BLE stats and spike to publish, if any.
-    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 2> {
+    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 4> {
         self.tick = self.tick.wrapping_add(1);
         self.probes.tick();
         self.assoc.tick();
         let mut out = Vec::new();
+        if let Some(flood) = self.flood.tick() {
+            let _ = out.push(flood);
+        }
         if !self.cfg.ble_enabled {
             return out;
         }

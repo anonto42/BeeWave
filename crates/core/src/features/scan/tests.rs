@@ -411,3 +411,44 @@ fn beacon_with_rsn_element_extracts_security_info() {
     assert_eq!(sec.protocol, WifiSecurityProtocol::Wpa3);
     assert_eq!(sec.pmf, WifiPmfMode::Required);
 }
+
+#[test]
+fn beacon_flood_detector_triggers_on_high_rate_and_unique_bssids() {
+    let mut detector = BeaconFloodDetector::new();
+    assert_eq!(detector.threshold(), 25);
+
+    // 20 beacons from 20 BSSIDs: under threshold of 25
+    for i in 0..20u8 {
+        detector.observe(&[0, 0, 0, 0, 0, i]);
+    }
+    assert!(detector.tick().is_none());
+
+    // 30 beacons from only 3 BSSIDs: not enough unique BSSIDs (min 8)
+    for _ in 0..10 {
+        detector.observe(&[0, 0, 0, 0, 0, 1]);
+        detector.observe(&[0, 0, 0, 0, 0, 2]);
+        detector.observe(&[0, 0, 0, 0, 0, 3]);
+    }
+    assert!(detector.tick().is_none());
+
+    // 30 beacons from 15 unique BSSIDs: triggers flood alert!
+    for i in 0..15u8 {
+        detector.observe(&[0, 0, 0, 0, 1, i]);
+        detector.observe(&[0, 0, 0, 0, 1, i]);
+    }
+    let alert = detector.tick().expect("should trigger flood alert");
+    match alert {
+        beewave_protocol::TelemetryMessage::BeaconFloodAlert { rate, unique_bssids } => {
+            assert_eq!(rate, 30);
+            assert_eq!(unique_bssids, 15);
+        }
+        _ => panic!("wrong message"),
+    }
+
+    // Cooldown active: consecutive tick with high rate does not re-alert immediately
+    for i in 0..15u8 {
+        detector.observe(&[0, 0, 0, 0, 2, i]);
+        detector.observe(&[0, 0, 0, 0, 2, i]);
+    }
+    assert!(detector.tick().is_none());
+}
