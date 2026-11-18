@@ -189,6 +189,10 @@
     {
       "hex": "01171409090909090908080808080803ffffffffffffffffff010164bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "msg": "HandshakeFrame { bssid: [9, 9, 9, 9, 9, 9], client: [8, 8, 8, 8, 8, 8], message: 3, replay_counter: 18446744073709551615, truncated: true, eapol: [187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187] }"
+    },
+    {
+      "hex": "01181609090909090908080808080842424242424242424242424242424242",
+      "msg": "PmkidFound { bssid: [9, 9, 9, 9, 9, 9], client: [8, 8, 8, 8, 8, 8], pmkid: [66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66] }"
     }
   ]
 }

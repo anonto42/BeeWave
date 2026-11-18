@@ -157,6 +157,11 @@ fn roundtrip_and_emit_golden_vectors() {
             truncated: true,
             eapol: heapless::Vec::from_slice(&[0xBB; MAX_EAPOL_CAPTURE]).unwrap(),
         },
+        TelemetryMessage::PmkidFound {
+            bssid: [9; 6],
+            client: [8; 6],
+            pmkid: [0x42; 16],
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

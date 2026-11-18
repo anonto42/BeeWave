@@ -372,4 +372,10 @@ pub enum TelemetryMessage {
         bssid: [u8; 6],
         client: [u8; 6],
     },
+    /// A PMKID was passively extracted from an EAPOL-Key frame (Message 1) for a BSSID/client pair.
+    PmkidFound {
+        bssid: [u8; 6],
+        client: [u8; 6],
+        pmkid: [u8; 16],
+    },
 }
