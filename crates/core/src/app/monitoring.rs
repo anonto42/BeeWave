@@ -6,7 +6,7 @@ use heapless::Vec;
 use crate::features::anomaly::AnomalyDetector;
 use crate::features::ble_monitor::BleMonitor;
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
-use crate::features::handshake::{EapolFrame, HandshakeTracker};
+use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
 use crate::features::scan::Observation;
 
 /// Allowed `ble_spike_factor` values.
@@ -141,10 +141,23 @@ impl Monitoring {
 
     /// A classified EAPOL-Key frame. Ignored while the listener is off. Returns the frame telemetry
     /// (always, when on) and the completion telemetry (only the moment a pair becomes complete).
-    pub fn on_eapol_frame(&mut self, f: EapolFrame) -> Vec<TelemetryMessage, 2> {
+    pub fn on_eapol_frame(&mut self, f: EapolFrame) -> Vec<TelemetryMessage, 3> {
         let mut out = Vec::new();
         if !self.handshake_enabled {
             return out;
+        }
+        // Message 1 (AP → STA, ACK set, MIC clear) is the only message that carries a PMKID KDE.
+        // Extract it here, before `f.eapol` moves into HandshakeFrame telemetry.
+        if f.message == 1 {
+            if let Some(pmkid) = extract_pmkid(&f.eapol) {
+                if let Some(capture) = self.handshake.observe_pmkid(f.bssid, f.client, pmkid) {
+                    let _ = out.push(TelemetryMessage::PmkidFound {
+                        bssid: capture.bssid,
+                        client: capture.client,
+                        pmkid: capture.pmkid,
+                    });
+                }
+            }
         }
         let _ = out.push(TelemetryMessage::HandshakeFrame {
             bssid: f.bssid,

@@ -3,6 +3,10 @@ use beewave_protocol::MAX_EAPOL_CAPTURE;
 /// BSSID/client pairs tracked at once; the least recently seen is dropped when full.
 pub const CAPACITY: usize = 32;
 
+/// Distinct (BSSID, PMKID) pairs remembered to suppress duplicate `PmkidFound` telemetry.
+/// 16 entries × 22 bytes = 352 bytes in RAM.
+pub const PMKID_DEDUP_CAPACITY: usize = 16;
+
 /// A classified EAPOL-Key frame (receive-only: nothing caused it to be sent).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EapolFrame {
@@ -22,4 +26,12 @@ pub struct EapolFrame {
 pub struct Completed {
     pub bssid: [u8; 6],
     pub client: [u8; 6],
+}
+
+/// A PMKID was passively extracted from an EAPOL-Key Message 1; not yet published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PmkidCapture {
+    pub bssid: [u8; 6],
+    pub client: [u8; 6],
+    pub pmkid: [u8; 16],
 }

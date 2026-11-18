@@ -1,6 +1,6 @@
 use heapless::Vec;
 
-use super::types::{Completed, EapolFrame, CAPACITY};
+use super::types::{Completed, EapolFrame, PmkidCapture, CAPACITY, PMKID_DEDUP_CAPACITY};
 
 struct Entry {
     bssid: [u8; 6],
@@ -11,10 +11,18 @@ struct Entry {
     last_tick: u32,
 }
 
+/// (BSSID, PMKID) pair kept for deduplication — 22 bytes each.
+struct PmkidEntry {
+    bssid: [u8; 6],
+    pmkid: [u8; 16],
+}
+
 /// Which messages have been seen for each BSSID/client pair, bounded to `CAPACITY` pairs (about 1 KB).
 /// Reports completion once a pair has an ANonce-carrying message (1 or 3) and the SNonce+MIC message (2).
+/// Also deduplicates `PmkidFound` telemetry to at most once per (BSSID, PMKID) pair.
 pub struct HandshakeTracker {
     entries: Vec<Entry, CAPACITY>,
+    pmkids: Vec<PmkidEntry, PMKID_DEDUP_CAPACITY>,
     tick: u32,
 }
 
@@ -25,13 +33,15 @@ impl HandshakeTracker {
     pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
+            pmkids: Vec::new(),
             tick: 0,
         }
     }
 
-    /// Forget every pair (called when the listener is switched on, like the BLE monitor).
+    /// Forget every pair and every PMKID (called when the listener is switched on, like the BLE monitor).
     pub fn reset(&mut self) {
         self.entries.clear();
+        self.pmkids.clear();
         self.tick = 0;
     }
 
@@ -69,6 +79,34 @@ impl HandshakeTracker {
             });
         }
         None
+    }
+
+    /// Record a passively extracted PMKID. Returns `Some(PmkidCapture)` only the first time a
+    /// given (BSSID, PMKID) is seen; subsequent duplicates return `None` without any allocation.
+    pub fn observe_pmkid(
+        &mut self,
+        bssid: [u8; 6],
+        client: [u8; 6],
+        pmkid: [u8; 16],
+    ) -> Option<PmkidCapture> {
+        // Dedup: skip if we already know this (BSSID, PMKID) combination.
+        if self
+            .pmkids
+            .iter()
+            .any(|e| e.bssid == bssid && e.pmkid == pmkid)
+        {
+            return None;
+        }
+        // Evict the oldest entry if the table is full.
+        if self.pmkids.is_full() {
+            self.pmkids.swap_remove(0);
+        }
+        let _ = self.pmkids.push(PmkidEntry { bssid, pmkid });
+        Some(PmkidCapture {
+            bssid,
+            client,
+            pmkid,
+        })
     }
 
     fn insert(&mut self, entry: Entry) {
