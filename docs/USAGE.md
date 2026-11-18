@@ -1,3 +1,5 @@
+<img src="../assets/logo/crest-primary.svg" alt="BeeWave logo" width="72" align="right">
+
 # Using BeeWave end to end
 
 ## What happens when you power the ESP32
