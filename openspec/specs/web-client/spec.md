@@ -119,3 +119,10 @@ The web client SHALL display security badges (such as `OPEN`, `WEP`, `WPA2`, `WP
 #### Scenario: Display security badge
 - **WHEN** an Access Point record has associated security information
 - **THEN** the Scanner row displays a badge identifying the protocol and PMF status
+
+### Requirement: Beacon flood alert ingestion and display
+The web client SHALL decode `BeaconFloodAlert` telemetry messages and publish a high-severity alert to the Alert feed and toast system.
+
+#### Scenario: Display beacon flood alert
+- **WHEN** a `BeaconFloodAlert` packet is decoded
+- **THEN** an alert with source "beaconFlood" and severity "alert" is added to `AlertStore` detailing the frame rate and unique BSSID count
