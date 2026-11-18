@@ -68,6 +68,13 @@ export type Telemetry =
       channel: number;
       rssi: number;
       ssid: string;
+    }
+  | {
+      type: "assocResult";
+      bssid: string;
+      client: string;
+      channel: number;
+      rssi: number;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

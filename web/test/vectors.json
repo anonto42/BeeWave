@@ -197,6 +197,10 @@
     {
       "hex": "01191707070707070706bf0b4f66666963654775657374",
       "msg": "ProbeResult { client: [7, 7, 7, 7, 7, 7], channel: 6, rssi: -65, ssid: \"OfficeGuest\" }"
+    },
+    {
+      "hex": "011a1809090909090907070707070706c6",
+      "msg": "AssocResult { bssid: [9, 9, 9, 9, 9, 9], client: [7, 7, 7, 7, 7, 7], channel: 6, rssi: -58 }"
     }
   ]
 }

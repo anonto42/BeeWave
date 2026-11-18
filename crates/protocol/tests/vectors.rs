@@ -168,6 +168,12 @@ fn roundtrip_and_emit_golden_vectors() {
             rssi: -65,
             ssid: s("OfficeGuest"),
         },
+        TelemetryMessage::AssocResult {
+            bssid: [9; 6],
+            client: [7; 6],
+            channel: 6,
+            rssi: -58,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

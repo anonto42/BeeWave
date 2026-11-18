@@ -137,6 +137,15 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 23:
       msg = { type: "probeResult", client: hex(r.bytes(6)), channel: r.u8(), rssi: r.i8(), ssid: r.str() };
       break;
+    case 24:
+      msg = {
+        type: "assocResult",
+        bssid: hex(r.bytes(6)),
+        client: hex(r.bytes(6)),
+        channel: r.u8(),
+        rssi: r.i8(),
+      };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

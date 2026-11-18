@@ -385,4 +385,11 @@ pub enum TelemetryMessage {
         rssi: i8,
         ssid: String<32>,
     },
+    /// A client station actively associated and communicating with an Access Point (passively heard).
+    AssocResult {
+        bssid: [u8; 6],
+        client: [u8; 6],
+        channel: u8,
+        rssi: i8,
+    },
 }
