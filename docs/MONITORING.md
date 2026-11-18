@@ -17,6 +17,7 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 | Alerts | **Deauth detector** | `DeauthAlert`, `MonitorConfig` |
 | Alerts | **BLE monitor** | `BleStats`, `BleSpike`, `MonitorConfig` |
 | Settings | **Watchlist** (section) | `ScanResult` (rules run on the phone) |
+| Alerts | **Handshake capture** | `HandshakeCaptureState`, `HandshakeFrame`, `HandshakeComplete` |
 | Settings | **Import/Export** (section) | everything the phone already received |
 
 ## Results table
@@ -66,6 +67,24 @@ new, disappeared, signal-changed (6 dB or more) and channel-changed networks. **
 Pin BSSIDs in Settings > Watchlist (from the networks heard so far, by typing one, or with the PIN button on a Scanner row), each with a label and its own rules. Alerts: it **appears**, it has been **missing** for more than 5 cycles, or
 it **moves** by 6 dB or more. Pins are kept in this browser's `localStorage`; the device never sees them, so there is no device-side watchlist.
 
+## Handshake capture (device slice `handshake`)
+Off by default. When switched on, the sniffer's promiscuous filter also admits data frames; EAPOL-Key frames from a
+WPA/WPA2 four-way handshake are classified by message number (1-4) from their key-info bits and reported per
+BSSID/client pair. **Nothing is transmitted to cause a handshake.** If no client re-authenticates on its own nearby,
+there is nothing to capture; that is inherent to a receive-only tool.
+
+A pair is marked complete once it has a message carrying the ANonce (1 or 3) and the message carrying the SNonce and
+MIC (2) — the minimum an offline cracking attempt needs. Each `HandshakeFrame` carries the raw EAPOL bytes, capped at
+100 bytes to fit one BLE packet; a message longer than that is still classified but flagged **truncated**, and may not
+be enough for an external tool. The panel exports a pair's captured messages as a hex dump; it is a detection and
+logging feature, not a guaranteed capture pipeline.
+
+**What this explicitly does not do:** force a client to reconnect. A technique sometimes paired with handshake capture
+sends spoofed deauthentication frames to knock a connected client off the network so it reconnects immediately. That is
+an active disruption of someone's connection (and is blocked outright on 802.11w / WPA3 networks, which reject
+unauthenticated deauth). BeeWave has no transmit path for management frames at all — see invariant 4 — and this
+feature was built specifically without one; see `openspec/changes/passive-handshake-capture/proposal.md`.
+
 ## Export session
 In Settings > Import/Export, one button saves the session in the chosen format (JSON, CSV or both), assembled on the phone from what the app has already seen: scan reports, alerts, log lines, key/link
 events and saved scans. The CSV is one flat file with a `kind` column. Cells that a spreadsheet could read as formulas (starting with
@@ -81,3 +100,6 @@ every anomaly kind, and honours the same thresholds and validation as the device
 3. Alerts > Deauth: with a test network you own and a deauth source you are authorised to use, confirm an alert above the threshold. (Not
    tested on air yet: only the host tests and the mock have exercised this path.)
 4. Settings > Import/Export > Export session: the file(s) download and open.
+5. Alerts > Handshake capture: turn on, then (on a network you own or are authorised to test) let an already-connected
+   client reconnect on its own (toggle its Wi-Fi, or walk out of range and back). Two dots light up, EXPORT downloads a
+   hex dump. With no client reconnecting, nothing appears — that is expected, not a fault.
