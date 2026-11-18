@@ -10,6 +10,7 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 |---|---|---|
 | Scan | Control, Scanner, Targets, **Handshake capture** | `Status`, `ScanResult`, `HandshakeCaptureState`, `HandshakeFrame`, `HandshakeComplete` |
 | Analyze | **Results** (expanded table) | `ScanResult`, local OUI lookup |
+| Analyze | **Client stations (probes)** | `ProbeResult`, local OUI lookup |
 | Analyze | **Channels** | `ScanResult` (client-side) |
 | Analyze | **RSSI history** | `ScanResult` history per BSSID |
 | Analyze | **Compare scans** | snapshots saved when a scan stops |
@@ -23,6 +24,18 @@ that stream (`web/src/shared/monitor`). Panels in hidden tabs keep collecting.
 SSID, BSSID, vendor, RSSI, channel, first seen, last seen and scan count. Tap a header to sort (tap again to flip); filter by SSID
 substring and by channel. The vendor comes from a **small local OUI table** (best effort, no network lookup): unlisted prefixes show
 "Unknown", and locally administered (random) addresses show "Randomized". Add rows in `web/src/shared/oui/table.ts`.
+
+## Client stations and probe sniffing (device slice `probe`)
+Client devices (smartphones, laptops) periodically broadcast 802.11 Probe Request management frames (`subtype 0x40`)
+to discover nearby APs. The device sniffs these frames passively without sending any probe response, extracting the
+client's transmitter MAC, requested SSID (or empty string for wildcard/broadcast probes), channel and RSSI.
+A bounded table on the device deduplicates observations to conserve BLE bandwidth, re-reporting a client only when it
+probes for a new SSID, moves by at least 6 dB, or after an elapsed interval.
+
+In the **Analyze > Client stations** panel, the app displays:
+- Client MAC and hardware vendor identification via the OUI table (or "Randomized" if the IEEE locally administered bit is set).
+- Probed Networks list (the device's Preferred Network List, PNL).
+- Active signal level (dBm / bars), probe count, and last seen timestamp.
 
 ## Channels
 Two bars per channel 1-13: access points, and **reports in the last 60 s**. The second series is a proxy for how busy a channel is,
