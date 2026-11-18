@@ -7,7 +7,7 @@
 //! Files: `driver.rs` (WifiRadio), `callback.rs` (runs in the Wi-Fi task: must not block or allocate),
 //! `hopper.rs` (channel-hopping thread), `shared.rs` (state shared between them).
 mod callback;
-pub use callback::{install_handshake, set_handshake_capture};
+pub use callback::{install_handshake, install_probes, set_handshake_capture};
 pub mod deauth;
 mod driver;
 mod hopper;

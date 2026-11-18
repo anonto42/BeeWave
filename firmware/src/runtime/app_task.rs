@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use beewave_core::app::App;
 use beewave_core::features::handshake::EapolFrame;
+use beewave_core::features::probe::ProbeObservation;
 use beewave_core::features::scan::Observation;
 use beewave_core::ports::{OtaWriter, RadioDriver, SettingsStore, System, TelemetrySink};
 use beewave_protocol::{AdClass, LogLevel};
@@ -19,6 +20,8 @@ pub const DEAUTH_SLOTS: usize = 8;
 const BLE_BATCH: usize = 32;
 /// Handshake frames handled per loop turn (a real handshake is 2-4 frames; this is generous headroom).
 const HANDSHAKE_BATCH: usize = 16;
+/// Probe requests handled per loop turn.
+const PROBE_BATCH: usize = 32;
 /// Frames handled per loop turn, so a flood cannot delay the next command for long.
 const FRAME_BATCH: usize = 32;
 
@@ -44,6 +47,7 @@ pub fn run_app<R, W, S, T, P>(
     frames: Receiver<Observation>,
     ble: Receiver<AdClass>,
     handshake: Receiver<EapolFrame>,
+    probes: Receiver<ProbeObservation>,
     hooks: Hooks,
 ) where
     R: RadioDriver,
@@ -81,6 +85,12 @@ pub fn run_app<R, W, S, T, P>(
         for _ in 0..HANDSHAKE_BATCH {
             match handshake.try_recv() {
                 Ok(f) => app.on_eapol_frame(f),
+                Err(_) => break,
+            }
+        }
+        for _ in 0..PROBE_BATCH {
+            match probes.try_recv() {
+                Ok(p) => app.on_probe(p),
                 Err(_) => break,
             }
         }

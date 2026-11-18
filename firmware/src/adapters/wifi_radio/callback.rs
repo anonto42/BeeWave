@@ -6,6 +6,7 @@ use std::sync::mpsc::SyncSender;
 use std::sync::OnceLock;
 
 use beewave_core::features::handshake::{parse_eapol, EapolFrame};
+use beewave_core::features::probe::{parse_probe_request, ProbeObservation};
 use beewave_core::features::scan::{parse_beacon, Observation};
 
 use super::deauth;
@@ -26,6 +27,7 @@ const MAX_FRAME: usize = 512;
 
 /// The callback is a plain C function pointer, so its output queue lives in a static.
 static FRAMES: OnceLock<SyncSender<Observation>> = OnceLock::new();
+static PROBES: OnceLock<SyncSender<ProbeObservation>> = OnceLock::new();
 static HANDSHAKE: OnceLock<SyncSender<EapolFrame>> = OnceLock::new();
 
 /// Off by default: the owner's `SetHandshakeCapture` switch, mirrored here so data frames are rejected
@@ -37,6 +39,10 @@ pub static DROPPED: AtomicU32 = AtomicU32::new(0);
 
 pub fn install(tx: SyncSender<Observation>) {
     let _ = FRAMES.set(tx); // first call wins; we only ever install once
+}
+
+pub fn install_probes(tx: SyncSender<ProbeObservation>) {
+    let _ = PROBES.set(tx);
 }
 
 pub fn install_handshake(tx: SyncSender<EapolFrame>) {
@@ -71,6 +77,15 @@ pub unsafe extern "C" fn on_packet(buf: *mut c_void, kind: wifi_promiscuous_pkt_
     if let Some(obs) = parse_beacon(frame, rssi, channel) {
         if let Some(tx) = FRAMES.get() {
             if tx.try_send(obs).is_err() {
+                DROPPED.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        return;
+    }
+
+    if let Some(probe) = parse_probe_request(frame, rssi, channel) {
+        if let Some(tx) = PROBES.get() {
+            if tx.try_send(probe).is_err() {
                 DROPPED.fetch_add(1, Ordering::Relaxed);
             }
         }
