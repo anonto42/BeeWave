@@ -36,7 +36,7 @@ export interface Snapshot {
 }
 
 export type Severity = "info" | "warn" | "alert";
-export type AlertSource = "deauth" | "ble" | "anomaly" | "watchlist";
+export type AlertSource = "deauth" | "ble" | "anomaly" | "watchlist" | "handshake";
 
 export interface AlertRecord {
   id: number;

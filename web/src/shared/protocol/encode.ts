@@ -77,6 +77,8 @@ export function encodeCommand(seq: number, c: Command): Uint8Array<ArrayBuffer> 
     case "runSelfTest": o.push(18); break;
     case "getStorageInfo": o.push(19); break;
     case "getDeviceInfo": o.push(20); break;
+    case "setHandshakeCapture": o.push(21, c.enabled ? 1 : 0); break;
+    case "getHandshakeCapture": o.push(22); break;
     case "setMonitor": o.push(14, c.deauthThreshold, c.bleEnabled ? 1 : 0, c.bleSpikeFactor); break;
   }
   return Uint8Array.from(o);

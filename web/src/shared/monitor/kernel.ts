@@ -1,5 +1,6 @@
 import type { Telemetry } from "../protocol";
 import { AlertStore } from "./alert-store";
+import { HandshakeState } from "./handshake-store";
 import { alertFromTelemetry } from "./alerts";
 import { MonitorState } from "./monitor-state";
 import { ScanStore } from "./scan-store";
@@ -12,6 +13,7 @@ export interface MonitorKernel {
   readonly alerts: AlertStore;
   readonly watchlist: WatchlistStore;
   readonly state: MonitorState;
+  readonly handshake: HandshakeState;
   readonly session: SessionRecorder;
   /** Feed every telemetry message here. */
   ingest(m: Telemetry): void;
@@ -22,6 +24,7 @@ export function createMonitorKernel(now: () => number = Date.now, watchStorage?:
   const alerts = new AlertStore(now);
   const watchlist = new WatchlistStore(watchStorage);
   const state = new MonitorState(now);
+  const handshake = new HandshakeState(now);
   const session = new SessionRecorder(now);
   const engine = new WatchlistEngine(
     (bssid) => watchlist.list().find((e) => e.bssid === bssid),
@@ -36,6 +39,7 @@ export function createMonitorKernel(now: () => number = Date.now, watchStorage?:
     alerts,
     watchlist,
     state,
+    handshake,
     session,
     ingest(m) {
       switch (m.type) {
@@ -61,6 +65,15 @@ export function createMonitorKernel(now: () => number = Date.now, watchStorage?:
         }
         case "bleStats":
           state.ingest(m);
+          return;
+        case "handshakeCaptureState":
+        case "handshakeFrame":
+        case "handshakeComplete":
+          handshake.ingest(m);
+          if (m.type === "handshakeComplete") {
+            const a = alertFromTelemetry(m);
+            if (a) alerts.add(a);
+          }
           return;
         default: {
           state.ingest(m);

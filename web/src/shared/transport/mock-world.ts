@@ -61,6 +61,8 @@ export class MockWorld {
   private rssi = new Map<string, number>();
   private scanTicks = 0;
   private bleTicks = 0;
+  private handshakeEnabled = false;
+  private handshakeTicks = 0;
 
   constructor(seed = 7) {
     this.rand = seeded(seed);
@@ -83,6 +85,16 @@ export class MockWorld {
     return { type: "monitorConfig", ...this.config };
   }
 
+  setHandshakeCapture(enabled: boolean): Telemetry {
+    this.handshakeEnabled = enabled;
+    this.handshakeTicks = 0;
+    return { type: "handshakeCaptureState", enabled };
+  }
+
+  handshakeReport(): Telemetry {
+    return { type: "handshakeCaptureState", enabled: this.handshakeEnabled };
+  }
+
   /** One simulated second. */
   step(scanning: boolean, channel: number, pinned: number): WorldStep {
     const out: Telemetry[] = [];
@@ -93,6 +105,7 @@ export class MockWorld {
       this.scanBeacons(ch, out);
       this.anomalies(out);
       this.deauth(out);
+      this.handshake(out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -133,6 +146,22 @@ export class MockWorld {
     // the device only alerts at or above the threshold (0 = off)
     if (this.config.deauthThreshold > 0 && count >= this.config.deauthThreshold) {
       out.push({ type: "deauth", bssid: APS[3].bssid, count });
+    }
+  }
+
+  /** Simulates a client re-authenticating on its own every so often: messages 1 then 2, a short while apart. */
+  private handshake(out: Telemetry[]): void {
+    if (!this.handshakeEnabled) return;
+    this.handshakeTicks++;
+    const t = this.handshakeTicks % 20;
+    const bssid = APS[3].bssid; // "Home"
+    const client = "6c:5a:72:00:01:02";
+    const eapol = (fill: number) => Uint8Array.from({ length: 99 }, (_, i) => (i + fill) & 0xff);
+    if (t === 1) {
+      out.push({ type: "handshakeFrame", bssid, client, message: 1, replayCounter: this.handshakeTicks, truncated: false, eapol: eapol(1) });
+    } else if (t === 3) {
+      out.push({ type: "handshakeFrame", bssid, client, message: 2, replayCounter: this.handshakeTicks, truncated: false, eapol: eapol(2) });
+      out.push({ type: "handshakeComplete", bssid, client }); // message 1 (ANonce) + message 2 (SNonce+MIC) is enough
     }
   }
 

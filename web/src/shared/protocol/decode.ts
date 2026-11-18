@@ -114,6 +114,23 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 18:
       msg = { type: "rejected", reason: enumName(REJECT_REASONS, r.varint()) };
       break;
+    case 19:
+      msg = { type: "handshakeCaptureState", enabled: r.u8() !== 0 };
+      break;
+    case 20:
+      msg = {
+        type: "handshakeFrame",
+        bssid: hex(r.bytes(6)),
+        client: hex(r.bytes(6)),
+        message: r.u8(),
+        replayCounter: r.varint(),
+        truncated: r.u8() !== 0,
+        eapol: r.bytesVar(),
+      };
+      break;
+    case 21:
+      msg = { type: "handshakeComplete", bssid: hex(r.bytes(6)), client: hex(r.bytes(6)) };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

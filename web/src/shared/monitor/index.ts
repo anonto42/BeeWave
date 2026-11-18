@@ -3,6 +3,7 @@ export { alertFromTelemetry, BLE_FLOOD_FACTOR, DEAUTH_FLOOD } from "./alerts";
 export { CHANNELS, channelActivity, channelOccupancy, deltaView, diffSnapshots, lastDelta, sparklinePoints } from "./analysis";
 export type { DeltaRow, SnapshotDiff } from "./analysis";
 export { RSSI_DELTA_DB } from "./constants";
+export { HandshakeState, pairToHex, type HandshakeMessage, type HandshakePair } from "./handshake-store";
 export { currentRssiUnit, rssiHtml, rssiLevel, setRssiUnit, type RssiUnit } from "./rssi";
 export { setMonitorCommand } from "./config";
 export { createMonitorKernel, type MonitorKernel } from "./kernel";

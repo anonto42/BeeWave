@@ -73,7 +73,7 @@ export function createContext(transport: Transport): AppContext {
     // the monitors' settings live on the device: read them as soon as we are allowed to
     // Device settings are requested only after AuthResult ok: before that the device would refuse anyway.
     if (s === "authenticated") {
-      for (const type of ["getSettingsAll", "getDeviceInfo", "getMonitor"] as const) void logged.send({ type }).catch(() => {});
+      for (const type of ["getSettingsAll", "getDeviceInfo", "getMonitor", "getHandshakeCapture"] as const) void logged.send({ type }).catch(() => {});
       // firmware without settings support never answers: say so instead of waiting forever
       setTimeout(() => settings.device.markUnsupported(), SETTINGS_REPLY_MS);
     }

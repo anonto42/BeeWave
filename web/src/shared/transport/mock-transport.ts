@@ -73,6 +73,14 @@ export class MockTransport implements Transport {
       this.onTele?.(this.world.setMonitor({ deauthThreshold: cmd.deauthThreshold, bleEnabled: cmd.bleEnabled, bleSpikeFactor: cmd.bleSpikeFactor }));
       return;
     }
+    if (cmd.type === "getHandshakeCapture") {
+      this.onTele?.(this.world.handshakeReport());
+      return;
+    }
+    if (cmd.type === "setHandshakeCapture") {
+      this.onTele?.(this.world.setHandshakeCapture(cmd.enabled));
+      return;
+    }
     if (cmd.type === "startScan") this.scanning = true;
     if (cmd.type === "stop") this.scanning = false;
     if (cmd.type === "configureRadio") {

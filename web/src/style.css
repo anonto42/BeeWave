@@ -226,3 +226,8 @@ button.pin { margin-left:6px; flex:0 0 auto; } button.pin.on { background:var(--
 .notice.on { opacity:1; }
 .link-btn.lock { padding:4px 8px; display:inline-flex; align-items:center; }
 code { font-size:11px; background:var(--soft); padding:0 4px; }
+
+/* handshake capture */
+.hs-msgs { display:flex; gap:3px; flex:0 0 auto; }
+.hs-dot { width:9px; height:9px; border:1px solid var(--dim); background:transparent; }
+.hs-dot.on { background:var(--fg); border-color:var(--fg); }

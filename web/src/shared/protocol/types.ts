@@ -40,7 +40,21 @@ export type Telemetry =
       coexDebug: boolean;
       bonding: boolean;
     }
-  | { type: "rejected"; reason: RejectReasonName };
+  | { type: "rejected"; reason: RejectReasonName }
+  | { type: "handshakeCaptureState"; enabled: boolean }
+  | {
+      type: "handshakeFrame";
+      bssid: string;
+      client: string;
+      /** 1-4: which of the four handshake messages this is. */
+      message: number;
+      replayCounter: number;
+      /** True if the real frame was longer than the capture cap and `eapol` holds only the start of it. */
+      truncated: boolean;
+      /** Raw EAPOL frame bytes (from its own version byte), capped on the device. */
+      eapol: Uint8Array;
+    }
+  | { type: "handshakeComplete"; bssid: string; client: string };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =
@@ -64,7 +78,9 @@ export type Command =
   | { type: "factoryReset" }
   | { type: "runSelfTest" }
   | { type: "getStorageInfo" }
-  | { type: "getDeviceInfo" };
+  | { type: "getDeviceInfo" }
+  | { type: "setHandshakeCapture"; enabled: boolean }
+  | { type: "getHandshakeCapture" };
 
 /** A decoded telemetry packet with its sequence number (for loss detection). */
 export interface TelemetryPacket {

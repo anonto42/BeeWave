@@ -40,4 +40,9 @@ export class Reader {
   str(): string {
     return new TextDecoder().decode(this.bytes(this.varint()));
   }
+
+  /** Length-prefixed raw bytes (a `heapless::Vec<u8, N>` on the wire), copied out of the shared buffer. */
+  bytesVar(): Uint8Array {
+    return this.bytes(this.varint()).slice();
+  }
 }

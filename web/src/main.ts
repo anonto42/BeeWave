@@ -21,6 +21,7 @@ import * as compare from "./features/compare";
 import * as anomalies from "./features/anomalies";
 import * as deauth from "./features/deauth";
 import * as bleMonitor from "./features/ble-monitor";
+import * as handshake from "./features/handshake";
 
 registerSW({ immediate: true });
 
@@ -42,7 +43,7 @@ const layout = {
   device: [compat, status],
   scan: [control, scanner, targets],
   analyze: [results, channelChart, rssiHistory, compare],
-  alerts: [anomalies, deauth, bleMonitor],
+  alerts: [anomalies, deauth, bleMonitor, handshake],
   settings: [settings, ota],
   log: [log],
 } as const;

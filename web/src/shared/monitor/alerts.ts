@@ -34,6 +34,14 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         title: `${CLASS_LABEL[m.class]} advertisements spiked`,
         detail: `${m.count} in the last minute, baseline ${m.baseline}`,
       };
+    case "handshakeComplete":
+      return {
+        source: "handshake",
+        severity: "info",
+        title: "Handshake captured",
+        detail: `${m.bssid} <-> ${m.client}: enough messages for an offline attempt (subject to any truncated message)`,
+        bssid: m.bssid,
+      };
     case "anomaly": {
       const t = ANOMALY_TEXT[m.kind];
       const extra =
