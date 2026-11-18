@@ -94,3 +94,14 @@ The web client SHALL ingest `AssocResult` telemetry messages into an association
 #### Scenario: Displaying connected stations under target
 - **WHEN** an Access Point card in the Scan tab is expanded
 - **THEN** all client stations associated with that Access Point are listed with resolved vendor and signal strength
+
+### Requirement: WPS and Hardware Details Display
+The web client SHALL ingest `WpsResult` telemetry messages, storing WPS security posture and device identification per Access Point. The web client SHALL display WPS status badges (e.g., WPS version, Locked, Open, PushButton) and hardware manufacturer/model details in Access Point scanner rows and target details.
+
+#### Scenario: Ingesting WPS metadata
+- **WHEN** a `WpsResult` message is received for an Access Point BSSID
+- **THEN** the Access Point record is updated with its WPS version, lockout state, and hardware details
+
+#### Scenario: Displaying WPS audit badge
+- **WHEN** an Access Point has WPS enabled
+- **THEN** a WPS badge indicates whether WPS is locked against PIN attacks or active
