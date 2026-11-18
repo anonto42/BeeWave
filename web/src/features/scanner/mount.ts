@@ -14,7 +14,14 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   const render = () => {
     body.innerHTML = networks.size
       ? sortNetworks([...networks.values()], sortSel.value as SortKey)
-          .map((n) => rowHtml(n, ctx.targets.has(n.bssid), ctx.monitor.watchlist.has(n.bssid)))
+          .map((n) =>
+            rowHtml(
+              n,
+              ctx.targets.has(n.bssid),
+              ctx.monitor.watchlist.has(n.bssid),
+              ctx.monitor.scans.get(n.bssid)?.wps,
+            ),
+          )
           .join("")
       : emptyHtml;
     $(el, "[data-count]").textContent = `${networks.size} network${networks.size === 1 ? "" : "s"}`;
@@ -42,6 +49,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
 
   ctx.targets.onChange(render);
   ctx.monitor.watchlist.onChange(render);
+  ctx.monitor.scans.onChange(render);
   render();
   ctx.onTelemetry("scan", (m) => {
     networks.set(m.bssid, m);

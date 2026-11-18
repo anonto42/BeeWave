@@ -108,6 +108,7 @@ export class MockWorld {
       this.handshake(out);
       this.probes(ch, out);
       this.associations(ch, out);
+      this.wps(out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -179,6 +180,22 @@ export class MockWorld {
   private associations(ch: number, out: Telemetry[]): void {
     if (this.scanTicks % 6 === 0) {
       out.push({ type: "assocResult", bssid: APS[3].bssid, client: "da:a1:19:22:33:44", channel: ch, rssi: -54 });
+    }
+  }
+
+  private wps(out: Telemetry[]): void {
+    if (this.scanTicks === 2) {
+      out.push({
+        type: "wpsResult",
+        bssid: APS[3].bssid,
+        version: 0x20,
+        state: 2,
+        locked: true,
+        selectedRegistrar: false,
+        deviceName: "Archer AX50",
+        manufacturer: "TP-Link",
+        modelName: "AX3000",
+      });
     }
   }
 

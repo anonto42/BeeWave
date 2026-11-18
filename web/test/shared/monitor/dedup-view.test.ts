@@ -100,4 +100,37 @@ describe("snapshots hold what one scan heard", () => {
     expect(diff.channelChanged.map((c) => c.after.bssid)).toEqual(["A"]);
     expect(diff.rssiChanged.map((c) => c.delta)).toEqual([-20]);
   });
+
+  it("attaches WPS metadata to existing network records and emits changes", () => {
+    const { s } = store();
+    let changeFired = false;
+    s.onChange(() => {
+      changeFired = true;
+    });
+    s.ingest(scan("aa:bb:cc:dd:ee:ff", -50));
+    expect(s.get("aa:bb:cc:dd:ee:ff")?.wps).toBeUndefined();
+
+    s.ingestWps({
+      bssid: "aa:bb:cc:dd:ee:ff",
+      version: 0x20,
+      state: 2,
+      locked: true,
+      selectedRegistrar: false,
+      deviceName: "Archer AX50",
+      manufacturer: "TP-Link",
+      modelName: "AX3000",
+    });
+
+    const net = s.get("aa:bb:cc:dd:ee:ff");
+    expect(net?.wps).toEqual({
+      version: 0x20,
+      state: 2,
+      locked: true,
+      selectedRegistrar: false,
+      deviceName: "Archer AX50",
+      manufacturer: "TP-Link",
+      modelName: "AX3000",
+    });
+    expect(changeFired).toBe(true);
+  });
 });

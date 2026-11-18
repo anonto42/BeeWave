@@ -3,6 +3,7 @@ import { describeEvent } from "../../src/features/alerts/describe";
 import { controlState } from "../../src/features/control/enabled";
 import { rssiHtml, rssiLevel } from "../../src/shared/monitor";
 import { sortNetworks } from "../../src/features/scanner/sort";
+import { rowHtml } from "../../src/features/scanner/template";
 import type { ScanResult } from "../../src/features/scanner/types";
 
 const net = (ssid: string, channel: number, rssi: number): ScanResult => ({ type: "scan", bssid: `00:00:00:00:00:${channel}${rssi}`, ssid, channel, rssi });
@@ -53,5 +54,21 @@ describe("sortNetworks", () => {
     expect(sortNetworks(nets, "channel").map((n) => n.channel)).toEqual([1, 6, 11]);
     expect(sortNetworks(nets, "ssid").map((n) => n.ssid)).toEqual(["a", "b", ""]);
     expect(nets[0].ssid).toBe("b");
+  });
+});
+
+describe("rowHtml with WPS", () => {
+  it("renders WPS badges and model information when present", () => {
+    const r = rowHtml(net("TestNet", 6, -50), false, false, {
+      version: 0x20,
+      state: 2,
+      locked: true,
+      selectedRegistrar: false,
+      deviceName: "Archer AX50",
+      manufacturer: "TP-Link",
+      modelName: "AX3000",
+    });
+    expect(r).toContain("WPS 2.0 · LOCKED");
+    expect(r).toContain("Archer AX50");
   });
 });

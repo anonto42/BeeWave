@@ -1,3 +1,13 @@
+export interface WpsRecord {
+  version: number;
+  state: number;
+  locked: boolean;
+  selectedRegistrar: boolean;
+  deviceName: string;
+  manufacturer: string;
+  modelName: string;
+}
+
 /** One network as the phone has seen it. */
 export interface NetworkRecord {
   bssid: string;
@@ -12,6 +22,7 @@ export interface NetworkRecord {
   count: number;
   /** RSSI over the scan cycles in which the device reported it (oldest first, capped). */
   history: RssiPoint[];
+  wps?: WpsRecord;
 }
 
 export interface RssiPoint {

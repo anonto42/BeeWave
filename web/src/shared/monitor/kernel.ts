@@ -57,6 +57,9 @@ export function createMonitorKernel(now: () => number = Date.now, watchStorage?:
         case "assocResult":
           assoc.ingest(m);
           return;
+        case "wpsResult":
+          scans.ingestWps(m);
+          return;
         case "scan":
           scans.ingest(m);
           raise(engine.observe(m, scans.cycle));

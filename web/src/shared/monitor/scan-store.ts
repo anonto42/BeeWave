@@ -1,5 +1,5 @@
 import { CYCLE_TICKS, EVENT_CAP, HISTORY_CAP, SNAPSHOT_CAP } from "./constants";
-import type { NetworkRecord, ScanEvent, Snapshot } from "./types";
+import type { NetworkRecord, ScanEvent, Snapshot, WpsRecord } from "./types";
 
 export interface ScanInput {
   bssid: string;
@@ -75,6 +75,47 @@ export class ScanStore {
     this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi });
     if (this.log.length > EVENT_CAP) this.log.shift();
     this.emit();
+  }
+
+  ingestWps(m: {
+    bssid: string;
+    version: number;
+    state: number;
+    locked: boolean;
+    selectedRegistrar: boolean;
+    deviceName: string;
+    manufacturer: string;
+    modelName: string;
+  }): void {
+    const rec = this.records.get(m.bssid);
+    const wps: WpsRecord = {
+      version: m.version,
+      state: m.state,
+      locked: m.locked,
+      selectedRegistrar: m.selectedRegistrar,
+      deviceName: m.deviceName,
+      manufacturer: m.manufacturer,
+      modelName: m.modelName,
+    };
+    if (rec) {
+      rec.wps = wps;
+      this.emit();
+    } else {
+      const at = this.now();
+      const cycle = this.cycle;
+      this.records.set(m.bssid, {
+        bssid: m.bssid,
+        ssid: m.deviceName,
+        channel: 1,
+        rssi: -90,
+        firstSeen: at,
+        lastSeen: at,
+        count: 1,
+        history: [{ cycle, rssi: -90, at }],
+        wps,
+      });
+      this.emit();
+    }
   }
 
   /** Call once per status heartbeat while the device reports `scanning`; advances the cycle counter. */
