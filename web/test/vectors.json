@@ -209,6 +209,10 @@
     {
       "hex": "011c1a0909090909090301",
       "msg": "SecurityResult { bssid: [9, 9, 9, 9, 9, 9], protocol: Wpa2, pmf: Capable }"
+    },
+    {
+      "hex": "011d1b412a",
+      "msg": "BeaconFloodAlert { rate: 65, unique_bssids: 42 }"
     }
   ]
 }

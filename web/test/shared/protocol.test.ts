@@ -56,6 +56,11 @@ describe("telemetry decode (golden vectors from Rust)", () => {
       protocol: "wpa2",
       pmf: "capable",
     });
+    expect(m(29)).toEqual({
+      type: "beaconFloodAlert",
+      rate: 65,
+      uniqueBssids: 42,
+    });
   });
   it("settings management messages", () => {
     const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;

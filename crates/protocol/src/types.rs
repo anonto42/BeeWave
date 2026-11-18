@@ -409,6 +409,11 @@ pub enum TelemetryMessage {
         protocol: WifiSecurityProtocol,
         pmf: WifiPmfMode,
     },
+    /// Abnormal surge of 802.11 beacon frames with high rate of unique BSSIDs (fake AP / beacon flood attack).
+    BeaconFloodAlert {
+        rate: u16,
+        unique_bssids: u16,
+    },
 }
 
 /// Wi-Fi security / authentication protocol of an Access Point.

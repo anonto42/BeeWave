@@ -92,6 +92,11 @@ export type Telemetry =
       bssid: string;
       protocol: WifiSecurityProtocol;
       pmf: WifiPmfMode;
+    }
+  | {
+      type: "beaconFloodAlert";
+      rate: number;
+      uniqueBssids: number;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

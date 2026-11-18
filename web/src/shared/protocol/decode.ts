@@ -167,6 +167,13 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         pmf: enumName(WIFI_PMF_MODES, r.varint()),
       };
       break;
+    case 27:
+      msg = {
+        type: "beaconFloodAlert",
+        rate: r.varint(),
+        uniqueBssids: r.varint(),
+      };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

@@ -189,6 +189,10 @@ fn roundtrip_and_emit_golden_vectors() {
             protocol: WifiSecurityProtocol::Wpa2,
             pmf: WifiPmfMode::Capable,
         },
+        TelemetryMessage::BeaconFloodAlert {
+            rate: 65,
+            unique_bssids: 42,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
