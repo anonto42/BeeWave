@@ -54,7 +54,14 @@ export type Telemetry =
       /** Raw EAPOL frame bytes (from its own version byte), capped on the device. */
       eapol: Uint8Array;
     }
-  | { type: "handshakeComplete"; bssid: string; client: string };
+  | { type: "handshakeComplete"; bssid: string; client: string }
+  | {
+      type: "pmkidFound";
+      bssid: string;
+      client: string;
+      /** 16 bytes as 32 lowercase hex characters. */
+      pmkid: string;
+    };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
 export type Command =

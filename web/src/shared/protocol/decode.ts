@@ -131,6 +131,9 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 21:
       msg = { type: "handshakeComplete", bssid: hex(r.bytes(6)), client: hex(r.bytes(6)) };
       break;
+    case 22:
+      msg = { type: "pmkidFound", bssid: hex(r.bytes(6)), client: hex(r.bytes(6)), pmkid: hexPlain(r.bytes(16)) };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

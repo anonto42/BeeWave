@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertFromTelemetry, createMonitorKernel, HandshakeState, pairToHex } from "../../../src/shared/monitor";
+import { alertFromTelemetry, createMonitorKernel, HandshakeState, pairToHex, pmkidToHashcat22000 } from "../../../src/shared/monitor";
 import { MockWorld } from "../../../src/shared/transport/mock-world";
 
 const BSSID = "50:c7:bf:aa:bb:01";
@@ -102,5 +102,26 @@ describe("the simulated device produces a capturable handshake only while listen
     expect(pairs[0].complete).toBe(true);
     expect([...pairs[0].messages.keys()].sort()).toEqual([1, 2]);
     expect(k.alerts.list().some((a) => a.source === "handshake")).toBe(true);
+  });
+});
+
+describe("PMKID extraction and Hashcat export", () => {
+  it("ingests PMKID and dedupes repeated frames", () => {
+    const s = new HandshakeState();
+    s.ingest({ type: "pmkidFound", bssid: BSSID, client: CLIENT, pmkid: "00112233445566778899aabbccddeeff" });
+    s.ingest({ type: "pmkidFound", bssid: BSSID, client: CLIENT, pmkid: "00112233445566778899aabbccddeeff" });
+    const records = s.pmkidsFor(BSSID);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ bssid: BSSID, client: CLIENT, pmkid: "00112233445566778899aabbccddeeff" });
+  });
+
+  it("formats a PMKID record as a Hashcat mode 22000 line", () => {
+    const line = pmkidToHashcat22000(
+      { bssid: "50:c7:bf:aa:bb:01", client: "6c:5a:72:00:01:02", pmkid: "00112233445566778899aabbccddeeff", at: 1000 },
+      "MyNetwork"
+    );
+    // Format: WPA*01*<pmkid>*<bssid_no_sep>*<client_no_sep>*<essid_hex>***
+    // "MyNetwork" in hex: 4d794e6574776f726b
+    expect(line).toBe("WPA*01*00112233445566778899aabbccddeeff*50c7bfaabb01*6c5a72000102*4d794e6574776f726b***");
   });
 });

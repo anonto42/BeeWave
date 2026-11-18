@@ -159,6 +159,7 @@ export class MockWorld {
     const eapol = (fill: number) => Uint8Array.from({ length: 99 }, (_, i) => (i + fill) & 0xff);
     if (t === 1) {
       out.push({ type: "handshakeFrame", bssid, client, message: 1, replayCounter: this.handshakeTicks, truncated: false, eapol: eapol(1) });
+      out.push({ type: "pmkidFound", bssid, client, pmkid: "00112233445566778899aabbccddeeff" });
     } else if (t === 3) {
       out.push({ type: "handshakeFrame", bssid, client, message: 2, replayCounter: this.handshakeTicks, truncated: false, eapol: eapol(2) });
       out.push({ type: "handshakeComplete", bssid, client }); // message 1 (ANonce) + message 2 (SNonce+MIC) is enough
