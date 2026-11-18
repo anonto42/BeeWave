@@ -162,6 +162,12 @@ fn roundtrip_and_emit_golden_vectors() {
             client: [8; 6],
             pmkid: [0x42; 16],
         },
+        TelemetryMessage::ProbeResult {
+            client: [7; 6],
+            channel: 6,
+            rssi: -65,
+            ssid: s("OfficeGuest"),
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

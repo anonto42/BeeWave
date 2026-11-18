@@ -134,6 +134,9 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
     case 22:
       msg = { type: "pmkidFound", bssid: hex(r.bytes(6)), client: hex(r.bytes(6)), pmkid: hexPlain(r.bytes(16)) };
       break;
+    case 23:
+      msg = { type: "probeResult", client: hex(r.bytes(6)), channel: r.u8(), rssi: r.i8(), ssid: r.str() };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

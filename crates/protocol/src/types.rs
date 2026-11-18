@@ -378,4 +378,11 @@ pub enum TelemetryMessage {
         client: [u8; 6],
         pmkid: [u8; 16],
     },
+    /// A client station transmitting an 802.11 Probe Request frame (passively heard).
+    ProbeResult {
+        client: [u8; 6],
+        channel: u8,
+        rssi: i8,
+        ssid: String<32>,
+    },
 }

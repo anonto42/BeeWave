@@ -61,6 +61,13 @@ export type Telemetry =
       client: string;
       /** 16 bytes as 32 lowercase hex characters. */
       pmkid: string;
+    }
+  | {
+      type: "probeResult";
+      client: string;
+      channel: number;
+      rssi: number;
+      ssid: string;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */
