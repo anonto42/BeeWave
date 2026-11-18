@@ -63,6 +63,17 @@ The device core parses vendor elements zero-allocation in `#![no_std]`, tracks k
 In the PWA:
 - Under **Scan > Scanner**: Each network displaying WPS features badges such as `WPS` / `WPS 2.0`, `· LOCKED`, and `· PBC`, and displays the detected device name or model.
 
+## Wi-Fi security suite and PMF classification (device slice `scan`)
+Beacon and Probe Response management frames advertise authentication suites, cipher suites, and 802.11w Protected Management Frames (PMF) configuration:
+- **Capability Information (offset 34)**: The Privacy bit (bit 4) identifies whether frames are encrypted.
+- **RSN Information Element (Tag 48 / `0x30`)**: Identifies modern Robust Security Networks (WPA2-PSK, WPA3-SAE, WPA2/WPA3 Transition mode, OWE Enhanced Open, and 802.1X Enterprise) and extracts PMF flags (`MFPC` Capable / `MFPR` Required).
+- **WPA Information Element (Tag 221 / `0xDD` with OUI `00:50:f2:01`)**: Identifies legacy WPA1 networks.
+
+The core parses these elements zero-allocation in `#![no_std]` and deduplicates observations in a bounded 32-entry table (`SecurityTracker`), only emitting `SecurityResult` over BLE when an AP is first observed or when its security posture changes (e.g., detecting an Evil Twin security downgrade).
+
+In the PWA:
+- Under **Scan > Scanner**: Each network displays color-coded security badges: `OPEN` (yellow warn), `WEP` (red alert), `WPA`, `WPA2`, `WPA3`, `WPA2/WPA3`, `OWE`, `802.1X`, and PMF indicators (`· PMF` when required, `· PMF OPT` when capable).
+
 ## Channels
 Two bars per channel 1-13: access points, and **reports in the last 60 s**. The second series is a proxy for how busy a channel is,
 not airtime utilisation: the device only sees beacons and only re-reports a network when it changes.
