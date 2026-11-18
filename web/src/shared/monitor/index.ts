@@ -4,6 +4,7 @@ export { CHANNELS, channelActivity, channelOccupancy, deltaView, diffSnapshots, 
 export type { DeltaRow, SnapshotDiff } from "./analysis";
 export { RSSI_DELTA_DB } from "./constants";
 export { HandshakeState, pairToHex, type HandshakeMessage, type HandshakePair } from "./handshake-store";
+export { buildPcap, captureFilename } from "./pcap";
 export { currentRssiUnit, rssiHtml, rssiLevel, setRssiUnit, type RssiUnit } from "./rssi";
 export { setMonitorCommand } from "./config";
 export { createMonitorKernel, type MonitorKernel } from "./kernel";

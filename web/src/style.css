@@ -231,3 +231,13 @@ code { font-size:11px; background:var(--soft); padding:0 4px; }
 .hs-msgs { display:flex; gap:3px; flex:0 0 auto; }
 .hs-dot { width:9px; height:9px; border:1px solid var(--dim); background:transparent; }
 .hs-dot.on { background:var(--fg); border-color:var(--fg); }
+
+/* handshake capture: per-target toolbar */
+.hs-target { flex-direction:column; align-items:stretch; cursor:default; gap:6px; padding:10px 12px; }
+.hs-target:active { background:transparent; }
+.hs-toolbar { padding:0; border:0; }
+.hs-toolbar button[data-want].on { background:var(--ok); color:var(--bg); border-color:var(--ok); }
+.hs-clients { border:1px solid var(--soft); }
+.hs-client { min-height:44px; padding:6px 10px; border-bottom:1px solid var(--soft); }
+.hs-client:last-child { border-bottom:0; }
+.hs-client:active { background:transparent; }

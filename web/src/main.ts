@@ -41,9 +41,9 @@ const shell = createTabShell(root, "BEEWAVE", [
 
 const layout = {
   device: [compat, status],
-  scan: [control, scanner, targets],
+  scan: [control, scanner, targets, handshake],
   analyze: [results, channelChart, rssiHistory, compare],
-  alerts: [anomalies, deauth, bleMonitor, handshake],
+  alerts: [anomalies, deauth, bleMonitor],
   settings: [settings, ota],
   log: [log],
 } as const;

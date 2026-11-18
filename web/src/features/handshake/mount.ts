@@ -1,42 +1,76 @@
-import { $, download, panel, type AppContext } from "../../shared/app";
-import { pairToHex } from "../../shared/monitor";
-import { emptyHtml, handshakeHtml, rowHtml } from "./template";
+import { $, coalesce, download, panel, type AppContext } from "../../shared/app";
+import { buildPcap, captureFilename, type HandshakePair } from "../../shared/monitor";
+import { emptyTargetsHtml, handshakeHtml, targetRowHtml } from "./template";
 
-const stamp = () => new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
-/** Pairs the passive handshake listener has captured, with a per-pair hex export. */
+/**
+ * Per target: pick which targeted networks to capture a handshake for, see progress (which of the 4
+ * messages arrived) once something happens on its own, and export a complete one as `.cap`/`.pcap`.
+ *
+ * The device has a single on/off switch (`SetHandshakeCapture`), not one per network, so this panel
+ * keeps it on exactly while at least one target below has capture requested, and reads the shared
+ * handshake store (fed from the device's own telemetry) filtered to each target's BSSID for display.
+ */
 export function mount(root: HTMLElement, ctx: AppContext): void {
   const el = panel("HANDSHAKE CAPTURE", handshakeHtml);
   root.append(el);
-  const toggle = $<HTMLButtonElement>(el, "[data-toggle]");
   const list = $(el, "[data-list]");
   const { handshake } = ctx.monitor;
+  const { targets } = ctx;
   let connected = false;
+  /** Which targets the owner asked to capture for. Session-only: it decides whether the device's single
+   * switch is on, it is not itself sent anywhere. */
+  const wanted = new Set<string>();
+  /** The on/off state last sent to the device, so a repeated render does not resend it. `null` forces a
+   * resend (used right after (re)connecting, since the device always starts off). */
+  let lastRequested: boolean | null = null;
+
+  const syncDevice = () => {
+    const desired = wanted.size > 0;
+    if (desired === lastRequested) return;
+    lastRequested = desired;
+    ctx.transport.send({ type: "setHandshakeCapture", enabled: desired }).catch((e) => ctx.log(`setHandshakeCapture failed: ${e}`));
+  };
+
+  const pairsFor = (bssid: string): HandshakePair[] => handshake.list().filter((p) => p.bssid === bssid);
 
   const render = () => {
     const ready = connected && ctx.auth.state === "authenticated";
-    toggle.disabled = !ready;
-    toggle.textContent = handshake.enabled ? "TURN OFF" : "TURN ON";
-    $(el, "[data-state]").textContent = handshake.enabled ? "listening" : "off";
-    const pairs = handshake.list();
-    list.innerHTML = pairs.length ? pairs.map(rowHtml).join("") : emptyHtml(handshake.enabled ? "Listening. Nothing captured yet." : "Off.");
+    $(el, "[data-state]").textContent = `device: ${handshake.enabled ? "listening" : "off"}`;
+    const items = targets.list();
+    list.innerHTML = items.length
+      ? items.map((t) => targetRowHtml(t, wanted.has(t.bssid), ready, pairsFor(t.bssid))).join("")
+      : emptyTargetsHtml;
   };
+  const later = coalesce(render);
 
-  toggle.onclick = () =>
-    ctx.transport.send({ type: "setHandshakeCapture", enabled: !handshake.enabled }).catch((e) => ctx.log(`setHandshakeCapture failed: ${e}`));
   list.onclick = (e) => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>("[data-pair]");
-    if (!row || !(e.target as HTMLElement).closest("[data-export]")) return;
-    const [bssid, client] = row.dataset.pair!.split("|");
+    const want = (e.target as HTMLElement).closest<HTMLElement>("[data-want]");
+    if (want) {
+      const bssid = want.closest<HTMLElement>("[data-target]")!.dataset.target!;
+      if (wanted.has(bssid)) wanted.delete(bssid);
+      else wanted.add(bssid);
+      syncDevice();
+      render();
+      return;
+    }
+    const exp = (e.target as HTMLElement).closest<HTMLElement>("[data-export]");
+    if (!exp) return;
+    const { bssid, client, ext } = exp.dataset as { bssid: string; client: string; ext: "cap" | "pcap" };
     const pair = handshake.list().find((p) => p.bssid === bssid && p.client === client);
-    if (pair) download(`beewave-handshake-${stamp()}.txt`, "text/plain", pairToHex(pair));
+    const target = targets.list().find((t) => t.bssid === bssid);
+    if (!pair || !target) return;
+    const disambiguate = pairsFor(bssid).length > 1;
+    download(captureFilename(pair, target.ssid, ext, disambiguate), "application/vnd.tcpdump.pcap", buildPcap(pair));
   };
 
   ctx.onState((s) => {
     connected = s === "connected";
+    if (!connected) lastRequested = null; // the device forgets its state on disconnect; resync on the next one
     render();
   });
   ctx.auth.onChange(render);
-  handshake.onChange(render);
+  targets.onChange(render);
+  handshake.onChange(later);
   render();
 }
