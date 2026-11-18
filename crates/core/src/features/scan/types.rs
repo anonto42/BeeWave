@@ -1,5 +1,6 @@
 use heapless::String;
 
+use super::security::SecurityInfo;
 use super::wps::WpsInfo;
 
 /// Table capacity. Must be a power of two (required by `FnvIndexMap`).
@@ -15,4 +16,5 @@ pub struct Observation {
     pub rssi: i8,
     pub ssid: String<32>,
     pub wps: Option<WpsInfo>,
+    pub security: Option<SecurityInfo>,
 }

@@ -204,6 +204,11 @@ where
                 self.emit(m);
             }
         }
+        if let Some(sec) = &o.security {
+            if let Some(m) = self.monitoring.on_security(sec) {
+                self.emit(m);
+            }
+        }
         if let Some(m) = self.scans.observe(o, self.elapsed_ms) {
             self.emit(m);
         }

@@ -7,6 +7,7 @@ fn obs(rssi: i8) -> Observation {
         rssi,
         ssid: "x".try_into().unwrap(),
         wps: None,
+        security: None,
     }
 }
 
@@ -89,6 +90,7 @@ fn named(bssid: u8, ssid: &str, channel: u8, rssi: i8) -> Observation {
         rssi,
         ssid: ssid.try_into().unwrap(),
         wps: None,
+        security: None,
     }
 }
 
@@ -271,4 +273,141 @@ fn beacon_with_wps_element_extracts_wps_info() {
     assert_eq!(obs.channel, 6);
     let wps = obs.wps.expect("should have wps info");
     assert_eq!(wps.version, 0x20);
+}
+
+fn make_rsn_body(akm_types: &[u8], mfpc: bool, mfpr: bool) -> heapless::Vec<u8, 64> {
+    let mut v = heapless::Vec::<u8, 64>::new();
+    v.extend_from_slice(&1u16.to_le_bytes()).unwrap();
+    v.extend_from_slice(&[0x00, 0x0F, 0xAC, 0x04]).unwrap();
+    v.extend_from_slice(&1u16.to_le_bytes()).unwrap();
+    v.extend_from_slice(&[0x00, 0x0F, 0xAC, 0x04]).unwrap();
+    v.extend_from_slice(&(akm_types.len() as u16).to_le_bytes()).unwrap();
+    for &t in akm_types {
+        v.extend_from_slice(&[0x00, 0x0F, 0xAC, t]).unwrap();
+    }
+    let mut caps = 0u16;
+    if mfpc {
+        caps |= 0x0040;
+    }
+    if mfpr {
+        caps |= 0x0080;
+    }
+    v.extend_from_slice(&caps.to_le_bytes()).unwrap();
+    v
+}
+
+#[test]
+fn test_rsn_element_parsing() {
+    use beewave_protocol::WifiPmfMode;
+
+    // WPA2 PSK, no PMF
+    let body_psk = make_rsn_body(&[2], false, false);
+    let (dot1x, psk, sae, owe, pmf) = parse_rsn_element(&body_psk);
+    assert!(!dot1x && psk && !sae && !owe && pmf == WifiPmfMode::None);
+
+    // WPA3 SAE, PMF required
+    let body_sae = make_rsn_body(&[8], true, true);
+    let (dot1x, psk, sae, owe, pmf) = parse_rsn_element(&body_sae);
+    assert!(!dot1x && !psk && sae && !owe && pmf == WifiPmfMode::Required);
+
+    // Transition PSK + SAE, PMF capable
+    let body_trans = make_rsn_body(&[2, 8], true, false);
+    let (dot1x, psk, sae, owe, pmf) = parse_rsn_element(&body_trans);
+    assert!(!dot1x && psk && sae && !owe && pmf == WifiPmfMode::Capable);
+
+    // OWE
+    let body_owe = make_rsn_body(&[18], true, true);
+    let (dot1x, psk, sae, owe, pmf) = parse_rsn_element(&body_owe);
+    assert!(!dot1x && !psk && !sae && owe && pmf == WifiPmfMode::Required);
+}
+
+#[test]
+fn test_security_classification() {
+    use beewave_protocol::{WifiPmfMode, WifiSecurityProtocol};
+
+    // Open network (no privacy, no RSN, no WPA1)
+    let (proto, pmf) = classify_security(false, None, false);
+    assert_eq!(proto, WifiSecurityProtocol::Open);
+    assert_eq!(pmf, WifiPmfMode::None);
+
+    // WEP network (privacy bit set, no RSN, no WPA1)
+    let (proto, pmf) = classify_security(true, None, false);
+    assert_eq!(proto, WifiSecurityProtocol::Wep);
+    assert_eq!(pmf, WifiPmfMode::None);
+
+    // WPA1 network (vendor specific element present)
+    let (proto, pmf) = classify_security(true, None, true);
+    assert_eq!(proto, WifiSecurityProtocol::Wpa);
+    assert_eq!(pmf, WifiPmfMode::None);
+
+    // WPA2 PSK
+    let (proto, pmf) = classify_security(true, Some((false, true, false, false, WifiPmfMode::Capable)), false);
+    assert_eq!(proto, WifiSecurityProtocol::Wpa2);
+    assert_eq!(pmf, WifiPmfMode::Capable);
+
+    // WPA3 SAE
+    let (proto, pmf) = classify_security(true, Some((false, false, true, false, WifiPmfMode::None)), false);
+    assert_eq!(proto, WifiSecurityProtocol::Wpa3);
+    assert_eq!(pmf, WifiPmfMode::Required); // Defaulted to required for SAE
+
+    // WPA2/WPA3 Transition
+    let (proto, pmf) = classify_security(true, Some((false, true, true, false, WifiPmfMode::None)), false);
+    assert_eq!(proto, WifiSecurityProtocol::Wpa2Wpa3);
+    assert_eq!(pmf, WifiPmfMode::Capable);
+
+    // Enterprise 802.1X
+    let (proto, pmf) = classify_security(true, Some((true, false, false, false, WifiPmfMode::None)), false);
+    assert_eq!(proto, WifiSecurityProtocol::Enterprise);
+    assert_eq!(pmf, WifiPmfMode::None);
+}
+
+#[test]
+fn test_security_tracker_deduplication() {
+    use beewave_protocol::{WifiPmfMode, WifiSecurityProtocol};
+
+    let mut tracker = SecurityTracker::new();
+    let mut info = SecurityInfo {
+        bssid: [1, 2, 3, 4, 5, 6],
+        protocol: WifiSecurityProtocol::Wpa2,
+        pmf: WifiPmfMode::None,
+    };
+
+    assert!(tracker.observe(&info)); // first time seen -> true
+    assert!(!tracker.observe(&info)); // unchanged -> false
+
+    // Posture changed (upgrade to PMF Capable)
+    info.pmf = WifiPmfMode::Capable;
+    assert!(tracker.observe(&info)); // changed -> true
+    assert!(!tracker.observe(&info)); // unchanged -> false
+}
+
+#[test]
+fn beacon_with_rsn_element_extracts_security_info() {
+    use beewave_protocol::{WifiPmfMode, WifiSecurityProtocol};
+
+    let mut frame = [0u8; 128];
+    frame[0] = 0x80; // Beacon
+    frame[16..22].copy_from_slice(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55]);
+
+    // Capability info: privacy bit set (0x0010)
+    frame[34] = 0x10;
+    frame[35] = 0x00;
+
+    // IE_SSID at 36: tag 0, len 4, "Wpa3"
+    frame[36] = 0;
+    frame[37] = 4;
+    frame[38..42].copy_from_slice(b"Wpa3");
+
+    // IE_RSN at 42: tag 48
+    let rsn_body = make_rsn_body(&[8], true, true);
+    frame[42] = 48;
+    frame[43] = rsn_body.len() as u8;
+    frame[44..44 + rsn_body.len()].copy_from_slice(&rsn_body);
+
+    let total_len = 44 + rsn_body.len();
+    let obs = parse_beacon(&frame[..total_len], -55, 6).expect("should parse");
+    assert_eq!(obs.ssid.as_str(), "Wpa3");
+    let sec = obs.security.expect("should have security info");
+    assert_eq!(sec.protocol, WifiSecurityProtocol::Wpa3);
+    assert_eq!(sec.pmf, WifiPmfMode::Required);
 }

@@ -10,6 +10,7 @@ fn beacon(id: u8, ssid: &str, channel: u8, rssi: i8) -> Observation {
         rssi,
         ssid: ssid.try_into().unwrap(),
         wps: None,
+        security: None,
     }
 }
 

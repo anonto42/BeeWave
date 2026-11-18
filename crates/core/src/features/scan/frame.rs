@@ -3,6 +3,7 @@
 //! Wi-Fi sniffer callback (no allocation, no blocking).
 use heapless::String;
 
+use super::security::{classify_security, parse_rsn_element, SecurityInfo, WPA1_OUI_TYPE};
 use super::types::Observation;
 use super::wps::parse_wps_element;
 
@@ -20,6 +21,7 @@ const SUBTYPE_PROBE_RESPONSE: u8 = 0x50;
 
 const IE_SSID: u8 = 0;
 const IE_DS_PARAMS: u8 = 3;
+const IE_RSN: u8 = 48;
 const IE_VENDOR_SPECIFIC: u8 = 221;
 
 /// `None` if the frame is not a well-formed beacon/probe response.
@@ -34,9 +36,14 @@ pub fn parse_beacon(frame: &[u8], rssi: i8, rx_channel: u8) -> Option<Observatio
     }
     let bssid: [u8; 6] = frame[BSSID_RANGE].try_into().ok()?;
 
+    let caps = u16::from_le_bytes([frame[34], frame[35]]);
+    let privacy = (caps & 0x0010) != 0;
+
     let mut ssid = String::new();
     let mut channel = rx_channel;
     let mut wps = None;
+    let mut rsn = None;
+    let mut has_wpa1 = false;
     let mut i = IE_START;
     while i + 2 <= frame.len() {
         let id = frame[i];
@@ -49,21 +56,36 @@ pub fn parse_beacon(frame: &[u8], rssi: i8, rx_channel: u8) -> Option<Observatio
         match id {
             IE_SSID => ssid = parse_ssid(body),
             IE_DS_PARAMS if len == 1 => channel = body[0],
-            IE_VENDOR_SPECIFIC if wps.is_none() => {
-                if let Some(info) = parse_wps_element(bssid, body) {
-                    wps = Some(info);
+            IE_RSN if rsn.is_none() => rsn = Some(parse_rsn_element(body)),
+            IE_VENDOR_SPECIFIC => {
+                if wps.is_none() {
+                    if let Some(info) = parse_wps_element(bssid, body) {
+                        wps = Some(info);
+                    }
+                }
+                if !has_wpa1 && body.len() >= 4 && &body[0..4] == &WPA1_OUI_TYPE {
+                    has_wpa1 = true;
                 }
             }
             _ => {}
         }
         i = end;
     }
+
+    let (protocol, pmf) = classify_security(privacy, rsn, has_wpa1);
+    let security = Some(SecurityInfo {
+        bssid,
+        protocol,
+        pmf,
+    });
+
     Some(Observation {
         bssid,
         channel,
         rssi,
         ssid,
         wps,
+        security,
     })
 }
 

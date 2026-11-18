@@ -9,7 +9,7 @@ use crate::features::ble_monitor::BleMonitor;
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
 use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
 use crate::features::probe::{ProbeObservation, ProbeTracker};
-use crate::features::scan::{Observation, WpsInfo, WpsTracker};
+use crate::features::scan::{Observation, SecurityInfo, SecurityTracker, WpsInfo, WpsTracker};
 
 /// Allowed `ble_spike_factor` values.
 pub const FACTOR_RANGE: core::ops::RangeInclusive<u8> = 2..=20;
@@ -47,6 +47,7 @@ pub struct Monitoring {
     probes: ProbeTracker,
     assoc: AssocTracker,
     wps: WpsTracker,
+    security: SecurityTracker,
     /// Off by default, like the BLE monitor; kept outside `MonitorConfig` since it has its own
     /// command pair (`SetHandshakeCapture` / `GetHandshakeCapture`) rather than `SetMonitor`.
     handshake_enabled: bool,
@@ -65,6 +66,7 @@ impl Monitoring {
             probes: ProbeTracker::new(),
             assoc: AssocTracker::new(),
             wps: WpsTracker::new(),
+            security: SecurityTracker::new(),
             handshake_enabled: false,
             tick: 0,
         };
@@ -227,6 +229,19 @@ impl Monitoring {
                 device_name: info.device_name.clone(),
                 manufacturer: info.manufacturer.clone(),
                 model_name: info.model_name.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// A parsed Wi-Fi security suite and PMF state from a beacon or probe response. Deduplicated with `SecurityTracker`.
+    pub fn on_security(&mut self, info: &SecurityInfo) -> Option<TelemetryMessage> {
+        if self.security.observe(info) {
+            Some(TelemetryMessage::SecurityResult {
+                bssid: info.bssid,
+                protocol: info.protocol,
+                pmf: info.pmf,
             })
         } else {
             None
