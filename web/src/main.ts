@@ -15,6 +15,7 @@ import * as targets from "./features/targets";
 import * as compat from "./features/compat";
 import * as alerts from "./features/alerts";
 import * as results from "./features/results";
+import * as clients from "./features/clients";
 import * as channelChart from "./features/channel-chart";
 import * as rssiHistory from "./features/rssi-history";
 import * as compare from "./features/compare";
@@ -42,7 +43,7 @@ const shell = createTabShell(root, "BEEWAVE", [
 const layout = {
   device: [compat, status],
   scan: [control, scanner, targets, handshake],
-  analyze: [results, channelChart, rssiHistory, compare],
+  analyze: [results, clients, channelChart, rssiHistory, compare],
   alerts: [anomalies, deauth, bleMonitor],
   settings: [settings, ota],
   log: [log],

@@ -106,6 +106,7 @@ export class MockWorld {
       this.anomalies(out);
       this.deauth(out);
       this.handshake(out);
+      this.probes(ch, out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -163,6 +164,14 @@ export class MockWorld {
     } else if (t === 3) {
       out.push({ type: "handshakeFrame", bssid, client, message: 2, replayCounter: this.handshakeTicks, truncated: false, eapol: eapol(2) });
       out.push({ type: "handshakeComplete", bssid, client }); // message 1 (ANonce) + message 2 (SNonce+MIC) is enough
+    }
+  }
+
+  private probes(ch: number, out: Telemetry[]): void {
+    if (this.scanTicks % 8 === 0) {
+      out.push({ type: "probeResult", client: "da:a1:19:22:33:44", channel: ch, rssi: -58, ssid: "HomeNetwork" });
+    } else if (this.scanTicks % 15 === 0) {
+      out.push({ type: "probeResult", client: "f0:18:98:55:66:77", channel: ch, rssi: -72, ssid: "CoffeeShop" });
     }
   }
 

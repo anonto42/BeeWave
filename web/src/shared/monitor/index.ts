@@ -9,6 +9,7 @@ export { currentRssiUnit, rssiHtml, rssiLevel, setRssiUnit, type RssiUnit } from
 export { setMonitorCommand } from "./config";
 export { createMonitorKernel, type MonitorKernel } from "./kernel";
 export { DEFAULT_CONFIG, MonitorState, type BleCounts, type DeauthSource, type MonitorConfig } from "./monitor-state";
+export { ProbeStore, type DiscoveredClient } from "./probe-store";
 export { ScanStore, type ScanInput } from "./scan-store";
 export { csvText, SessionRecorder, sessionToCsv, sessionToJson, type SessionData } from "./session";
 export type { AlertRecord, AlertSource, NetworkRecord, RssiPoint, ScanEvent, Severity, Snapshot, SnapshotNetwork } from "./types";
