@@ -204,6 +204,13 @@ where
         }
     }
 
+    /// Driving port: a parsed 802.11 Probe Request frame heard by the sniffer.
+    pub fn on_probe(&mut self, p: crate::features::probe::ProbeObservation) {
+        if let Some(m) = self.monitoring.on_probe(&p) {
+            self.emit(m);
+        }
+    }
+
     /// Driving port: deauthentication frame counts per BSSID gathered over `deauth_window_ms`, drained from
     /// the sniffer's counters. Publishes an alert for each BSSID whose rate reaches the threshold.
     pub fn on_deauth_window(&mut self, counts: &[([u8; 6], u16)]) {

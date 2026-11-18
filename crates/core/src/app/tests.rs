@@ -1266,3 +1266,31 @@ fn switching_the_listener_back_on_forgets_earlier_progress() {
         .iter()
         .any(|m| matches!(m, TelemetryMessage::HandshakeComplete { .. })));
 }
+
+#[test]
+fn routes_probe_observations_with_deduplication() {
+    let mut r = rig(None);
+    let probe = crate::features::probe::ProbeObservation {
+        client: [0x11, 0x22, 0x33, 0x44, 0x55, 0x66],
+        channel: 6,
+        rssi: -60,
+        ssid: heapless::String::try_from("GuestWiFi").unwrap(),
+    };
+    r.app.on_probe(probe.clone());
+    let got = results(&r.sink);
+    assert_eq!(got.len(), 1);
+    assert_eq!(
+        got[0],
+        TelemetryMessage::ProbeResult {
+            client: [0x11, 0x22, 0x33, 0x44, 0x55, 0x66],
+            channel: 6,
+            rssi: -60,
+            ssid: heapless::String::try_from("GuestWiFi").unwrap(),
+        }
+    );
+
+    // Duplicate probe is suppressed
+    r.sink.got.borrow_mut().clear();
+    r.app.on_probe(probe);
+    assert!(results(&r.sink).is_empty());
+}

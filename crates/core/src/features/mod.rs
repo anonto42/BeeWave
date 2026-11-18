@@ -13,6 +13,7 @@ pub mod deauth_detect;
 pub mod handshake;
 pub mod latency;
 pub mod ota;
+pub mod probe;
 pub mod radio;
 pub mod scan;
 pub mod settings;
