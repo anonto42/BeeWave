@@ -95,6 +95,16 @@ an active disruption of someone's connection (and is blocked outright on 802.11w
 unauthenticated deauth). BeeWave has no transmit path for management frames at all — see invariant 4 — and this
 feature was built specifically without one; see `openspec/changes/passive-handshake-capture/proposal.md`.
 
+### PMKID capture and Hashcat export
+When an AP supports PMK caching (IEEE 802.11i), it embeds a **PMKID** inside the Key Data field of EAPOL-Key Message 1
+(`KDE 00-0F-AC-04`). The core slice inspects Message 1 frames passively, parses the TLV list without memory allocation,
+and emits `PmkidFound` for any new (BSSID, PMKID) pair (deduplicated in a bounded table).
+
+When a PMKID is heard for a targeted network, the panel displays the client MAC and the 16-byte PMKID with a **.22000**
+download button. The exported file contains a single standard Hashcat mode 22000 hash line:
+`WPA*01*<pmkid>*<bssid>*<client>*<essid_hex>***` which can be supplied directly to `hashcat -m 22000` for offline password
+auditing without needing a complete 4-way handshake or external capture converters.
+
 ## Export session
 In Settings > Import/Export, one button saves the session in the chosen format (JSON, CSV or both), assembled on the phone from what the app has already seen: scan reports, alerts, log lines, key/link
 events and saved scans. The CSV is one flat file with a `kind` column. Cells that a spreadsheet could read as formulas (starting with
