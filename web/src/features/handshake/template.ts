@@ -1,5 +1,6 @@
 import { esc } from "../../shared/app";
-import type { HandshakePair, PmkidRecord } from "../../shared/monitor";
+import { rssiHtml, type ConnectedStation, type HandshakePair, type PmkidRecord } from "../../shared/monitor";
+import { vendorOf } from "../../shared/oui";
 import type { Target } from "../../shared/targets";
 
 export const handshakeHtml = `<div class="pad dim small">Per target: capture the WPA/WPA2 four-way handshake of a network you have tapped as a target, only while it happens on its own (a client joining or re-authenticating by itself). Nothing is ever sent, including deauthentication frames — without an active client nearby, there is nothing to capture.</div>
@@ -38,20 +39,36 @@ const pmkidRowsHtml = (bssid: string, pmkids: readonly PmkidRecord[]) => {
     .join("");
 };
 
+/** Renders actively associated client stations heard from 802.11 Data frame headers. */
+const assocRowsHtml = (bssid: string, stations: readonly ConnectedStation[]) => {
+  if (stations.length === 0) return "";
+  return stations
+    .map(
+      (s) =>
+        `<li class="hs-client hs-assoc" data-bssid="${bssid}" data-client="${s.client}">
+          <span class="net-main"><small>connected station · ${esc(vendorOf(s.client))}</small><code>${esc(s.client)}</code></span>
+          <span class="dbm">${rssiHtml(s.rssi)}</span>
+          <span class="dim small">${s.frameCount} pkts</span>
+        </li>`
+    )
+    .join("");
+};
+
 export const targetRowHtml = (
   t: Target,
   wanted: boolean,
   ready: boolean,
   pairs: readonly HandshakePair[],
   pmkids: readonly PmkidRecord[],
+  stations: readonly ConnectedStation[] = [],
 ) => {
   const disambiguate = pairs.length > 1;
   const rows = pairs.length ? pairs.map((p) => clientRowHtml(t.bssid, p, disambiguate)).join("") : clientRowHtml(t.bssid, undefined, false);
   return `<li class="hs-target" data-target="${t.bssid}">
-    <div class="net-main"><b>${esc(t.ssid || "(hidden)")}</b><small>${t.bssid}</small></div>
+    <div class="net-main"><b>${esc(t.ssid || "(hidden)")}</b><small>${t.bssid}${stations.length ? ` · ${stations.length} station${stations.length === 1 ? "" : "s"}` : ""}</small></div>
     <div class="toolbar hs-toolbar">
       <button type="button" class="small${wanted ? " on" : ""}" data-want ${ready ? "" : "disabled"} aria-pressed="${wanted}">${wanted ? "CAPTURING" : "CAPTURE HANDSHAKE"}</button>
     </div>
-    <ul class="nets hs-clients">${rows}${pmkidRowsHtml(t.bssid, pmkids)}</ul>
+    <ul class="nets hs-clients">${rows}${pmkidRowsHtml(t.bssid, pmkids)}${assocRowsHtml(t.bssid, stations)}</ul>
   </li>`;
 };

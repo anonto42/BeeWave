@@ -40,7 +40,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
     $(el, "[data-state]").textContent = `device: ${handshake.enabled ? "listening" : "off"}`;
     const items = targets.list();
     list.innerHTML = items.length
-      ? items.map((t) => targetRowHtml(t, wanted.has(t.bssid), ready, pairsFor(t.bssid), handshake.pmkidsFor(t.bssid))).join("")
+      ? items.map((t) => targetRowHtml(t, wanted.has(t.bssid), ready, pairsFor(t.bssid), handshake.pmkidsFor(t.bssid), ctx.monitor.assoc.stationsFor(t.bssid))).join("")
       : emptyTargetsHtml;
   };
   const later = coalesce(render);
@@ -89,5 +89,6 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   ctx.auth.onChange(render);
   targets.onChange(render);
   handshake.onChange(later);
+  ctx.monitor.assoc.onChange(later);
   render();
 }

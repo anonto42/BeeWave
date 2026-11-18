@@ -13,6 +13,7 @@ export const clientsHtml = `<div class="toolbar">
     <th>VENDOR</th>
     <th>RSSI</th>
     <th>CH</th>
+    <th>ASSOCIATION</th>
     <th>PROBED NETWORKS (PNL)</th>
     <th>PROBES</th>
     <th>LAST SEEN</th>
@@ -20,18 +21,22 @@ export const clientsHtml = `<div class="toolbar">
   <tbody data-body></tbody>
 </table></div>`;
 
-export const emptyRow = `<tr><td colspan="7" class="dim">No client probe requests detected yet.</td></tr>`;
+export const emptyRow = `<tr><td colspan="8" class="dim">No client stations detected yet.</td></tr>`;
 
-export const clientRowHtml = (c: DiscoveredClient) => {
+export const clientRowHtml = (c: DiscoveredClient, associatedBssid?: string) => {
   const vendor = vendorOf(c.client);
   const pnl = c.probedSsids.length
     ? c.probedSsids.map((s) => `<code class="small">${esc(s)}</code>`).join(", ")
     : `<span class="dim small">(wildcard / broadcast)</span>`;
+  const assoc = associatedBssid
+    ? `<span class="small">AP <code>${esc(associatedBssid)}</code></span>`
+    : `<span class="dim small">Unassociated</span>`;
   return `<tr>
     <td><code>${esc(c.client)}</code></td>
     <td><span class="dim small">${esc(vendor)}</span></td>
     <td>${rssiHtml(c.rssi)}</td>
     <td>${c.channel}</td>
+    <td>${assoc}</td>
     <td>${pnl}</td>
     <td>${c.probeCount}</td>
     <td>${clock(c.lastSeen)}</td>

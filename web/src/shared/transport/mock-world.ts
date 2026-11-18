@@ -107,6 +107,7 @@ export class MockWorld {
       this.deauth(out);
       this.handshake(out);
       this.probes(ch, out);
+      this.associations(ch, out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -172,6 +173,12 @@ export class MockWorld {
       out.push({ type: "probeResult", client: "da:a1:19:22:33:44", channel: ch, rssi: -58, ssid: "HomeNetwork" });
     } else if (this.scanTicks % 15 === 0) {
       out.push({ type: "probeResult", client: "f0:18:98:55:66:77", channel: ch, rssi: -72, ssid: "CoffeeShop" });
+    }
+  }
+
+  private associations(ch: number, out: Telemetry[]): void {
+    if (this.scanTicks % 6 === 0) {
+      out.push({ type: "assocResult", bssid: APS[3].bssid, client: "da:a1:19:22:33:44", channel: ch, rssi: -54 });
     }
   }
 

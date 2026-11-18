@@ -1,5 +1,6 @@
 export { AlertStore, type NewAlert } from "./alert-store";
 export { alertFromTelemetry, BLE_FLOOD_FACTOR, DEAUTH_FLOOD } from "./alerts";
+export { AssocStore, type ConnectedStation } from "./assoc-store";
 export { CHANNELS, channelActivity, channelOccupancy, deltaView, diffSnapshots, lastDelta, sparklinePoints } from "./analysis";
 export type { DeltaRow, SnapshotDiff } from "./analysis";
 export { RSSI_DELTA_DB } from "./constants";
