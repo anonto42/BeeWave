@@ -50,3 +50,10 @@ The protocol SHALL define `OtaEndSigned` carrying the 64-byte Ed25519 signature 
 #### Scenario: Golden vector
 - **WHEN** vectors are regenerated
 - **THEN** the TypeScript encoder produces the same bytes for `OtaEndSigned`
+
+### Requirement: Passive PMKID telemetry message
+The protocol SHALL define `PmkidFound { bssid: [u8; 6], client: [u8; 6], pmkid: [u8; 16] }` appended to `TelemetryMessage` with the wire protocol version unchanged.
+
+#### Scenario: Golden vectors
+- **WHEN** Rust encodes a `PmkidFound` telemetry message
+- **THEN** the TypeScript codec decodes and re-encodes identical bytes, checked by golden vectors
