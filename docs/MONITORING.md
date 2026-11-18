@@ -51,6 +51,18 @@ In the PWA:
 - Under **Scan > Targets**: Each targeted Access Point lists its actively communicating stations with hardware vendor name, signal strength, and packet count.
 - Under **Analyze > Client stations**: Probed stations indicate their active AP association (or "Unassociated").
 
+## WPS device fingerprinting and lock detection (device slice `scan`)
+Wi-Fi Protected Setup (WPS) information elements (Tag 221 / `0xDD` with vendor OUI `00:50:f2:04`) in 802.11 Beacon management frames broadcast key device hardware and security configuration attributes:
+- **WPS Version & State**: Identifies WPS 1.0 vs WPS 2.0 (`0x20`) and whether WPS is configured.
+- **Lockout Detection (`AP Setup Locked`)**: Indicates when an AP has locked out WPS PIN authentication (e.g., following failed brute-force attempts).
+- **Push Button Configuration (`Selected Registrar`)**: Indicates whether WPS push-button pairing is currently open/active.
+- **Hardware Metadata**: Extracts manufacturer name, device model name, and device model number directly from the beacon TLV fields without connecting or sending any frames.
+
+The device core parses vendor elements zero-allocation in `#![no_std]`, tracks known WPS states in a 32-entry bounded table (`WpsTracker`), and only re-reports when attributes change, preserving BLE bandwidth.
+
+In the PWA:
+- Under **Scan > Scanner**: Each network displaying WPS features badges such as `WPS` / `WPS 2.0`, `· LOCKED`, and `· PBC`, and displays the detected device name or model.
+
 ## Channels
 Two bars per channel 1-13: access points, and **reports in the last 60 s**. The second series is a proxy for how busy a channel is,
 not airtime utilisation: the device only sees beacons and only re-reports a network when it changes.
