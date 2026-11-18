@@ -1294,3 +1294,31 @@ fn routes_probe_observations_with_deduplication() {
     r.app.on_probe(probe);
     assert!(results(&r.sink).is_empty());
 }
+
+#[test]
+fn routes_assoc_observations_with_deduplication() {
+    let mut r = rig(None);
+    let assoc = crate::features::assoc::AssocObservation {
+        bssid: [0x00, 0x11, 0x22, 0x33, 0x44, 0x55],
+        client: [0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE],
+        channel: 6,
+        rssi: -55,
+    };
+    r.app.on_assoc(assoc);
+    let got = results(&r.sink);
+    assert_eq!(got.len(), 1);
+    assert_eq!(
+        got[0],
+        TelemetryMessage::AssocResult {
+            bssid: [0x00, 0x11, 0x22, 0x33, 0x44, 0x55],
+            client: [0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE],
+            channel: 6,
+            rssi: -55,
+        }
+    );
+
+    // Duplicate association is suppressed
+    r.sink.got.borrow_mut().clear();
+    r.app.on_assoc(assoc);
+    assert!(results(&r.sink).is_empty());
+}

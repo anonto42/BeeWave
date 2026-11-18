@@ -7,6 +7,7 @@
 //! - `<logic>.rs`: the behaviour
 //! - `tests.rs`: unit tests with fake ports
 pub mod anomaly;
+pub mod assoc;
 pub mod auth;
 pub mod ble_monitor;
 pub mod deauth_detect;
