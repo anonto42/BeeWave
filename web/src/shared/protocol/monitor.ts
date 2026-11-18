@@ -31,3 +31,20 @@ export const REJECT_REASONS = [
   "storage",
 ] as const;
 export type RejectReasonName = (typeof REJECT_REASONS)[number];
+
+/** `WifiSecurityProtocol` variants, in wire order. */
+export const WIFI_SECURITY_PROTOCOLS = [
+  "open",
+  "wep",
+  "wpa",
+  "wpa2",
+  "wpa3",
+  "wpa2Wpa3",
+  "owe",
+  "enterprise",
+] as const;
+export type WifiSecurityProtocol = (typeof WIFI_SECURITY_PROTOCOLS)[number];
+
+/** `WifiPmfMode` variants, in wire order. */
+export const WIFI_PMF_MODES = ["none", "capable", "required"] as const;
+export type WifiPmfMode = (typeof WIFI_PMF_MODES)[number];

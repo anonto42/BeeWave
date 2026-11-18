@@ -31,6 +31,31 @@ describe("telemetry decode (golden vectors from Rust)", () => {
     expect(m(10)).toEqual({ type: "bleSpike", class: "proximity", count: 500, baseline: 40 });
     expect(m(11)).toEqual({ type: "anomaly", kind: "rssiOutlier", bssid: "09:08:07:06:05:04", detail: 27 });
     expect(m(12)).toEqual({ type: "monitorConfig", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 });
+    expect(m(24)).toEqual({
+      type: "pmkidFound",
+      bssid: "09:09:09:09:09:09",
+      client: "08:08:08:08:08:08",
+      pmkid: "42".repeat(16),
+    });
+    expect(m(25)).toEqual({ type: "probeResult", client: "07:07:07:07:07:07", channel: 6, rssi: -65, ssid: "OfficeGuest" });
+    expect(m(26)).toEqual({ type: "assocResult", bssid: "09:09:09:09:09:09", client: "07:07:07:07:07:07", channel: 6, rssi: -58 });
+    expect(m(27)).toEqual({
+      type: "wpsResult",
+      bssid: "09:09:09:09:09:09",
+      version: 0x20,
+      state: 2,
+      locked: true,
+      selectedRegistrar: false,
+      deviceName: "Archer AX50",
+      manufacturer: "TP-Link",
+      modelName: "Archer AX50",
+    });
+    expect(m(28)).toEqual({
+      type: "securityResult",
+      bssid: "09:09:09:09:09:09",
+      protocol: "wpa2",
+      pmf: "capable",
+    });
   });
   it("settings management messages", () => {
     const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;

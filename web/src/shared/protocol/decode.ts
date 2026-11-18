@@ -1,5 +1,5 @@
 import { HEADER_LEN, PROTO_VERSION } from "./constants";
-import { AD_CLASSES, ANOMALY_KINDS, HOP_ORDERS, LOG_LEVELS, REJECT_REASONS } from "./monitor";
+import { AD_CLASSES, ANOMALY_KINDS, HOP_ORDERS, LOG_LEVELS, REJECT_REASONS, WIFI_SECURITY_PROTOCOLS, WIFI_PMF_MODES } from "./monitor";
 import { HOP_LIST_LEN, type DeviceSettings } from "./settings-types";
 import { Reader } from "./reader";
 import type { Telemetry, TelemetryPacket } from "./types";
@@ -157,6 +157,14 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         deviceName: r.str(),
         manufacturer: r.str(),
         modelName: r.str(),
+      };
+      break;
+    case 26:
+      msg = {
+        type: "securityResult",
+        bssid: hex(r.bytes(6)),
+        protocol: enumName(WIFI_SECURITY_PROTOCOLS, r.varint()),
+        pmf: enumName(WIFI_PMF_MODES, r.varint()),
       };
       break;
     default:

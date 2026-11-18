@@ -1,4 +1,4 @@
-import type { AdClassName, AnomalyKindName, RejectReasonName } from "./monitor";
+import type { AdClassName, AnomalyKindName, RejectReasonName, WifiPmfMode, WifiSecurityProtocol } from "./monitor";
 import type { DeviceSettings } from "./settings-types";
 
 /** Device -> app messages. Mirrors `TelemetryMessage` in crates/protocol/src/types.rs. */
@@ -86,6 +86,12 @@ export type Telemetry =
       deviceName: string;
       manufacturer: string;
       modelName: string;
+    }
+  | {
+      type: "securityResult";
+      bssid: string;
+      protocol: WifiSecurityProtocol;
+      pmf: WifiPmfMode;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

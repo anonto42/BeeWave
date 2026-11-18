@@ -403,4 +403,32 @@ pub enum TelemetryMessage {
         manufacturer: String<32>,
         model_name: String<32>,
     },
+    /// Wi-Fi security suite and PMF capabilities of an Access Point (passively heard).
+    SecurityResult {
+        bssid: [u8; 6],
+        protocol: WifiSecurityProtocol,
+        pmf: WifiPmfMode,
+    },
 }
+
+/// Wi-Fi security / authentication protocol of an Access Point.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiSecurityProtocol {
+    Open,
+    Wep,
+    Wpa,
+    Wpa2,
+    Wpa3,
+    Wpa2Wpa3,
+    Owe,
+    Enterprise,
+}
+
+/// Protected Management Frames (IEEE 802.11w) configuration.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiPmfMode {
+    None,
+    Capable,
+    Required,
+}
+

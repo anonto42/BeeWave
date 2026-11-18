@@ -184,6 +184,11 @@ fn roundtrip_and_emit_golden_vectors() {
             manufacturer: s("TP-Link"),
             model_name: s("Archer AX50"),
         },
+        TelemetryMessage::SecurityResult {
+            bssid: [9; 6],
+            protocol: WifiSecurityProtocol::Wpa2,
+            pmf: WifiPmfMode::Capable,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },
