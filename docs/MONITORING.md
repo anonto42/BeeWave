@@ -129,6 +129,7 @@ A chronological feed, newest first, coloured by severity (blue info, yellow warn
 
 | Kind | Rule | Severity |
 |---|---|---|
+| KARMA / Rogue AP SSID change detected | an Access Point BSSID previously heard advertising a valid SSID begins broadcasting a different SSID (WiFi Pineapple / MANA honeypot) | alert |
 | Evil Twin security downgrade detected | an SSID previously observed with secure encryption (WPA, WPA2, WPA3, OWE, Enterprise) appears open or downgraded to WEP | alert |
 | New access point for a known network | a known SSID appears on a BSSID not seen with it before (not during the first 30 s) | warn |
 | Same BSSID on two channels | heard on two channels within a minute; can be adjacent-channel leakage, so treat it as a hint | info |
