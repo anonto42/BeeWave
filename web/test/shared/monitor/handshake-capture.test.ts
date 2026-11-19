@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertFromTelemetry, createMonitorKernel, HandshakeState, pairToHex, pmkidToHashcat22000 } from "../../../src/shared/monitor";
+import { alertFromTelemetry, createMonitorKernel, HandshakeState, handshakeToHashcat22000, pairToHex, pmkidToHashcat22000, type HandshakePair } from "../../../src/shared/monitor";
 import { MockWorld } from "../../../src/shared/transport/mock-world";
 
 const BSSID = "50:c7:bf:aa:bb:01";
@@ -123,5 +123,144 @@ describe("PMKID extraction and Hashcat export", () => {
     // Format: WPA*01*<pmkid>*<bssid_no_sep>*<client_no_sep>*<essid_hex>***
     // "MyNetwork" in hex: 4d794e6574776f726b
     expect(line).toBe("WPA*01*00112233445566778899aabbccddeeff*50c7bfaabb01*6c5a72000102*4d794e6574776f726b***");
+  });
+});
+
+describe("handshakeToHashcat22000", () => {
+  const createFrame = (len: number, fillByte: number) => {
+    const b = new Uint8Array(len);
+    b.fill(fillByte);
+    return b;
+  };
+
+  it("formats a 4-way handshake M1+M2 as Hashcat mode 22000 WPA*02 line with zeroed MIC", () => {
+    const m1Bytes = createFrame(60, 0x11);
+    // Fill ANonce (32 bytes at offset 17..49)
+    m1Bytes.fill(0xaa, 17, 49);
+
+    const m2Bytes = createFrame(100, 0x22);
+    // Fill MIC (16 bytes at offset 81..97)
+    m2Bytes.fill(0xbb, 81, 97);
+
+    const pair: HandshakePair = {
+      bssid: "50:c7:bf:aa:bb:01",
+      client: "6c:5a:72:00:01:02",
+      complete: true,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: m1Bytes, at: 1000 }],
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: m2Bytes, at: 1000 }],
+      ]),
+    };
+
+    const line = handshakeToHashcat22000(pair, "MyNetwork");
+    expect(line).not.toBeNull();
+    const parts = line!.split("*");
+
+    expect(parts[0]).toBe("WPA");
+    expect(parts[1]).toBe("02");
+    // MIC: 16 bytes of 0xbb = 32 hex chars of "bb"
+    expect(parts[2]).toBe("bb".repeat(16));
+    // AP MAC
+    expect(parts[3]).toBe("50c7bfaabb01");
+    // STA MAC
+    expect(parts[4]).toBe("6c5a72000102");
+    // ESSID hex
+    expect(parts[5]).toBe("4d794e6574776f726b");
+    // ANonce: 32 bytes of 0xaa = 64 hex chars of "aa"
+    expect(parts[6]).toBe("aa".repeat(32));
+    // EAPOL: 100 bytes = 200 hex chars. Bytes 81..97 must be zeroed ("00")!
+    const eapolHex = parts[7];
+    expect(eapolHex.length).toBe(200);
+    expect(eapolHex.slice(81 * 2, 97 * 2)).toBe("00".repeat(16));
+    // Non-MIC bytes should remain 0x22
+    expect(eapolHex.slice(0, 10)).toBe("22".repeat(5));
+    // Message pair flag for M1+M2
+    expect(parts[8]).toBe("00");
+  });
+
+  it("supports M3+M2 fallback and sets message_pair to 02", () => {
+    const m3Bytes = createFrame(60, 0x33);
+    m3Bytes.fill(0xcc, 17, 49); // ANonce in M3
+
+    const m2Bytes = createFrame(100, 0x44);
+    m2Bytes.fill(0xdd, 81, 97); // MIC in M2
+
+    const pair: HandshakePair = {
+      bssid: "11:22:33:44:55:66",
+      client: "aa:bb:cc:dd:ee:ff",
+      complete: true,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [3, { message: 3, replayCounter: 1, truncated: false, eapol: m3Bytes, at: 1000 }],
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: m2Bytes, at: 1000 }],
+      ]),
+    };
+
+    const line = handshakeToHashcat22000(pair, "TestWifi");
+    expect(line).not.toBeNull();
+    const parts = line!.split("*");
+    expect(parts[1]).toBe("02");
+    expect(parts[2]).toBe("dd".repeat(16));
+    expect(parts[6]).toBe("cc".repeat(32));
+    expect(parts[8]).toBe("02"); // M3+M2 message_pair is 02
+  });
+
+  it("returns null if Message 2 is missing or Message 1/3 is missing", () => {
+    const m1Bytes = createFrame(60, 0x11);
+    const pairNoM2: HandshakePair = {
+      bssid: BSSID,
+      client: CLIENT,
+      complete: false,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: m1Bytes, at: 1000 }],
+      ]),
+    };
+    expect(handshakeToHashcat22000(pairNoM2, "Wifi")).toBeNull();
+
+    const m2Bytes = createFrame(100, 0x22);
+    const pairNoM1: HandshakePair = {
+      bssid: BSSID,
+      client: CLIENT,
+      complete: false,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: m2Bytes, at: 1000 }],
+      ]),
+    };
+    expect(handshakeToHashcat22000(pairNoM1, "Wifi")).toBeNull();
+  });
+
+  it("returns null if frames are too short to extract Nonce or MIC", () => {
+    const pairShortM1: HandshakePair = {
+      bssid: BSSID,
+      client: CLIENT,
+      complete: true,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: createFrame(30, 0x11), at: 1000 }], // < 49 bytes
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: createFrame(100, 0x22), at: 1000 }],
+      ]),
+    };
+    expect(handshakeToHashcat22000(pairShortM1, "Wifi")).toBeNull();
+
+    const pairShortM2: HandshakePair = {
+      bssid: BSSID,
+      client: CLIENT,
+      complete: true,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: createFrame(60, 0x11), at: 1000 }],
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: createFrame(80, 0x22), at: 1000 }], // < 97 bytes
+      ]),
+    };
+    expect(handshakeToHashcat22000(pairShortM2, "Wifi")).toBeNull();
   });
 });

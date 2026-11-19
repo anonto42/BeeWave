@@ -129,3 +129,48 @@ export function pmkidToHashcat22000(r: PmkidRecord, essid: string): string {
     .join("");
   return `WPA*01*${r.pmkid}*${stripColons(r.bssid)}*${stripColons(r.client)}*${essidHex}***`;
 }
+
+/**
+ * Format a 4-way handshake as a Hashcat mode 22000 (`WPA*02*`) line.
+ *
+ * Format: `WPA*02*<MIC>*<MAC_AP>*<MAC_CLIENT>*<ESSID_HEX>*<ANONCE>*<EAPOL_ZEROED_MIC>*<MESSAGE_PAIR>`
+ * See https://hashcat.net/wiki/doku.php?id=cracking_wpawpa2 (mode 22000).
+ *
+ * @param p      - Handshake pair containing messages (must include M1 or M3 for ANonce, and M2 for MIC & client EAPOL)
+ * @param essid  - SSID of the network (UTF-8 string), encoded to lowercase hex in the output
+ * @returns Hashcat 22000 line, or null if required messages or fields are missing/short
+ */
+export function handshakeToHashcat22000(p: HandshakePair, essid: string): string | null {
+  // ANonce comes from Message 1 (or Message 3 if M1 wasn't captured).
+  const m1 = p.messages.get(1) ?? p.messages.get(3);
+  const m2 = p.messages.get(2);
+  if (!m1 || !m2) return null;
+
+  // In EAPOL-Key (IEEE 802.11i):
+  // Offset 17..49 (32 bytes) = Key Nonce (ANonce in M1/M3).
+  // Offset 81..97 (16 bytes) = Key MIC in M2.
+  // M2 must be at least 97 bytes to contain the MIC.
+  if (m1.eapol.length < 49 || m2.eapol.length < 97) return null;
+
+  const hexNoSep = (b: Uint8Array) =>
+    [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+  const stripColons = (mac: string) => mac.replace(/[^0-9a-f]/gi, "").toLowerCase();
+
+  const anonce = hexNoSep(m1.eapol.slice(17, 49));
+  const mic = hexNoSep(m2.eapol.slice(81, 97));
+
+  // Clone M2's EAPOL and nullify the 16 bytes of MIC (offset 81..97)
+  const eapolZeroed = new Uint8Array(m2.eapol);
+  eapolZeroed.fill(0, 81, 97);
+  const eapolHex = hexNoSep(eapolZeroed);
+
+  const apMac = stripColons(p.bssid);
+  const staMac = stripColons(p.client);
+  const essidHex = hexNoSep(new TextEncoder().encode(essid));
+
+  // Message pair indicator: "00" for M1+M2, "02" for M3+M2
+  const messagePair = p.messages.has(1) ? "00" : "02";
+
+  return `WPA*02*${mic}*${apMac}*${staMac}*${essidHex}*${anonce}*${eapolHex}*${messagePair}`;
+}

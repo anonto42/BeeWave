@@ -4,7 +4,7 @@ export { AssocStore, type ConnectedStation } from "./assoc-store";
 export { CHANNELS, channelActivity, channelOccupancy, deltaView, diffSnapshots, lastDelta, sparklinePoints } from "./analysis";
 export type { DeltaRow, SnapshotDiff } from "./analysis";
 export { RSSI_DELTA_DB } from "./constants";
-export { HandshakeState, pairToHex, pmkidToHashcat22000, type HandshakeMessage, type HandshakePair, type PmkidRecord } from "./handshake-store";
+export { HandshakeState, handshakeToHashcat22000, pairToHex, pmkidToHashcat22000, type HandshakeMessage, type HandshakePair, type PmkidRecord } from "./handshake-store";
 export { buildPcap, captureFilename } from "./pcap";
 export { currentRssiUnit, rssiHtml, rssiLevel, setRssiUnit, type RssiUnit } from "./rssi";
 export { setMonitorCommand } from "./config";

@@ -1,6 +1,45 @@
 import { $, coalesce, download, panel, type AppContext } from "../../shared/app";
-import { buildPcap, captureFilename, pmkidToHashcat22000, type HandshakePair } from "../../shared/monitor";
+import { buildPcap, captureFilename, handshakeToHashcat22000, pmkidToHashcat22000, type HandshakePair } from "../../shared/monitor";
 import { emptyTargetsHtml, handshakeHtml, targetRowHtml } from "./template";
+
+function copyToClipboard(text: string, btn: HTMLButtonElement): void {
+  const orig = btn.textContent;
+  const showFeedback = () => {
+    btn.textContent = "COPIED!";
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.disabled = false;
+    }, 1500);
+  };
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(showFeedback).catch(() => {
+      fallbackCopy(text);
+      showFeedback();
+    });
+  } else {
+    fallbackCopy(text);
+    showFeedback();
+  }
+}
+
+function fallbackCopy(text: string): void {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand("copy");
+  } catch {
+    // Ignore copy error in unsupported environment
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
 
 
 /**
@@ -66,6 +105,35 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
       download(captureFilename(pair, target.ssid, ext, disambiguate), "application/vnd.tcpdump.pcap", buildPcap(pair));
       return;
     }
+    // Hashcat 22000 4-way handshake file export (.22000).
+    const exp22000 = (e.target as HTMLElement).closest<HTMLElement>("[data-export-22000]");
+    if (exp22000) {
+      const { bssid, client } = exp22000.dataset as { bssid: string; client: string };
+      const pair = handshake.list().find((p) => p.bssid === bssid && p.client === client);
+      const target = targets.list().find((t) => t.bssid === bssid);
+      if (!pair || !target) return;
+      const essid = target.ssid ?? "";
+      const line = handshakeToHashcat22000(pair, essid);
+      if (!line) return;
+      const bytes = new TextEncoder().encode(line + "\n");
+      const safeBssid = bssid.replace(/:/g, "");
+      download(`${essid || safeBssid}_${safeBssid}.22000`, "text/plain", bytes);
+      return;
+    }
+    // Hashcat 22000 4-way handshake clipboard copy.
+    const copy22000 = (e.target as HTMLElement).closest<HTMLElement>("[data-copy-22000]");
+    if (copy22000) {
+      const btn = copy22000 as HTMLButtonElement;
+      const { bssid, client } = copy22000.dataset as { bssid: string; client: string };
+      const pair = handshake.list().find((p) => p.bssid === bssid && p.client === client);
+      const target = targets.list().find((t) => t.bssid === bssid);
+      if (!pair || !target) return;
+      const essid = target.ssid ?? "";
+      const line = handshakeToHashcat22000(pair, essid);
+      if (!line) return;
+      copyToClipboard(line, btn);
+      return;
+    }
     // Hashcat 22000 PMKID export.
     const pmkidBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-export-pmkid]");
     if (pmkidBtn) {
@@ -78,6 +146,20 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
       const bytes = new TextEncoder().encode(line + "\n");
       const safeBssid = bssid.replace(/:/g, "");
       download(`${essid || safeBssid}_${safeBssid}.22000`, "text/plain", bytes);
+      return;
+    }
+    // Hashcat 22000 PMKID clipboard copy.
+    const copyPmkid = (e.target as HTMLElement).closest<HTMLElement>("[data-copy-pmkid]");
+    if (copyPmkid) {
+      const btn = copyPmkid as HTMLButtonElement;
+      const { bssid, client, pmkid } = copyPmkid.dataset as { bssid: string; client: string; pmkid: string };
+      const target = targets.list().find((t) => t.bssid === bssid);
+      const essid = target?.ssid ?? "";
+      const record = handshake.pmkidsFor(bssid).find((r) => r.client === client && r.pmkid === pmkid);
+      if (!record) return;
+      const line = pmkidToHashcat22000(record, essid);
+      copyToClipboard(line, btn);
+      return;
     }
   };
 

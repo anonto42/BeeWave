@@ -17,11 +17,14 @@ const clientRowHtml = (bssid: string, p: HandshakePair | undefined, disambiguate
   const anyTruncated = [...p.messages.values()].some((m) => m.truncated);
   const exportBtn = (ext: "cap" | "pcap") =>
     `<button type="button" class="small" data-export data-bssid="${bssid}" data-client="${p.client}" data-ext="${ext}" ${p.complete ? "" : "disabled"}>.${ext.toUpperCase()}</button>`;
+  const can22000 = (p.messages.has(1) || p.messages.has(3)) && p.messages.has(2);
+  const btn22000 = `<button type="button" class="small" data-export-22000 data-bssid="${bssid}" data-client="${p.client}" ${can22000 ? "" : "disabled"}>.22000</button>`;
+  const copyBtn = `<button type="button" class="small" data-copy-22000 data-bssid="${bssid}" data-client="${p.client}" ${can22000 ? "" : "disabled"}>COPY</button>`;
   return `<li class="hs-client" data-bssid="${bssid}" data-client="${p.client}">
     <span class="net-main"><small>${disambiguate ? `client ${esc(p.client)}` : "handshake"}${anyTruncated ? " · truncated" : ""}</small></span>
     <span class="hs-msgs" title="messages seen: 1 2 3 4">${msgs}</span>
     <span class="dbm">${p.complete ? "complete" : "partial"}</span>
-    ${exportBtn("cap")}${exportBtn("pcap")}
+    ${exportBtn("cap")}${exportBtn("pcap")}${btn22000}${copyBtn}
   </li>`;
 };
 
@@ -34,6 +37,7 @@ const pmkidRowsHtml = (bssid: string, pmkids: readonly PmkidRecord[]) => {
         `<li class="hs-client hs-pmkid" data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">
           <span class="net-main"><small>PMKID · client ${esc(r.client)}</small><code class="dim small">${r.pmkid}</code></span>
           <button type="button" class="small" data-export-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">.22000</button>
+          <button type="button" class="small" data-copy-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">COPY</button>
         </li>`
     )
     .join("");
