@@ -47,8 +47,10 @@ export const rowHtml = (
     ? `<span class="badge small" title="${esc(wps.manufacturer)} ${esc(wps.modelName)}">${wps.version === 0x20 ? "WPS 2.0" : "WPS"}${wps.locked ? " · LOCKED" : ""}${wps.selectedRegistrar ? " · PBC" : ""}</span>`
     : "";
   const devSubtitle = wps?.deviceName || wps?.modelName ? ` · ${esc(wps.deviceName || wps.modelName)}` : "";
+  const badges = [decloakedBadge, secBadge, wpsBadge].filter(Boolean).join("");
+  const badgesHtml = badges ? `<div class="net-badges">${badges}</div>` : "";
   return `<li class="net${isTarget ? " target" : ""}" data-bssid="${n.bssid}" data-ssid="${esc(n.ssid)}">` +
     `<span class="mark${isTarget ? " on" : ""}" aria-hidden="true"></span>` +
-    `<span class="net-main"><b>${esc(n.ssid || "(hidden)")}</b><small>${n.bssid} · CH ${n.channel}${devSubtitle}</small></span>` +
-    `${decloakedBadge}${secBadge}${wpsBadge}${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;
+    `<span class="net-main"><b>${esc(n.ssid || "(hidden)")}</b><small>${n.bssid} · CH ${n.channel}${devSubtitle}</small>${badgesHtml}</span>` +
+    `<span class="net-side">${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></span></li>`;
 };

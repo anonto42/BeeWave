@@ -21,10 +21,14 @@ const clientRowHtml = (bssid: string, p: HandshakePair | undefined, disambiguate
   const btn22000 = `<button type="button" class="small" data-export-22000 data-bssid="${bssid}" data-client="${p.client}" ${can22000 ? "" : "disabled"}>.22000</button>`;
   const copyBtn = `<button type="button" class="small" data-copy-22000 data-bssid="${bssid}" data-client="${p.client}" ${can22000 ? "" : "disabled"}>COPY</button>`;
   return `<li class="hs-client" data-bssid="${bssid}" data-client="${p.client}">
-    <span class="net-main"><small>${disambiguate ? `client ${esc(p.client)}` : "handshake"}${anyTruncated ? " · truncated" : ""}</small></span>
-    <span class="hs-msgs" title="messages seen: 1 2 3 4">${msgs}</span>
-    <span class="dbm">${p.complete ? "complete" : "partial"}</span>
-    ${exportBtn("cap")}${exportBtn("pcap")}${btn22000}${copyBtn}
+    <div class="hs-client-info">
+      <span class="net-main"><small>${disambiguate ? `client ${esc(p.client)}` : "handshake"}${anyTruncated ? " · truncated" : ""}</small></span>
+      <span class="hs-msgs" title="messages seen: 1 2 3 4">${msgs}</span>
+      <span class="dbm">${p.complete ? "complete" : "partial"}</span>
+    </div>
+    <div class="hs-actions">
+      ${exportBtn("cap")}${exportBtn("pcap")}${btn22000}${copyBtn}
+    </div>
   </li>`;
 };
 
@@ -35,9 +39,13 @@ const pmkidRowsHtml = (bssid: string, pmkids: readonly PmkidRecord[]) => {
     .map(
       (r) =>
         `<li class="hs-client hs-pmkid" data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">
-          <span class="net-main"><small>PMKID · client ${esc(r.client)}</small><code class="dim small">${r.pmkid}</code></span>
-          <button type="button" class="small" data-export-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">.22000</button>
-          <button type="button" class="small" data-copy-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">COPY</button>
+          <div class="hs-client-info">
+            <span class="net-main"><small>PMKID · client ${esc(r.client)}</small><code class="dim small">${r.pmkid}</code></span>
+          </div>
+          <div class="hs-actions">
+            <button type="button" class="small" data-export-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">.22000</button>
+            <button type="button" class="small" data-copy-pmkid data-bssid="${bssid}" data-client="${r.client}" data-pmkid="${r.pmkid}">COPY</button>
+          </div>
         </li>`
     )
     .join("");

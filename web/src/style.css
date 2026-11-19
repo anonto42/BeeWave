@@ -52,9 +52,25 @@ input[type="file"] { color: var(--fg); max-width: 100%; }
 input[type="password"], input[type="text"] { min-height:44px; padding:0 10px; background:var(--bg); color:var(--fg); border:1px solid var(--line); font:inherit; max-width:100%; }
 progress { height: 10px; accent-color: var(--fg); background: var(--bg); border: 1px solid var(--line); }
 
-/* phones: full-width buttons, scan table drops the BSSID column */
+/* phones: full-width buttons, compact scanner and toolbars */
 @media (max-width: 520px) {
   .row > button { flex:1 1 calc(50% - 8px); }
+  .toolbar { gap:6px 8px; padding:6px 8px; }
+  .toolbar button.small { min-height:30px; padding:3px 8px; font-size:10px; }
+  .toolbar select { min-height:30px; font-size:11px; }
+  .net { gap:8px; padding:8px; min-height:52px; }
+  .net-side { gap:4px; }
+  .net-side button.pin { min-height:28px; padding:2px 8px; font-size:10px; margin-left:2px; }
+  .hs-client { padding:6px 8px; }
+  .hs-client-info { flex:1 1 100%; justify-content:space-between; }
+  .hs-actions { width:100%; justify-content:flex-end; gap:4px; }
+  .hs-actions button.small { flex:1 1 calc(25% - 4px); text-align:center; min-height:30px; padding:4px 2px; }
+  .hs-pmkid .hs-actions button.small { flex:1 1 calc(50% - 4px); }
+}
+
+@media (max-width: 360px) {
+  .tab { font-size:9px; letter-spacing:0; padding:4px 1px; }
+  .tab svg { width:16px; height:16px; }
 }
 
 @media (max-width: 420px) {
@@ -97,6 +113,11 @@ button.small { min-height:36px; padding:4px 12px; font-size:11px; letter-spacing
 .net-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .net-main b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .net-main small { color:var(--dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.net-side { display:flex; align-items:center; gap:8px; flex:0 0 auto; margin-left:auto; }
+.net-badges { display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:2px; }
+.net-badges .badge { font-size:9px; padding:1px 5px; }
+.badge.warn { border-color:#e8c14d; color:#e8c14d; }
+.badge.alert { border-color:#f0716c; color:#f0716c; }
 .sig { display:flex; align-items:flex-end; gap:2px; height:18px; }
 .sig i { width:4px; background:var(--soft); }
 .sig i:nth-child(1) { height:20%; } .sig i:nth-child(2) { height:40%; } .sig i:nth-child(3) { height:60%; } .sig i:nth-child(4) { height:80%; } .sig i:nth-child(5) { height:100%; }
@@ -166,9 +187,12 @@ svg .axis { fill:var(--dim); font-size:9px; } svg .axis-line { stroke:var(--soft
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"] { color-scheme:light; --bg:#f2f4f6; --surface:#ffffff; --fg:#14181c; --dim:#586069; --line:#14181c; --soft:#d0d7de; --ok:#1a7f37; }
 }
-body.compact .net { min-height:44px; padding:4px 12px; }
-body.compact table.grid th, body.compact table.grid td { padding:2px 8px; }
-body.compact .alert { padding:6px 12px; }
+body.compact .net { min-height:40px; padding:3px 8px; }
+body.compact .net-badges { margin-top:0; gap:2px; }
+body.compact .net-badges .badge { font-size:8px; padding:0 3px; }
+body.compact .hs-client { min-height:36px; padding:4px 6px; }
+body.compact table.grid th, body.compact table.grid td { padding:2px 6px; font-size:11px; }
+body.compact .alert { padding:4px 8px; }
 
 /* ---- settings ---- */
 .panel.settings { margin-bottom:12px; }
@@ -238,6 +262,11 @@ code { font-size:11px; background:var(--soft); padding:0 4px; }
 .hs-toolbar { padding:0; border:0; }
 .hs-toolbar button[data-want].on { background:var(--ok); color:var(--bg); border-color:var(--ok); }
 .hs-clients { border:1px solid var(--soft); }
-.hs-client { min-height:44px; padding:6px 10px; border-bottom:1px solid var(--soft); }
+.hs-client { min-height:44px; padding:8px 10px; border-bottom:1px solid var(--soft); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px; }
 .hs-client:last-child { border-bottom:0; }
 .hs-client:active { background:transparent; }
+.hs-client-info { display:flex; align-items:center; gap:8px; flex:1 1 180px; min-width:0; }
+.hs-client-info .net-main { min-width:0; }
+.hs-client-info code { word-break:break-all; font-size:10px; }
+.hs-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; flex:0 0 auto; }
+.hs-actions button.small { min-height:28px; padding:2px 8px; font-size:10px; }
