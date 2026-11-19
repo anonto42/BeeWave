@@ -137,6 +137,9 @@ impl AnomalyDetector {
             e.rssi = o.rssi;
             e.last_cycle = cycle;
         }
+        if found.is_none() && e.ssid != 0 && ssid != 0 && e.ssid != ssid {
+            found = Some((AnomalyKind::KarmaSsidChange, 0));
+        }
         e.last_tick = tick;
         e.ssid = ssid;
 

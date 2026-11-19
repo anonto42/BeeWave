@@ -239,3 +239,31 @@ fn legitimate_multi_ap_with_same_security_is_not_downgrade() {
     );
     assert_eq!(kind(finding), Some(AnomalyKind::NewBssidForSsid));
 }
+
+#[test]
+fn karma_ssid_change_triggers_when_same_bssid_advertises_different_ssid() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    while t <= LEARN_TICKS + CYCLE_TICKS {
+        assert!(d.observe(&beacon(1, "OriginalNet", 6, -50), t).is_none());
+        t += 1;
+    }
+
+    // Rogue AP (WiFi Pineapple / airbase-ng) changes SSID on the same BSSID:
+    let finding = d.observe(&beacon(1, "HoneypotNet", 6, -50), t);
+    assert_eq!(kind(finding), Some(AnomalyKind::KarmaSsidChange));
+}
+
+#[test]
+fn karma_does_not_trigger_for_hidden_ssid_transition() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    while t <= LEARN_TICKS + CYCLE_TICKS {
+        assert!(d.observe(&beacon(1, "OriginalNet", 6, -50), t).is_none());
+        t += 1;
+    }
+
+    // Network broadcasts with empty SSID (hidden beacon): no Karma alert
+    let finding = d.observe(&beacon(1, "", 6, -50), t);
+    assert!(finding.is_none());
+}

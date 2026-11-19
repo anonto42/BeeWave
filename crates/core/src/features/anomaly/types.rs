@@ -24,7 +24,7 @@ pub struct Anomaly {
     pub detail: u8,
 }
 
-pub(super) const KINDS: usize = 5;
+pub(super) const KINDS: usize = 6;
 
 pub(super) const fn kind_index(k: AnomalyKind) -> usize {
     match k {
@@ -33,5 +33,6 @@ pub(super) const fn kind_index(k: AnomalyKind) -> usize {
         AnomalyKind::RssiOutlier => 2,
         AnomalyKind::Returned => 3,
         AnomalyKind::SecurityDowngrade => 4,
+        AnomalyKind::KarmaSsidChange => 5,
     }
 }
