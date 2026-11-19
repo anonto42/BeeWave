@@ -22,6 +22,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
               ctx.monitor.watchlist.has(n.bssid),
               rec?.wps,
               rec?.security,
+              rec?.decloaked,
             );
           })
           .join("")
@@ -55,6 +56,10 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   render();
   ctx.onTelemetry("scan", (m) => {
     networks.set(m.bssid, m);
+    render();
+  });
+  ctx.onTelemetry("decloakedResult", (m) => {
+    networks.set(m.bssid, { type: "scan", bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi });
     render();
   });
 }

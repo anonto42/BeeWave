@@ -143,6 +143,7 @@ export class MockWorld {
     if (t === 70) out.push({ type: "anomaly", kind: "rssiOutlier", bssid: APS[4].bssid, detail: 27 });
     if (t === 85) out.push({ type: "anomaly", kind: "returned", bssid: APS[6].bssid, detail: 8 });
     if (t === 95) out.push({ type: "beaconFloodAlert", rate: 58, uniqueBssids: 32 });
+    if (t === 98) out.push({ type: "decloakedResult", bssid: APS[5].bssid, ssid: "StealthNet", channel: 4, rssi: -79 });
   }
 
   private deauth(out: Telemetry[]): void {

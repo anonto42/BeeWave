@@ -63,6 +63,12 @@ export function createMonitorKernel(now: () => number = Date.now, watchStorage?:
         case "securityResult":
           scans.ingestSecurity(m);
           return;
+        case "decloakedResult": {
+          scans.ingestDecloaked(m);
+          const a = alertFromTelemetry(m);
+          if (a) alerts.add(a);
+          return;
+        }
         case "scan":
           scans.ingest(m);
           raise(engine.observe(m, scans.cycle));

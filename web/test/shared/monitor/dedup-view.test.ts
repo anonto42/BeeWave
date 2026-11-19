@@ -54,6 +54,17 @@ describe("dedup visualisation (the device re-reports a network only when RSSI mo
     expect(s.get("aa")!.count).toBe(2);
   });
 
+  it("marks a network as decloaked when ingestDecloaked is called or when hidden ssid is uncloaked", () => {
+    const { s } = store();
+    s.ingest({ bssid: "00:11:22:33:44:55", ssid: "", channel: 6, rssi: -60 });
+    expect(s.get("00:11:22:33:44:55")?.decloaked).toBeUndefined();
+
+    s.ingestDecloaked({ bssid: "00:11:22:33:44:55", ssid: "SecretNet", channel: 6, rssi: -58 });
+    const rec = s.get("00:11:22:33:44:55")!;
+    expect(rec.ssid).toBe("SecretNet");
+    expect(rec.decloaked).toBe(true);
+  });
+
   it("the simulated device obeys the same rule: every re-report moved by 6 dB or more", () => {
     const world = new MockWorld(11);
     const last = new Map<string, number>();

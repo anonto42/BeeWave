@@ -91,3 +91,17 @@ describe("rowHtml with Security", () => {
     expect(r).toContain("OPEN");
   });
 });
+
+describe("rowHtml with Decloaked", () => {
+  it("renders DECLOAKED badge when decloaked flag is true", () => {
+    const r = rowHtml(net("UncloakedNet", 6, -55), false, false, undefined, undefined, true);
+    expect(r).toContain("badge small warn");
+    expect(r).toContain("DECLOAKED");
+    expect(r).toContain("UncloakedNet");
+  });
+
+  it("does not render DECLOAKED badge when decloaked flag is false or undefined", () => {
+    const r = rowHtml(net("NormalNet", 6, -55), false, false);
+    expect(r).not.toContain("DECLOAKED");
+  });
+});

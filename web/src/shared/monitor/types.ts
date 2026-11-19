@@ -31,6 +31,7 @@ export interface NetworkRecord {
   history: RssiPoint[];
   wps?: WpsRecord;
   security?: SecurityRecord;
+  decloaked?: boolean;
 }
 
 export interface RssiPoint {
@@ -55,7 +56,7 @@ export interface Snapshot {
 }
 
 export type Severity = "info" | "warn" | "alert";
-export type AlertSource = "deauth" | "ble" | "anomaly" | "watchlist" | "handshake" | "beaconFlood";
+export type AlertSource = "deauth" | "ble" | "anomaly" | "watchlist" | "handshake" | "beaconFlood" | "decloaked";
 
 export interface AlertRecord {
   id: number;

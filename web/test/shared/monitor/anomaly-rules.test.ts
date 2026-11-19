@@ -55,6 +55,23 @@ describe("anomaly alerts", () => {
     });
     expect(alert.detail).toContain("42 unique BSSIDs");
   });
+
+  it("formats decloaked alert with revealed SSID and details", () => {
+    const alert = alertFromTelemetry({
+      type: "decloakedResult",
+      bssid: "00:11:22:33:44:55",
+      ssid: "SecretCorp",
+      channel: 6,
+      rssi: -58,
+    })!;
+    expect(alert).toMatchObject({
+      source: "decloaked",
+      severity: "warn",
+      title: 'Hidden network uncloaked: "SecretCorp"',
+    });
+    expect(alert.detail).toContain("CH 6");
+    expect(alert.detail).toContain("-58 dBm");
+  });
 });
 
 describe("watchlist rules (phone only)", () => {

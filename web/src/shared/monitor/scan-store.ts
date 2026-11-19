@@ -54,6 +54,9 @@ export class ScanStore {
     const cycle = this.cycle;
     const rec = this.records.get(m.bssid);
     if (rec) {
+      if (!rec.ssid && m.ssid) {
+        rec.decloaked = true;
+      }
       rec.ssid = m.ssid || rec.ssid;
       rec.channel = m.channel;
       rec.rssi = m.rssi;
@@ -70,6 +73,37 @@ export class ScanStore {
         firstSeen: at,
         lastSeen: at,
         count: 1,
+        history: [{ cycle, rssi: m.rssi, at }],
+      });
+    }
+    this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi });
+    if (this.log.length > EVENT_CAP) this.log.shift();
+    this.emit();
+  }
+
+  ingestDecloaked(m: { bssid: string; ssid: string; channel: number; rssi: number }): void {
+    const at = this.now();
+    const cycle = this.cycle;
+    const rec = this.records.get(m.bssid);
+    if (rec) {
+      rec.ssid = m.ssid;
+      rec.channel = m.channel;
+      rec.rssi = m.rssi;
+      rec.lastSeen = at;
+      rec.count++;
+      rec.decloaked = true;
+      rec.history.push({ cycle, rssi: m.rssi, at });
+      if (rec.history.length > HISTORY_CAP) rec.history.shift();
+    } else {
+      this.records.set(m.bssid, {
+        bssid: m.bssid,
+        ssid: m.ssid,
+        channel: m.channel,
+        rssi: m.rssi,
+        firstSeen: at,
+        lastSeen: at,
+        count: 1,
+        decloaked: true,
         history: [{ cycle, rssi: m.rssi, at }],
       });
     }

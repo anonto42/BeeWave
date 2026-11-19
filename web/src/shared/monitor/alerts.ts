@@ -55,6 +55,14 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         title: `Beacon flood attack: ${m.rate}/s`,
         detail: `${m.uniqueBssids} unique BSSIDs in 1s window (possible Hydra-ESP / Marauder beacon spam)`,
       };
+    case "decloakedResult":
+      return {
+        source: "decloaked",
+        severity: "warn",
+        title: `Hidden network uncloaked: "${m.ssid}"`,
+        detail: `${m.bssid} (${vendorOf(m.bssid)}) on CH ${m.channel} · ${m.rssi} dBm`,
+        bssid: m.bssid,
+      };
     default:
       return null;
   }

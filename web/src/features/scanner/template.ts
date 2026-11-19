@@ -29,7 +29,15 @@ export const securityLabel = (sec: SecurityRecord): string => {
   return `${proto}${pmf}`;
 };
 
-export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean, wps?: WpsRecord, security?: SecurityRecord) => {
+export const rowHtml = (
+  n: ScanResult,
+  isTarget: boolean,
+  pinned: boolean,
+  wps?: WpsRecord,
+  security?: SecurityRecord,
+  decloaked?: boolean,
+) => {
+  const decloakedBadge = decloaked ? `<span class="badge small warn">DECLOAKED</span>` : "";
   const secBadge = security
     ? `<span class="badge small${security.protocol === "open" ? " warn" : security.protocol === "wep" ? " alert" : ""}">${securityLabel(security)}</span>`
     : "";
@@ -40,5 +48,5 @@ export const rowHtml = (n: ScanResult, isTarget: boolean, pinned: boolean, wps?:
   return `<li class="net${isTarget ? " target" : ""}" data-bssid="${n.bssid}" data-ssid="${esc(n.ssid)}">` +
     `<span class="mark${isTarget ? " on" : ""}" aria-hidden="true"></span>` +
     `<span class="net-main"><b>${esc(n.ssid || "(hidden)")}</b><small>${n.bssid} · CH ${n.channel}${devSubtitle}</small></span>` +
-    `${secBadge}${wpsBadge}${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;
+    `${decloakedBadge}${secBadge}${wpsBadge}${rssiHtml(n.rssi)}<button type="button" class="small pin${pinned ? " on" : ""}" data-pin aria-label="Add to watchlist">${pinned ? "PINNED" : "PIN"}</button></li>`;
 };
