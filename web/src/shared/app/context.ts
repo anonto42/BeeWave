@@ -1,4 +1,5 @@
 import { Authenticator, KeyStore } from "../auth";
+import { GpsTracker } from "../gps";
 import { createMonitorKernel } from "../monitor";
 import { createSettingsKernel } from "../settings";
 import type { Telemetry } from "../protocol";
@@ -61,7 +62,8 @@ export function createContext(transport: Transport): AppContext {
     },
   };
   const auth = new Authenticator((c) => logged.send(c), keys);
-  const monitor = createMonitorKernel();
+  const gps = new GpsTracker();
+  const monitor = createMonitorKernel(Date.now, undefined, () => gps.coords);
   const settings = createSettingsKernel();
   keys.setPersist(settings.phone.get().session.rememberKey);
   settings.phone.onChange((s) => keys.setPersist(s.session.rememberKey));
@@ -113,6 +115,7 @@ export function createContext(transport: Transport): AppContext {
     targets: new TargetStore(),
     monitor,
     settings,
+    gps,
     onTelemetry: (kind, cb) => telemetrySubs.push([kind, cb as (m: never) => void]),
     onState: (cb) => stateSubs.push(cb),
     log,

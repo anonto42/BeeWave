@@ -1,4 +1,5 @@
 import type { Authenticator, KeyStore } from "../auth";
+import type { GpsTracker } from "../gps";
 import type { MonitorKernel } from "../monitor";
 import type { SettingsKernel } from "../settings";
 import type { Telemetry } from "../protocol";
@@ -20,6 +21,8 @@ export interface AppContext {
   readonly monitor: MonitorKernel;
   /** Device-side and phone-side settings. */
   readonly settings: SettingsKernel;
+  /** Geolocation tracker for wardriving. */
+  readonly gps: GpsTracker;
   /** Subscribe to one kind of telemetry message. */
   onTelemetry<K extends TelemetryKind>(kind: K, cb: (m: Extract<Telemetry, { type: K }>) => void): void;
   onState(cb: (s: TransportState) => void): void;

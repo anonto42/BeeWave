@@ -7,7 +7,9 @@ export const scannerHtml = `<div class="toolbar">
     <option value="rssi">SIGNAL</option><option value="channel">CHANNEL</option><option value="ssid">NAME</option>
   </select></label>
   <span class="dim grow" data-count>0 networks</span>
-  <button class="small" data-clear>CLEAR</button>
+  <button type="button" class="small" data-gps title="Activate GPS for wardriving">GPS</button>
+  <button type="button" class="small" data-export-wigle title="Export WiGLE CSV for wardriving">WIGLE CSV</button>
+  <button type="button" class="small" data-clear>CLEAR</button>
 </div>
 <ul class="nets" data-list></ul>`;
 

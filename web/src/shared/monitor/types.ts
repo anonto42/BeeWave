@@ -1,3 +1,4 @@
+import type { GpsCoordinates } from "../gps";
 import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
 
 export interface SecurityRecord {
@@ -32,6 +33,7 @@ export interface NetworkRecord {
   wps?: WpsRecord;
   security?: SecurityRecord;
   decloaked?: boolean;
+  gps?: GpsCoordinates;
 }
 
 export interface RssiPoint {
@@ -75,4 +77,5 @@ export interface ScanEvent {
   ssid: string;
   channel: number;
   rssi: number;
+  gps?: GpsCoordinates;
 }

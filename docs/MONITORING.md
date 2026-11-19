@@ -130,6 +130,12 @@ Each kind is reported at most once per 30 s per BSSID. Deauth floods of 50/s or 
 A scan is saved when you stop scanning (or with **Snapshot now**) and holds only the networks heard *during that scan*. Pick two to see
 new, disappeared, signal-changed (6 dB or more) and channel-changed networks. **Export JSON** saves the diff.
 
+## Wardriving and WiGLE.net CSV export (PWA `scanner` & `settings`)
+For wireless site surveying and mapping network locations with global databases (e.g. [wigle.net](https://wigle.net)), the PWA integrates browser-side Geolocation with scan reporting:
+- **Live Geolocation Tracking**: Tapping **GPS** in the Scanner toolbar requests browser location permission (`enableHighAccuracy`) and continuously tracks coordinates (latitude, longitude, elevation, and accuracy in meters).
+- **Network Coordinate Stamping**: Each observed network record and event is stamped with active GPS coordinates upon observation.
+- **WiGLE CSV v1.4 File Format**: Tapping **WIGLE CSV** in the Scanner toolbar (or selecting `WiGLE CSV (Wardriving)` under Settings > Import/Export) downloads a standard `WigleWifi-1.4` formatted CSV file. The file maps BSSIDs, SSIDs, WiGLE AuthMode capability strings (e.g. `[WPA2-PSK-CCMP][RSN][ESS]`), channels, frequencies (MHz), signal strengths, and geographic coordinates ready for direct WiGLE upload.
+
 ## Watchlist (phone only)
 Pin BSSIDs in Settings > Watchlist (from the networks heard so far, by typing one, or with the PIN button on a Scanner row), each with a label and its own rules. Alerts: it **appears**, it has been **missing** for more than 5 cycles, or
 it **moves** by 6 dB or more. Pins are kept in this browser's `localStorage`; the device never sees them, so there is no device-side watchlist.

@@ -7,7 +7,7 @@ export type ResultColumn = (typeof RESULT_COLUMNS)[number];
 export const THEMES = ["system", "light", "dark"] as const;
 export const RSSI_UNITS = ["dbm", "bars"] as const;
 export const DENSITIES = ["comfortable", "compact"] as const;
-export const EXPORT_FORMATS = ["json", "csv", "both"] as const;
+export const EXPORT_FORMATS = ["json", "csv", "both", "wigle"] as const;
 
 export interface PhoneSettings {
   ui: {

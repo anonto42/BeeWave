@@ -1,3 +1,4 @@
+import type { GpsCoordinates } from "../gps";
 import type { Telemetry } from "../protocol";
 import { AlertStore } from "./alert-store";
 import { AssocStore } from "./assoc-store";
@@ -23,8 +24,12 @@ export interface MonitorKernel {
   ingest(m: Telemetry): void;
 }
 
-export function createMonitorKernel(now: () => number = Date.now, watchStorage?: ConstructorParameters<typeof WatchlistStore>[0]): MonitorKernel {
-  const scans = new ScanStore(now);
+export function createMonitorKernel(
+  now: () => number = Date.now,
+  watchStorage?: ConstructorParameters<typeof WatchlistStore>[0],
+  getGps: () => GpsCoordinates | null = () => null
+): MonitorKernel {
+  const scans = new ScanStore(now, getGps);
   const alerts = new AlertStore(now);
   const watchlist = new WatchlistStore(watchStorage);
   const state = new MonitorState(now);

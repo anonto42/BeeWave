@@ -1,3 +1,4 @@
+import type { GpsCoordinates } from "../gps";
 import { CYCLE_TICKS, EVENT_CAP, HISTORY_CAP, SNAPSHOT_CAP } from "./constants";
 import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
 import type { NetworkRecord, ScanEvent, SecurityRecord, Snapshot, WpsRecord } from "./types";
@@ -25,7 +26,10 @@ export class ScanStore {
   /** When the current scan started; a snapshot holds only networks heard since then. */
   private scanFrom: number | null = null;
 
-  constructor(private readonly now: () => number = Date.now) {}
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly getGps: () => GpsCoordinates | null = () => null
+  ) {}
 
   /** The current scan cycle number (0 until the first scanning heartbeats). */
   get cycle(): number {
@@ -52,6 +56,7 @@ export class ScanStore {
   ingest(m: ScanInput): void {
     const at = this.now();
     const cycle = this.cycle;
+    const gps = this.getGps();
     const rec = this.records.get(m.bssid);
     if (rec) {
       if (!rec.ssid && m.ssid) {
@@ -62,6 +67,7 @@ export class ScanStore {
       rec.rssi = m.rssi;
       rec.lastSeen = at;
       rec.count++;
+      if (gps) rec.gps = gps;
       rec.history.push({ cycle, rssi: m.rssi, at });
       if (rec.history.length > HISTORY_CAP) rec.history.shift();
     } else {
@@ -73,10 +79,11 @@ export class ScanStore {
         firstSeen: at,
         lastSeen: at,
         count: 1,
+        gps: gps ?? undefined,
         history: [{ cycle, rssi: m.rssi, at }],
       });
     }
-    this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi });
+    this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi, gps: gps ?? undefined });
     if (this.log.length > EVENT_CAP) this.log.shift();
     this.emit();
   }
@@ -84,6 +91,7 @@ export class ScanStore {
   ingestDecloaked(m: { bssid: string; ssid: string; channel: number; rssi: number }): void {
     const at = this.now();
     const cycle = this.cycle;
+    const gps = this.getGps();
     const rec = this.records.get(m.bssid);
     if (rec) {
       rec.ssid = m.ssid;
@@ -92,6 +100,7 @@ export class ScanStore {
       rec.lastSeen = at;
       rec.count++;
       rec.decloaked = true;
+      if (gps) rec.gps = gps;
       rec.history.push({ cycle, rssi: m.rssi, at });
       if (rec.history.length > HISTORY_CAP) rec.history.shift();
     } else {
@@ -104,10 +113,11 @@ export class ScanStore {
         lastSeen: at,
         count: 1,
         decloaked: true,
+        gps: gps ?? undefined,
         history: [{ cycle, rssi: m.rssi, at }],
       });
     }
-    this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi });
+    this.log.push({ at, bssid: m.bssid, ssid: m.ssid, channel: m.channel, rssi: m.rssi, gps: gps ?? undefined });
     if (this.log.length > EVENT_CAP) this.log.shift();
     this.emit();
   }

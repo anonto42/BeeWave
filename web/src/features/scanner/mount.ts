@@ -1,4 +1,5 @@
-import { $, panel, type AppContext } from "../../shared/app";
+import { $, download, panel, type AppContext } from "../../shared/app";
+import { generateWigleCsv } from "../../shared/monitor";
 import { sortNetworks, type SortKey } from "./sort";
 import { emptyHtml, rowHtml, scannerHtml } from "./template";
 import type { ScanResult } from "./types";
@@ -10,6 +11,41 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   const networks = new Map<string, ScanResult>();
 
   const sortSel = $<HTMLSelectElement>(el, "[data-sort]");
+  const gpsBtn = $<HTMLButtonElement>(el, "[data-gps]");
+
+  const updateGps = () => {
+    if (!ctx.gps.isSupported) {
+      gpsBtn.disabled = true;
+      gpsBtn.textContent = "NO GPS";
+      gpsBtn.title = "Geolocation not supported by this browser";
+      return;
+    }
+    if (ctx.gps.isActive) {
+      gpsBtn.classList.add("on");
+      const c = ctx.gps.coords;
+      gpsBtn.textContent = c ? `GPS ±${Math.round(c.accuracy)}m` : "GPS FIX…";
+      gpsBtn.title = c ? `Lat: ${c.lat.toFixed(6)}, Lon: ${c.lon.toFixed(6)}` : "Waiting for GPS fix…";
+    } else {
+      gpsBtn.classList.remove("on");
+      gpsBtn.textContent = "GPS";
+      gpsBtn.title = "Activate GPS for wardriving";
+    }
+  };
+
+  gpsBtn.onclick = () => {
+    if (ctx.gps.isActive) ctx.gps.stop();
+    else ctx.gps.start();
+    updateGps();
+  };
+  ctx.gps.onChange(updateGps);
+  updateGps();
+
+  $<HTMLButtonElement>(el, "[data-export-wigle]").onclick = () => {
+    const list = ctx.monitor.scans.networks();
+    const csv = generateWigleCsv(list, ctx.gps.coords);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    download(`wigle-beewave-${stamp}.csv`, "text/csv;charset=utf-8", csv);
+  };
 
   const render = () => {
     body.innerHTML = networks.size

@@ -1,5 +1,5 @@
 import { download, esc, notice } from "../../../shared/app";
-import { fullEntry, sessionToCsv, sessionToJson } from "../../../shared/monitor";
+import { fullEntry, generateWigleCsv, sessionToCsv, sessionToJson } from "../../../shared/monitor";
 import {
   buildDeviceExport, buildPhoneExport, parseDeviceImport, parsePhoneImport, type WatchlistEntryExport,
 } from "../../../shared/settings";
@@ -33,7 +33,7 @@ export const mount: SectionMount = (host, env) => {
       <div class="frow-hint" data-session-info>Saves this session (scans, alerts, log, key and link events) in the format chosen above, assembled on the phone.</div></div>`);
   const q = <T extends HTMLElement>(s: string) => host.querySelector<T>(s)!;
   mountFields(q("[data-options]"), env, [
-    phoneSelect(env, "Session export format", [["both", "JSON and CSV"], ["json", "JSON"], ["csv", "CSV"]], () => phone.get().export.format, (v) => phone.update((s) => void (s.export.format = v as never))),
+    phoneSelect(env, "Session export format", [["both", "JSON and CSV"], ["json", "JSON"], ["csv", "CSV"], ["wigle", "WiGLE CSV (Wardriving)"]], () => phone.get().export.format, (v) => phone.update((s) => void (s.export.format = v as never))),
     phoneToggle(env, "Include the log", () => phone.get().export.includeLog, (v) => phone.update((s) => void (s.export.includeLog = v))),
     phoneToggle(env, "Include scan history", () => phone.get().export.includeScanHistory, (v) => phone.update((s) => void (s.export.includeScanHistory = v))),
   ]);
@@ -100,6 +100,11 @@ export const mount: SectionMount = (host, env) => {
   // ---- session
   q<HTMLButtonElement>("[data-export-session]").onclick = () => {
     const x = phone.get().export;
+    if (x.format === "wigle") {
+      download(`wigle-beewave-${stamp()}.csv`, "text/csv;charset=utf-8", generateWigleCsv(scans.networks(), ctx.gps.coords));
+      q("[data-session-info]").textContent = `Saved: ${scans.networks().length} networks in WiGLE CSV format.`;
+      return;
+    }
     const data = session.build(x.includeScanHistory ? scans.events() : [], alerts.list(), scans.snapshots());
     if (!x.includeLog) data.log = [];
     if (x.format !== "csv") download(`beewave-session-${stamp()}.json`, "application/json", sessionToJson(data));
