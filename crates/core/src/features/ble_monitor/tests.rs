@@ -1,5 +1,6 @@
 use beewave_protocol::AdClass;
 
+use super::flood::{BleFloodDetector, BLE_FLOOD_COOLDOWN_TICKS, DEFAULT_BLE_FLOOD_THRESHOLD};
 use super::{classify, BleMonitor, STATS_EVERY_SECS, WARMUP_SECS};
 
 // ---- classifier -------------------------------------------------------------------------------
@@ -178,4 +179,59 @@ fn reset_forgets_history_but_keeps_the_factor() {
     m.reset();
     assert_eq!(m.counts(), [0; 4]);
     assert_eq!(m.factor(), 7);
+}
+
+#[test]
+fn ble_flood_detector_triggers_on_high_packet_rate_and_identifies_dominant_class() {
+    let mut d = BleFloodDetector::new();
+    assert_eq!(d.threshold(), DEFAULT_BLE_FLOOD_THRESHOLD);
+
+    // 1. Normal ambient packets below threshold (e.g. 5 generic, 2 proximity) -> no alert
+    for _ in 0..5 {
+        d.observe(AdClass::Generic);
+    }
+    for _ in 0..2 {
+        d.observe(AdClass::Proximity);
+    }
+    assert!(d.tick().is_none());
+
+    // 2. High-rate flood of Apple proximity popups (e.g. 40 packets)
+    for _ in 0..35 {
+        d.observe(AdClass::Proximity);
+    }
+    for _ in 0..5 {
+        d.observe(AdClass::Generic);
+    }
+    let alert = d.tick().expect("flood alert triggered");
+    assert_eq!(
+        alert,
+        beewave_protocol::TelemetryMessage::BleFloodAlert {
+            rate: 40,
+            class: AdClass::Proximity,
+        }
+    );
+
+    // 3. Consecutive seconds during flood obey cooldown
+    for _ in 0..50 {
+        d.observe(AdClass::Proximity);
+    }
+    assert!(d.tick().is_none(), "in cooldown");
+
+    // Advance through the remaining cooldown ticks
+    for _ in 1..BLE_FLOOD_COOLDOWN_TICKS {
+        d.tick();
+    }
+
+    // Now cooldown has elapsed: subsequent burst alerts again
+    for _ in 0..45 {
+        d.observe(AdClass::FastPair);
+    }
+    let alert2 = d.tick().expect("alert after cooldown");
+    assert_eq!(
+        alert2,
+        beewave_protocol::TelemetryMessage::BleFloodAlert {
+            rate: 45,
+            class: AdClass::FastPair,
+        }
+    );
 }

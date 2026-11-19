@@ -5,7 +5,7 @@ use heapless::Vec;
 
 use crate::features::anomaly::AnomalyDetector;
 use crate::features::assoc::{AssocObservation, AssocTracker};
-use crate::features::ble_monitor::BleMonitor;
+use crate::features::ble_monitor::{BleFloodDetector, BleMonitor};
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
 use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
 use crate::features::probe::{ProbeObservation, ProbeTracker};
@@ -51,6 +51,7 @@ pub struct Monitoring {
     wps: WpsTracker,
     security: SecurityTracker,
     flood: BeaconFloodDetector,
+    ble_flood: BleFloodDetector,
     /// Off by default, like the BLE monitor; kept outside `MonitorConfig` since it has its own
     /// command pair (`SetHandshakeCapture` / `GetHandshakeCapture`) rather than `SetMonitor`.
     handshake_enabled: bool,
@@ -71,6 +72,7 @@ impl Monitoring {
             wps: WpsTracker::new(),
             security: SecurityTracker::new(),
             flood: BeaconFloodDetector::new(),
+            ble_flood: BleFloodDetector::new(),
             handshake_enabled: false,
             tick: 0,
         };
@@ -104,6 +106,7 @@ impl Monitoring {
         self.ble.set_factor(cfg.ble_spike_factor);
         if cfg.ble_enabled && !self.cfg.ble_enabled {
             self.ble.reset(); // a fresh baseline each time it is switched on
+            self.ble_flood.reset();
         }
         self.cfg = cfg;
     }
@@ -195,6 +198,7 @@ impl Monitoring {
     pub fn on_ble_adv(&mut self, class: AdClass) {
         if self.cfg.ble_enabled {
             self.ble.observe(class);
+            self.ble_flood.observe(class);
         }
     }
 
@@ -254,7 +258,7 @@ impl Monitoring {
     }
 
     /// 1 Hz: advance time; returns the BLE stats and spike to publish, if any.
-    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 4> {
+    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 5> {
         self.tick = self.tick.wrapping_add(1);
         self.probes.tick();
         self.assoc.tick();
@@ -264,6 +268,9 @@ impl Monitoring {
         }
         if !self.cfg.ble_enabled {
             return out;
+        }
+        if let Some(ble_flood) = self.ble_flood.tick() {
+            let _ = out.push(ble_flood);
         }
         let t = self.ble.tick();
         if let Some([fast_pair, ibeacon, proximity, generic]) = t.stats {

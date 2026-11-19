@@ -1429,3 +1429,26 @@ fn beacon_flood_alerts_through_app_service() {
         TelemetryMessage::BeaconFloodAlert { rate, unique_bssids } if *rate >= 30 && *unique_bssids >= 10
     )));
 }
+
+#[test]
+fn ble_flood_alerts_through_app_service() {
+    let (mut app, sink) = authed_app();
+    // Enable BLE monitor
+    app.on_command(beewave_protocol::DeviceCommand::SetMonitor {
+        deauth_threshold: 10,
+        ble_enabled: true,
+        ble_spike_factor: 3,
+    });
+    sink.got.borrow_mut().clear();
+
+    // Simulate flood of 35 proximity advertisements
+    for _ in 0..35 {
+        app.on_ble_adv(beewave_protocol::AdClass::Proximity);
+    }
+    app.on_tick();
+
+    assert!(results(&sink).iter().any(|m| matches!(
+        m,
+        TelemetryMessage::BleFloodAlert { rate, class } if *rate >= 35 && *class == beewave_protocol::AdClass::Proximity
+    )));
+}
