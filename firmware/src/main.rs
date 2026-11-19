@@ -82,6 +82,7 @@ fn main() -> anyhow::Result<()> {
             assoc_rx,
             Hooks {
                 drain_deauth: wifi_radio::deauth::drain,
+                drain_disassoc: wifi_radio::disassoc::drain,
                 set_ble_observer: ble_observer::set_enabled,
                 set_handshake_capture: wifi_radio::set_handshake_capture,
                 set_log_level: esp_system::set_log_level,

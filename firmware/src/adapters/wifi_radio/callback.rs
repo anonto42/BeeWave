@@ -10,7 +10,7 @@ use beewave_core::features::handshake::{parse_eapol, EapolFrame};
 use beewave_core::features::probe::{parse_probe_request, ProbeObservation};
 use beewave_core::features::scan::{parse_beacon, Observation};
 
-use super::deauth;
+use super::{deauth, disassoc};
 use esp_idf_svc::sys::{wifi_promiscuous_pkt_t, wifi_promiscuous_pkt_type_t};
 
 /// Only `WIFI_PKT_DATA`, where EAPOL-Key frames live.
@@ -19,6 +19,7 @@ const PKT_DATA: wifi_promiscuous_pkt_type_t =
 
 /// First frame-control byte of a deauthentication frame: management type, subtype 12 (0xC0).
 const DEAUTH_FC0: u8 = 0xC0;
+const DISASSOC_FC0: u8 = 0xA0;
 /// Offset of address 3 (the BSSID of a management frame) and the shortest frame that has it.
 const ADDR3: usize = 16;
 const MIN_MGMT_LEN: usize = 24;
@@ -76,6 +77,14 @@ pub unsafe extern "C" fn on_packet(buf: *mut c_void, kind: wifi_promiscuous_pkt_
     if len >= MIN_MGMT_LEN && frame[0] == DEAUTH_FC0 {
         if let Ok(bssid) = <[u8; 6]>::try_from(&frame[ADDR3..ADDR3 + 6]) {
             deauth::record(&bssid);
+        }
+        return;
+    }
+
+    // Receive-only: count disassociation frames per BSSID.
+    if len >= MIN_MGMT_LEN && frame[0] == DISASSOC_FC0 {
+        if let Ok(bssid) = <[u8; 6]>::try_from(&frame[ADDR3..ADDR3 + 6]) {
+            disassoc::record(&bssid);
         }
         return;
     }

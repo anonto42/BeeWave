@@ -33,6 +33,8 @@ const FRAME_BATCH: usize = 32;
 pub struct Hooks {
     /// Fill the deauth counts gathered since the last call; returns how many entries are valid.
     pub drain_deauth: fn(&mut DeauthCounts) -> usize,
+    /// Fill the disassoc counts gathered since the last call; returns how many entries are valid.
+    pub drain_disassoc: fn(&mut DeauthCounts) -> usize,
     /// Mirror the owner's BLE-monitor switch into the observer thread.
     pub set_ble_observer: fn(bool),
     /// Mirror the owner's handshake-capture switch into the sniffer callback.
@@ -110,6 +112,11 @@ pub fn run_app<R, W, S, T, P>(
             let n = (hooks.drain_deauth)(&mut counts);
             if n > 0 {
                 app.on_deauth_window(&counts[..n]);
+            }
+            let mut disassoc_counts: DeauthCounts = [([0; 6], 0); DEAUTH_SLOTS];
+            let dn = (hooks.drain_disassoc)(&mut disassoc_counts);
+            if dn > 0 {
+                app.on_disassoc_window(&disassoc_counts[..dn]);
             }
             next_deauth = now + ms(u64::from(app.deauth_window_ms()));
         }

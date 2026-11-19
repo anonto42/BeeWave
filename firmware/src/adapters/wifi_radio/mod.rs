@@ -9,6 +9,7 @@
 mod callback;
 pub use callback::{install_assoc, install_handshake, install_probes, set_handshake_capture};
 pub mod deauth;
+pub mod disassoc;
 mod driver;
 mod hopper;
 mod shared;
