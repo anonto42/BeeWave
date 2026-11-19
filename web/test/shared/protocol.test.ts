@@ -68,6 +68,11 @@ describe("telemetry decode (golden vectors from Rust)", () => {
       channel: 6,
       rssi: -58,
     });
+    expect(m(31)).toEqual({
+      type: "bleFloodAlert",
+      rate: 75,
+      class: "proximity",
+    });
   });
   it("settings management messages", () => {
     const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;

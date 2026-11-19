@@ -199,6 +199,10 @@ fn roundtrip_and_emit_golden_vectors() {
             channel: 6,
             rssi: -58,
         },
+        TelemetryMessage::BleFloodAlert {
+            rate: 75,
+            class: AdClass::Proximity,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

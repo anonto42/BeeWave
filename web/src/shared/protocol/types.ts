@@ -104,6 +104,11 @@ export type Telemetry =
       ssid: string;
       channel: number;
       rssi: number;
+    }
+  | {
+      type: "bleFloodAlert";
+      rate: number;
+      class: AdClass;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

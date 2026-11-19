@@ -217,6 +217,10 @@
     {
       "hex": "011e1c0011223344550d556e636c6f616b6564436f727006c6",
       "msg": "DecloakedResult { bssid: [0, 17, 34, 51, 68, 85], ssid: \"UncloakedCorp\", channel: 6, rssi: -58 }"
+    },
+    {
+      "hex": "011f1d4b02",
+      "msg": "BleFloodAlert { rate: 75, class: Proximity }"
     }
   ]
 }

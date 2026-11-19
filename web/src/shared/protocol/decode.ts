@@ -183,6 +183,13 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         rssi: r.i8(),
       };
       break;
+    case 29:
+      msg = {
+        type: "bleFloodAlert",
+        rate: r.varint(),
+        class: enumName(AD_CLASSES, r.varint()),
+      };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

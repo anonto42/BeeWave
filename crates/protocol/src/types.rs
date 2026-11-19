@@ -421,6 +421,11 @@ pub enum TelemetryMessage {
         channel: u8,
         rssi: i8,
     },
+    /// High-rate flood of Bluetooth Low Energy advertisements (active BLE spam attack).
+    BleFloodAlert {
+        rate: u16,
+        class: AdClass,
+    },
 }
 
 /// Wi-Fi security / authentication protocol of an Access Point.
