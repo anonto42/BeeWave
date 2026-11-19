@@ -233,6 +233,8 @@ pub enum AnomalyKind {
     Returned,
     /// An existing encrypted network appeared with Open or degraded security (Evil Twin rogue AP).
     SecurityDowngrade,
+    /// An access point BSSID advertised a different SSID than previously heard (KARMA / Rogue AP honeypot).
+    KarmaSsidChange,
 }
 
 /// Device -> app.
