@@ -94,6 +94,12 @@ Attack tools (such as Hydra-ESP's `attack_beacon_spam.c` or ESP32 Marauder) floo
 When beacon rate reaches or exceeds the threshold (25+ frames/s) with at least 8 unique BSSIDs in a 1-second window, the device publishes `BeaconFloodAlert { rate, unique_bssids }`. Alerts are rate-limited to at most one every 5 seconds to prevent BLE saturation.
 In the PWA, beacon flood alerts appear as critical red alerts in the feed and toast notifications with the observed rate and unique BSSID count.
 
+## Hidden SSID automatic decloaking (device slice `scan`)
+Access points broadcasting "hidden" networks emit 802.11 Beacon frames with an empty or null-padded SSID tag (Tag 0). However, when an authorized client probes for the network or connects, the AP responds with directed Probe Response frames containing the uncloaked cleartext SSID.
+- **Deduplication Bypass**: While normal beacons are deduplicated by RSSI movement (>= 6 dB) and scan interval, uncovering a hidden SSID is high-priority security intelligence. `ScanTable` detects when an AP previously heard with an empty SSID is observed with a non-empty SSID, immediately bypassing deduplication and emitting `DecloakedResult { bssid, ssid, channel, rssi }`.
+- **State Preservation**: Once an AP's SSID is uncloaked, subsequent empty beacon frames from that AP cannot revert the entry back to hidden.
+- **PWA Visualization**: The scanner displays a prominent `DECLOAKED` badge alongside the revealed SSID, and an informational alert is published to the Alert feed (`[DECLOAKED] Hidden network <BSSID> uncloaked as "<SSID>" on CH <channel>`).
+
 ## BLE monitor (device slice `ble_monitor`)
 Off by default. When switched on, a passive NimBLE scan (25 % duty cycle) classifies each advertisement as **Fast Pair** (service data
 0xFE2C), **iBeacon** (Apple type 0x02, length 0x15), **Proximity pairing** (Apple type 0x07, AirPods-style) or **Generic**, and the core
