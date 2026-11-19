@@ -20,6 +20,48 @@ fn dedupes_until_rssi_moves() {
 }
 
 #[test]
+fn hidden_network_decloaked_bypasses_dedup() {
+    let mut t = ScanTable::new();
+    let hidden = Observation {
+        bssid: [0xaa; 6],
+        channel: 6,
+        rssi: -50,
+        ssid: "".try_into().unwrap(),
+        wps: None,
+        security: None,
+    };
+    // 1. Initial observation of hidden AP emits ScanResult
+    let res = t.observe(hidden.clone(), 0).expect("first hidden scan");
+    assert!(matches!(res, beewave_protocol::TelemetryMessage::ScanResult { ssid, .. } if ssid.is_empty()));
+
+    // 2. Immediate duplicate hidden beacon at identical RSSI is suppressed
+    assert!(t.observe(hidden.clone(), 0).is_none());
+
+    // 3. Probe response arrives with cleartext SSID at identical RSSI: MUST emit DecloakedResult
+    let probe_resp = Observation {
+        bssid: [0xaa; 6],
+        channel: 6,
+        rssi: -50,
+        ssid: "SecretCorp".try_into().unwrap(),
+        wps: None,
+        security: None,
+    };
+    let decloaked = t.observe(probe_resp, 10).expect("decloaked report");
+    assert_eq!(
+        decloaked,
+        beewave_protocol::TelemetryMessage::DecloakedResult {
+            bssid: [0xaa; 6],
+            ssid: "SecretCorp".try_into().unwrap(),
+            channel: 6,
+            rssi: -50,
+        }
+    );
+
+    // 4. Subsequent empty beacon at same RSSI is suppressed and does not revert to hidden
+    assert!(t.observe(hidden, 20).is_none());
+}
+
+#[test]
 fn survives_overflow() {
     let mut t = ScanTable::new();
     for i in 0..200u8 {
