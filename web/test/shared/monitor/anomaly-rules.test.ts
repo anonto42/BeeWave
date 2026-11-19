@@ -10,7 +10,15 @@ describe("anomaly alerts", () => {
     const sev = Object.fromEntries(
       ANOMALY_KINDS.map((kind) => [kind, alertFromTelemetry({ type: "anomaly", kind, bssid: BSSID, detail: 27 })!.severity]),
     );
-    expect(sev).toEqual({ newBssidForSsid: "warn", twoChannels: "info", rssiOutlier: "info", returned: "info", securityDowngrade: "alert" });
+    expect(sev).toEqual({ newBssidForSsid: "warn", twoChannels: "info", rssiOutlier: "info", returned: "info", securityDowngrade: "alert", karmaSsidChange: "alert" });
+  });
+
+  it("formats karma ssid change anomaly with alert severity and clear title", () => {
+    const alert = alertFromTelemetry({ type: "anomaly", kind: "karmaSsidChange", bssid: BSSID, detail: 0 })!;
+    expect(alert.severity).toBe("alert");
+    expect(alert.title).toBe("KARMA / Rogue AP SSID change detected");
+    expect(alert.detail).toContain("WiFi Pineapple / MANA honeypot attack");
+    expect(alert).toMatchObject({ source: "anomaly", bssid: BSSID });
   });
 
   it("formats security downgrade anomaly with alert severity and clear title", () => {

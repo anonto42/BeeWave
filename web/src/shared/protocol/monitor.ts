@@ -3,7 +3,7 @@ export const AD_CLASSES = ["fastPair", "ibeacon", "proximity", "generic", "findM
 export type AdClassName = (typeof AD_CLASSES)[number];
 
 /** Anomaly kinds, in `AnomalyKind` variant order. */
-export const ANOMALY_KINDS = ["newBssidForSsid", "twoChannels", "rssiOutlier", "returned", "securityDowngrade"] as const;
+export const ANOMALY_KINDS = ["newBssidForSsid", "twoChannels", "rssiOutlier", "returned", "securityDowngrade", "karmaSsidChange"] as const;
 export type AnomalyKindName = (typeof ANOMALY_KINDS)[number];
 
 /** `HopOrder` variants, in wire order. */

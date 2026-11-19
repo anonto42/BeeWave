@@ -8,6 +8,7 @@ const ANOMALY_TEXT = {
   rssiOutlier: { severity: "info", title: "Signal jumped", detail: "" },
   returned: { severity: "info", title: "Network came back", detail: "" },
   securityDowngrade: { severity: "alert", title: "Evil Twin security downgrade detected", detail: "open or downgraded access point clone detected for secured network" },
+  karmaSsidChange: { severity: "alert", title: "KARMA / Rogue AP SSID change detected", detail: "same BSSID advertised different SSID (possible WiFi Pineapple / MANA honeypot attack)" },
 } as const;
 
 /** A deauth burst this size or bigger is treated as a flood (red); smaller bursts are yellow. */
