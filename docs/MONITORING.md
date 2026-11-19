@@ -107,6 +107,13 @@ keeps per-class counts over the last minute (`BleStats` every 10 s). `BleSpike` 
 `max(baseline x factor, baseline + 20)` after a 60 s warm-up (factor 2-20, default 3), at most once a minute per class. It shares the radio
 with the phone link, so watch **BLE LOST** in Status after enabling it.
 
+## BLE flood and spam attack detector (device slice `ble_monitor`)
+Penetration testing and prank tools (such as Hydra-ESP's `attack_bt_spam.c`, Flipper Zero, or Marauder) broadcast high-velocity bursts of spoofed BLE advertisements to disrupt nearby phones and computers with pairing popups (Apple Action Modals, Google FastPair prompts, SwiftPair).
+While `BleMonitor` tracks rolling averages over 60-second windows, `BleFloodDetector` tracks advertisement arrival rates in a 1-second sliding window without heap allocations.
+- **Velocity Threshold**: When total BLE advertisement arrival rate reaches or exceeds 30 packets per second, the detector identifies the dominant advertisement class and emits `BleFloodAlert { rate, class }`.
+- **Bandwidth Protection**: Alerts are rate-limited to at most one every 5 seconds (`BLE_FLOOD_COOLDOWN_TICKS`) to prevent saturation of the BLE control connection.
+- **PWA Visualization**: The PWA Alert feed flags high-severity alerts (`[BLE FLOOD ATTACK] Rapid BLE advertisement flood: <rate>/s (<class> spam)`) to instantly alert the operator of active Bluetooth jamming or spamming activity.
+
 ## Alerts feed and anomaly rules (device slice `anomaly`)
 A chronological feed, newest first, coloured by severity (blue info, yellow warn, red alert), filterable by source. The device raises:
 
