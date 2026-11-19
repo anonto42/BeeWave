@@ -448,4 +448,3 @@ pub enum WifiPmfMode {
     Capable,
     Required,
 }
-

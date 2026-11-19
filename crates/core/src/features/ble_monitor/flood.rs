@@ -43,7 +43,10 @@ impl BleFloodDetector {
     /// Advance one second on tick. Returns `Some(TelemetryMessage::BleFloodAlert)` if
     /// the aggregate rate meets or exceeds the threshold and cooldown has elapsed.
     pub fn tick(&mut self) -> Option<TelemetryMessage> {
-        let total: u16 = self.counts.iter().fold(0u16, |acc, &c| acc.saturating_add(c));
+        let total: u16 = self
+            .counts
+            .iter()
+            .fold(0u16, |acc, &c| acc.saturating_add(c));
 
         // Identify dominant class
         let mut max_count = 0u16;

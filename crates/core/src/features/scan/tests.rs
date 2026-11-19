@@ -32,7 +32,9 @@ fn hidden_network_decloaked_bypasses_dedup() {
     };
     // 1. Initial observation of hidden AP emits ScanResult
     let res = t.observe(hidden.clone(), 0).expect("first hidden scan");
-    assert!(matches!(res, beewave_protocol::TelemetryMessage::ScanResult { ssid, .. } if ssid.is_empty()));
+    assert!(
+        matches!(res, beewave_protocol::TelemetryMessage::ScanResult { ssid, .. } if ssid.is_empty())
+    );
 
     // 2. Immediate duplicate hidden beacon at identical RSSI is suppressed
     assert!(t.observe(hidden.clone(), 0).is_none());
@@ -323,7 +325,8 @@ fn make_rsn_body(akm_types: &[u8], mfpc: bool, mfpr: bool) -> heapless::Vec<u8, 
     v.extend_from_slice(&[0x00, 0x0F, 0xAC, 0x04]).unwrap();
     v.extend_from_slice(&1u16.to_le_bytes()).unwrap();
     v.extend_from_slice(&[0x00, 0x0F, 0xAC, 0x04]).unwrap();
-    v.extend_from_slice(&(akm_types.len() as u16).to_le_bytes()).unwrap();
+    v.extend_from_slice(&(akm_types.len() as u16).to_le_bytes())
+        .unwrap();
     for &t in akm_types {
         v.extend_from_slice(&[0x00, 0x0F, 0xAC, t]).unwrap();
     }
@@ -383,22 +386,38 @@ fn test_security_classification() {
     assert_eq!(pmf, WifiPmfMode::None);
 
     // WPA2 PSK
-    let (proto, pmf) = classify_security(true, Some((false, true, false, false, WifiPmfMode::Capable)), false);
+    let (proto, pmf) = classify_security(
+        true,
+        Some((false, true, false, false, WifiPmfMode::Capable)),
+        false,
+    );
     assert_eq!(proto, WifiSecurityProtocol::Wpa2);
     assert_eq!(pmf, WifiPmfMode::Capable);
 
     // WPA3 SAE
-    let (proto, pmf) = classify_security(true, Some((false, false, true, false, WifiPmfMode::None)), false);
+    let (proto, pmf) = classify_security(
+        true,
+        Some((false, false, true, false, WifiPmfMode::None)),
+        false,
+    );
     assert_eq!(proto, WifiSecurityProtocol::Wpa3);
     assert_eq!(pmf, WifiPmfMode::Required); // Defaulted to required for SAE
 
     // WPA2/WPA3 Transition
-    let (proto, pmf) = classify_security(true, Some((false, true, true, false, WifiPmfMode::None)), false);
+    let (proto, pmf) = classify_security(
+        true,
+        Some((false, true, true, false, WifiPmfMode::None)),
+        false,
+    );
     assert_eq!(proto, WifiSecurityProtocol::Wpa2Wpa3);
     assert_eq!(pmf, WifiPmfMode::Capable);
 
     // Enterprise 802.1X
-    let (proto, pmf) = classify_security(true, Some((true, false, false, false, WifiPmfMode::None)), false);
+    let (proto, pmf) = classify_security(
+        true,
+        Some((true, false, false, false, WifiPmfMode::None)),
+        false,
+    );
     assert_eq!(proto, WifiSecurityProtocol::Enterprise);
     assert_eq!(pmf, WifiPmfMode::None);
 }
@@ -480,7 +499,10 @@ fn beacon_flood_detector_triggers_on_high_rate_and_unique_bssids() {
     }
     let alert = detector.tick().expect("should trigger flood alert");
     match alert {
-        beewave_protocol::TelemetryMessage::BeaconFloodAlert { rate, unique_bssids } => {
+        beewave_protocol::TelemetryMessage::BeaconFloodAlert {
+            rate,
+            unique_bssids,
+        } => {
             assert_eq!(rate, 30);
             assert_eq!(unique_bssids, 15);
         }
