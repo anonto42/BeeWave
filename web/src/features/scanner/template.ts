@@ -1,6 +1,8 @@
 import { esc } from "../../shared/app";
-import { rssiHtml, type SecurityRecord, type WpsRecord } from "../../shared/monitor";
+import { rssiHtml, securityLabel, type SecurityRecord, type WpsRecord } from "../../shared/monitor";
 import type { ScanResult } from "./types";
+
+export { securityLabel };
 
 export const scannerHtml = `<div class="toolbar">
   <label class="field">SORT <select data-sort>
@@ -14,22 +16,6 @@ export const scannerHtml = `<div class="toolbar">
 <ul class="nets" data-list></ul>`;
 
 export const emptyHtml = `<li class="empty dim">No networks yet. Press START SCAN.</li>`;
-
-export const securityLabel = (sec: SecurityRecord): string => {
-  const protoMap: Record<string, string> = {
-    open: "OPEN",
-    wep: "WEP",
-    wpa: "WPA",
-    wpa2: "WPA2",
-    wpa3: "WPA3",
-    wpa2Wpa3: "WPA2/WPA3",
-    owe: "OWE",
-    enterprise: "802.1X",
-  };
-  const proto = protoMap[sec.protocol] ?? sec.protocol.toUpperCase();
-  const pmf = sec.pmf === "required" ? " · PMF" : sec.pmf === "capable" ? " · PMF OPT" : "";
-  return `${proto}${pmf}`;
-};
 
 export const rowHtml = (
   n: ScanResult,

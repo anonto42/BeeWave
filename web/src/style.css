@@ -256,17 +256,47 @@ code { font-size:11px; background:var(--soft); padding:0 4px; }
 .hs-dot { width:9px; height:9px; border:1px solid var(--dim); background:transparent; }
 .hs-dot.on { background:var(--fg); border-color:var(--fg); }
 
-/* handshake capture: per-target toolbar */
+/* Step pills for M1-M4 progress */
+.hs-step-pills { display:flex; gap:3px; flex-wrap:wrap; align-items:center; }
+.hs-step { font-size:9px; letter-spacing:.05em; padding:1px 5px; border:1px solid var(--soft); color:var(--dim); white-space:nowrap; }
+.hs-step.on { background:var(--ok); color:var(--bg); border-color:var(--ok); font-weight:bold; }
+.hs-step-pills.dim .hs-step { opacity:.4; }
+
+/* Handshake status badges */
+.badge.ok { border-color:var(--ok); color:var(--ok); background:rgba(123,216,143,.1); font-weight:600; }
+.badge.dim { border-color:var(--soft); color:var(--dim); }
+
+/* Target head and toolbar */
 .hs-target { flex-direction:column; align-items:stretch; cursor:default; gap:6px; padding:10px 12px; }
 .hs-target:active { background:transparent; }
-.hs-toolbar { padding:0; border:0; }
+.hs-target-head { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.hs-target-badges { display:flex; gap:4px; align-items:center; }
+.hs-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:6px 0; border:0; }
 .hs-toolbar button[data-want].on { background:var(--ok); color:var(--bg); border-color:var(--ok); }
+.hs-toolbar button.lock-ch { min-height:30px; padding:2px 8px; font-size:10px; }
+.hs-toolbar button.lock-ch.on { background:var(--ok); color:var(--bg); border-color:var(--ok); font-weight:600; }
+.hs-ch-status { font-size:11px; }
+.hs-ch-status.on { color:var(--ok); font-weight:600; }
+
+/* Advisory banner */
+.hs-advisory { margin:6px 10px; padding:8px 10px; border-left:3px solid #6ea8ff; background:rgba(110,168,255,.08); font-size:11px; }
+.hs-advisory.ok { border-left-color:var(--ok); background:rgba(123,216,143,.08); }
+
+/* Waiting client animation */
+.hs-waiting { opacity:.8; }
+.hs-waiting .spinner { width:10px; height:10px; border-width:1.5px; margin-right:6px; }
+
+/* Target specific threats and elements */
 .hs-clients { border:1px solid var(--soft); }
 .hs-client { min-height:44px; padding:8px 10px; border-bottom:1px solid var(--soft); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px; }
 .hs-client:last-child { border-bottom:0; }
 .hs-client:active { background:transparent; }
-.hs-client-info { display:flex; align-items:center; gap:8px; flex:1 1 180px; min-width:0; }
+.hs-client.hs-threat { background:rgba(240,113,108,.08); border-left:3px solid #f0716c; }
+.hs-client-info { display:flex; align-items:center; gap:8px; flex:1 1 180px; min-width:0; flex-wrap:wrap; }
 .hs-client-info .net-main { min-width:0; }
 .hs-client-info code { word-break:break-all; font-size:10px; }
 .hs-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; flex:0 0 auto; }
 .hs-actions button.small { min-height:28px; padding:2px 8px; font-size:10px; }
+.hs-copy-btn { font-weight:600; border-color:var(--ok); color:var(--ok); }
+@media (hover: hover) { .hs-copy-btn:hover:not(:disabled) { background:var(--ok); color:var(--bg); } }
+.hs-assoc-sig { display:flex; align-items:center; margin-left:auto; }
