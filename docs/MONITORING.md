@@ -89,10 +89,20 @@ them with the threshold (default 10 per second, 0 = off) and publishes `DeauthAl
 shows a live table with a sparkline of frames per second and lets you change the threshold (`SetMonitor`; kept in RAM, back to the
 default after a reboot).
 
+## Disassociation attack detection (device slice `deauth_detect`)
+Wireless penetration testing tools (such as `aireplay-ng --deauth`, `mdk4 d`, or Marauder) frequently transmit 802.11 Disassociation management frames (subtype 0xA0) in addition to or instead of Deauthentication frames (0xC0) to kick client stations off networks or trigger reconnection handshakes.
+The promiscuous sniffer callback counts disassociation frames per BSSID in a dedicated lock-free table without heap allocation. When the disassociation rate reaches or exceeds the configured threshold, the core publishes `DisassocAlert { bssid, count }`. In the PWA, disassociation alerts appear in the Alert feed (`[DISASSOC FLOOD] Disassociation flood from <BSSID> (<count>/s)`) and populate the active kicker list.
+
 ## Beacon flood detector (device slice `scan`)
 Attack tools (such as Hydra-ESP's `attack_beacon_spam.c` or ESP32 Marauder) flood the 2.4 GHz band with dozens of fake beacons with spoofed BSSIDs to jam scanner lists. The device tracks beacon arrival velocity and unique BSSIDs in 1-second sliding windows without allocation.
 When beacon rate reaches or exceeds the threshold (25+ frames/s) with at least 8 unique BSSIDs in a 1-second window, the device publishes `BeaconFloodAlert { rate, unique_bssids }`. Alerts are rate-limited to at most one every 5 seconds to prevent BLE saturation.
 In the PWA, beacon flood alerts appear as critical red alerts in the feed and toast notifications with the observed rate and unique BSSID count.
+
+## Probe request flood detector (device slice `probe`)
+Penetration testing and scanner-jamming attack tools (such as `mdk4 p`, `mdk3 p`, or ESP32 Marauder probe spam) flood the 2.4 GHz spectrum with bursts of 802.11 Probe Request frames (`subtype 0x40`) with randomized MAC addresses and fake SSIDs to exhaust Access Point client association tables or blind wireless monitors.
+The core tracks probe arrival velocity and unique client MACs in a 1-second sliding window without heap allocation.
+When probe arrival rate reaches or exceeds the threshold (30+ frames/s) with at least 8 unique client MAC addresses in a 1-second window, the core emits `ProbeFloodAlert { rate, unique_clients }`. Alerts are rate-limited to at most one every 5 seconds to prevent BLE saturation.
+In the PWA, probe request flood alerts appear as critical red alerts in the feed and toast notifications with the observed rate and unique client MAC count (`[PROBE FLOOD ATTACK] Probe request flood attack: <rate>/s (<unique> unique client MACs)`).
 
 ## Hidden SSID automatic decloaking (device slice `scan`)
 Access points broadcasting "hidden" networks emit 802.11 Beacon frames with an empty or null-padded SSID tag (Tag 0). However, when an authorized client probes for the network or connects, the AP responds with directed Probe Response frames containing the uncloaked cleartext SSID.
@@ -102,7 +112,7 @@ Access points broadcasting "hidden" networks emit 802.11 Beacon frames with an e
 
 ## BLE monitor (device slice `ble_monitor`)
 Off by default. When switched on, a passive NimBLE scan (25 % duty cycle) classifies each advertisement as **Fast Pair** (service data
-0xFE2C), **iBeacon** (Apple type 0x02, length 0x15), **Proximity pairing** (Apple type 0x07, AirPods-style) or **Generic**, and the core
+0xFE2C), **iBeacon** (Apple type 0x02, length 0x15), **Proximity pairing** (Apple type 0x07, AirPods-style), **Find My / AirTag** (Apple type 0x12, offline finding) or **Generic**, and the core
 keeps per-class counts over the last minute (`BleStats` every 10 s). `BleSpike` fires when a class exceeds
 `max(baseline x factor, baseline + 20)` after a 60 s warm-up (factor 2-20, default 3), at most once a minute per class. It shares the radio
 with the phone link, so watch **BLE LOST** in Status after enabling it.
@@ -119,12 +129,13 @@ A chronological feed, newest first, coloured by severity (blue info, yellow warn
 
 | Kind | Rule | Severity |
 |---|---|---|
+| Evil Twin security downgrade detected | an SSID previously observed with secure encryption (WPA, WPA2, WPA3, OWE, Enterprise) appears open or downgraded to WEP | alert |
 | New access point for a known network | a known SSID appears on a BSSID not seen with it before (not during the first 30 s) | warn |
 | Same BSSID on two channels | heard on two channels within a minute; can be adjacent-channel leakage, so treat it as a hint | info |
 | Signal jumped | RSSI moved by more than 20 dB between cycles | info |
 | Network came back | missing for more than 5 cycles, then heard again | info |
 
-Each kind is reported at most once per 30 s per BSSID. Deauth floods of 50/s or more and BLE spikes of 10x the baseline are red.
+Each kind is reported at most once per 30 s per BSSID. Deauth floods of 50/s or more, disassociation floods, and BLE spikes of 10x the baseline are red.
 
 ## Compare scans
 A scan is saved when you stop scanning (or with **Snapshot now**) and holds only the networks heard *during that scan*. Pick two to see
@@ -178,6 +189,12 @@ When a PMKID is heard for a targeted network, the panel displays the client MAC 
 download button. The exported file contains a single standard Hashcat mode 22000 hash line:
 `WPA*01*<pmkid>*<bssid>*<client>*<essid_hex>***` which can be supplied directly to `hashcat -m 22000` for offline password
 auditing without needing a complete 4-way handshake or external capture converters.
+
+### Multi-target PCAP and consolidated Hashcat 22000 export
+When multiple networks or client handshakes are captured during an audit:
+- **ALL .PCAP**: Combines all captured EAPOL packets from all monitored target pairs into a single, chronologically sequenced libpcap file (`beewave_handshakes_<timestamp>.pcap`). This multi-target capture can be analyzed directly in Wireshark or batch-converted with `hcxpcapngtool`.
+- **ALL .22000**: Merges all crackable 4-way handshakes (`WPA*02*`) and clientless PMKIDs (`WPA*01*`) into a single multi-line Hashcat Mode 22000 dictionary attack file (`beewave_hashes_<timestamp>.22000`).
+- **COPY ALL 22000**: Copies the entire consolidated 22000 hash text to the system clipboard in one click with visual confirmation.
 
 ## Export session
 In Settings > Import/Export, one button saves the session in the chosen format (JSON, CSV or both), assembled on the phone from what the app has already seen: scan reports, alerts, log lines, key/link
