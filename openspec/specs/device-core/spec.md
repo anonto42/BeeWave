@@ -410,3 +410,14 @@ The core monitoring engine SHALL track received 802.11 Probe Request frame veloc
 #### Scenario: Flood alert cooldown rate limiting
 - **WHEN** a probe flood attack persists across consecutive 1-second intervals
 - **THEN** the core rate-limits `ProbeFloodAlert` emissions to at most one alert every 5 seconds to prevent BLE link exhaustion
+
+### Requirement: KARMA rogue AP SSID change anomaly detection
+The core anomaly detector SHALL detect when an Access Point BSSID previously seen advertising a valid non-empty SSID begins broadcasting a different non-empty SSID, emitting an `AnomalyAlert` of kind `KarmaSsidChange`.
+
+#### Scenario: Rogue AP switches advertised SSID on same BSSID
+- **WHEN** an AP with a known non-empty SSID is observed broadcasting a different non-empty SSID
+- **THEN** the core emits `AnomalyAlert` of kind `KarmaSsidChange` naming the offending BSSID
+
+#### Scenario: Hidden network transition ignored
+- **WHEN** an AP broadcasts an empty or hidden SSID
+- **THEN** no `KarmaSsidChange` anomaly is raised
