@@ -97,6 +97,13 @@ export type Telemetry =
       type: "beaconFloodAlert";
       rate: number;
       uniqueBssids: number;
+    }
+  | {
+      type: "decloakedResult";
+      bssid: string;
+      ssid: string;
+      channel: number;
+      rssi: number;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

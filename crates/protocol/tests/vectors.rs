@@ -193,6 +193,12 @@ fn roundtrip_and_emit_golden_vectors() {
             rate: 65,
             unique_bssids: 42,
         },
+        TelemetryMessage::DecloakedResult {
+            bssid: [0x00, 0x11, 0x22, 0x33, 0x44, 0x55],
+            ssid: "UncloakedCorp".try_into().unwrap(),
+            channel: 6,
+            rssi: -58,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

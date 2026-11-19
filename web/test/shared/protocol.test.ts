@@ -61,6 +61,13 @@ describe("telemetry decode (golden vectors from Rust)", () => {
       rate: 65,
       uniqueBssids: 42,
     });
+    expect(m(30)).toEqual({
+      type: "decloakedResult",
+      bssid: "00:11:22:33:44:55",
+      ssid: "UncloakedCorp",
+      channel: 6,
+      rssi: -58,
+    });
   });
   it("settings management messages", () => {
     const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;

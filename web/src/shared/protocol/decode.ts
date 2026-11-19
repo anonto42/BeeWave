@@ -174,6 +174,15 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         uniqueBssids: r.varint(),
       };
       break;
+    case 28:
+      msg = {
+        type: "decloakedResult",
+        bssid: hex(r.bytes(6)),
+        ssid: r.str(),
+        channel: r.u8(),
+        rssi: r.i8(),
+      };
+      break;
     default:
       throw new Error(`unknown telemetry tag ${tag}`);
   }

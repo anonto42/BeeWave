@@ -414,6 +414,13 @@ pub enum TelemetryMessage {
         rate: u16,
         unique_bssids: u16,
     },
+    /// A previously cloaked / hidden Access Point uncloaked by a directed probe response or beacon frame.
+    DecloakedResult {
+        bssid: [u8; 6],
+        ssid: String<32>,
+        channel: u8,
+        rssi: i8,
+    },
 }
 
 /// Wi-Fi security / authentication protocol of an Access Point.
