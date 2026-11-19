@@ -58,7 +58,7 @@ export interface Snapshot {
 }
 
 export type Severity = "info" | "warn" | "alert";
-export type AlertSource = "deauth" | "ble" | "anomaly" | "watchlist" | "handshake" | "beaconFlood" | "decloaked" | "bleFlood";
+export type AlertSource = "deauth" | "disassoc" | "ble" | "anomaly" | "watchlist" | "handshake" | "beaconFlood" | "decloaked" | "bleFlood" | "probeFlood";
 
 export interface AlertRecord {
   id: number;

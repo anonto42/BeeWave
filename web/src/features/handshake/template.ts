@@ -5,7 +5,14 @@ import type { Target } from "../../shared/targets";
 
 export const handshakeHtml = `<div class="pad dim small">Target Audit Workspace: capture WPA/WPA2 handshakes (M1+M2 is sufficient for Hashcat mode 22000), clientless PMKIDs, connected stations, and active deauth threats. Pin the radio to a target's channel for 100% reliable 4-way capture.</div>
 <div data-advisory></div>
-<div class="toolbar"><span class="dim grow small" data-state></span></div>
+<div class="toolbar">
+  <span class="dim grow small" data-state></span>
+  <span class="hs-batch-actions" data-batch-actions style="display:none">
+    <button type="button" class="small" data-export-all-pcap title="Export all captured frames across all targets to a single PCAP">ALL .PCAP (<span data-all-pcap-count>0</span>)</button>
+    <button type="button" class="small" data-export-all-22000 title="Export all crackable handshakes and PMKIDs in Hashcat mode 22000 format">ALL .22000 (<span data-all-22000-count>0</span>)</button>
+    <button type="button" class="small hs-copy-btn" data-copy-all-22000 title="Copy all 22000 hashes to clipboard">COPY ALL 22000</button>
+  </span>
+</div>
 <ul class="nets" data-list></ul>`;
 
 export const emptyTargetsHtml = `<li class="empty dim">No targets selected yet. In the Scanner above, tap any network to add it to your Target Audit Workspace.</li>`;

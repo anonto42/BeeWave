@@ -1,5 +1,5 @@
 import { $, coalesce, download, panel, type AppContext } from "../../shared/app";
-import { buildPcap, captureFilename, handshakeToHashcat22000, pmkidToHashcat22000, type HandshakePair } from "../../shared/monitor";
+import { buildMultiPcap, buildPcap, captureFilename, exportAll22000, handshakeToHashcat22000, pmkidToHashcat22000, type HandshakePair } from "../../shared/monitor";
 import { emptyTargetsHtml, handshakeHtml, targetRowHtml } from "./template";
 
 function copyToClipboard(text: string, btn: HTMLButtonElement): void {
@@ -116,10 +116,71 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
           );
         }).join("")
       : emptyTargetsHtml;
+
+    const allPairs = handshake.list();
+    const allPmkids = handshake.allPmkids();
+    const crackablePairs = allPairs.filter((p) => (p.messages.has(1) || p.messages.has(3)) && p.messages.has(2));
+    const totalReadyCaptures = crackablePairs.length + allPmkids.length;
+    const totalFrames = allPairs.reduce((n, p) => n + p.messages.size, 0);
+
+    const batchActions = $(el, "[data-batch-actions]");
+    if (totalFrames > 0 || totalReadyCaptures > 0) {
+      batchActions.style.display = "inline-flex";
+      $(el, "[data-all-pcap-count]").textContent = String(allPairs.length);
+      $(el, "[data-all-22000-count]").textContent = String(totalReadyCaptures);
+      $<HTMLButtonElement>(el, "[data-export-all-pcap]").disabled = totalFrames === 0;
+      $<HTMLButtonElement>(el, "[data-export-all-22000]").disabled = totalReadyCaptures === 0;
+      $<HTMLButtonElement>(el, "[data-copy-all-22000]").disabled = totalReadyCaptures === 0;
+    } else {
+      batchActions.style.display = "none";
+    }
   };
   const later = coalesce(render);
 
-  list.onclick = (e) => {
+  el.onclick = (e) => {
+    // Batch export all captured frames to a single PCAP
+    const allPcapBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-export-all-pcap]");
+    if (allPcapBtn) {
+      const pairs = handshake.list();
+      if (pairs.length === 0) return;
+      const bytes = buildMultiPcap(pairs);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      download(`beewave_handshakes_${stamp}.pcap`, "application/vnd.tcpdump.pcap", bytes);
+      return;
+    }
+
+    // Batch export all crackable handshakes and PMKIDs in Hashcat mode 22000 format
+    const all22000Btn = (e.target as HTMLElement).closest<HTMLElement>("[data-export-all-22000]");
+    if (all22000Btn) {
+      const pairs = handshake.list();
+      const pmkids = handshake.allPmkids();
+      const text = exportAll22000(
+        pairs,
+        pmkids,
+        (bssid) => ctx.monitor.scans.get(bssid)?.ssid ?? targets.list().find((t) => t.bssid === bssid)?.ssid ?? ""
+      );
+      if (!text) return;
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const bytes = new TextEncoder().encode(text);
+      download(`beewave_hashes_${stamp}.22000`, "text/plain", bytes);
+      return;
+    }
+
+    // Batch copy all 22000 hashes to clipboard
+    const copyAll22000Btn = (e.target as HTMLElement).closest<HTMLElement>("[data-copy-all-22000]");
+    if (copyAll22000Btn) {
+      const pairs = handshake.list();
+      const pmkids = handshake.allPmkids();
+      const text = exportAll22000(
+        pairs,
+        pmkids,
+        (bssid) => ctx.monitor.scans.get(bssid)?.ssid ?? targets.list().find((t) => t.bssid === bssid)?.ssid ?? ""
+      );
+      if (!text) return;
+      copyToClipboard(text, copyAll22000Btn as HTMLButtonElement);
+      return;
+    }
+
     // 1-Click Channel Lock
     const lockBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-lock-ch]");
     if (lockBtn) {

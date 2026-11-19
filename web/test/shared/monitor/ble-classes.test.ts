@@ -15,7 +15,7 @@ const run = (world: MockWorld, ticks: number) => {
 
 describe("BLE advertisement classes", () => {
   it("the class names follow the wire (variant) order", () => {
-    expect([...AD_CLASSES]).toEqual(["fastPair", "ibeacon", "proximity", "generic"]);
+    expect([...AD_CLASSES]).toEqual(["fastPair", "ibeacon", "proximity", "generic", "findMy"]);
   });
 
   it("nothing is reported while the BLE monitor is off", () => {
@@ -49,10 +49,16 @@ describe("BLE advertisement classes", () => {
     expect(spike(8 * BLE_FLOOD_FACTOR).severity).toBe("alert");
   });
 
+  it("alerts name Apple Find My (AirTag) on spike", () => {
+    const spike = alertFromTelemetry({ type: "bleSpike", class: "findMy", count: 35, baseline: 5 })!;
+    expect(spike).toMatchObject({ source: "ble", severity: "warn" });
+    expect(spike.title).toContain("Apple Find My (AirTag)");
+  });
+
   it("switching the monitor clears the old BLE history", () => {
     const k = createMonitorKernel();
     k.ingest({ type: "monitorConfig", deauthThreshold: 10, bleEnabled: true, bleSpikeFactor: 3 });
-    k.ingest({ type: "bleStats", fastPair: 1, ibeacon: 2, proximity: 3, generic: 4 });
+    k.ingest({ type: "bleStats", fastPair: 1, ibeacon: 2, proximity: 3, generic: 4, findMy: 5 });
     expect(k.state.bleLatest).not.toBeNull();
     k.ingest({ type: "monitorConfig", deauthThreshold: 10, bleEnabled: false, bleSpikeFactor: 3 });
     expect(k.state.bleLatest).toBeNull();

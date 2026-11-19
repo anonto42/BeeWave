@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPcap, captureFilename, HandshakeState } from "../../../src/shared/monitor";
+import { buildMultiPcap, buildPcap, captureFilename, HandshakeState } from "../../../src/shared/monitor";
 
 const BSSID = "50:c7:bf:aa:bb:01";
 const CLIENT = "6c:5a:72:00:01:02";
+const BSSID2 = "60:c7:bf:cc:dd:02";
+const CLIENT2 = "7c:5a:72:00:03:04";
 
 function completedPair(eapol1 = Uint8Array.from([1, 2, 3]), eapol2 = Uint8Array.from([4, 5, 6, 7])) {
   const s = new HandshakeState(() => 1_700_000_000_123);
@@ -68,6 +70,49 @@ describe("buildPcap", () => {
     const { packets } = readPcap(buildPcap(completedPair()));
     const bssidBytes = [0x50, 0xc7, 0xbf, 0xaa, 0xbb, 0x01];
     for (const p of packets) expect([...p.bytes.slice(16, 22)]).toEqual(bssidBytes);
+  });
+});
+
+describe("buildMultiPcap", () => {
+  it("writes valid header with no packets for empty pairs list", () => {
+    const { header, packets } = readPcap(buildMultiPcap([]));
+    expect(header).toEqual({ magic: 0xa1b2c3d4, linktype: 105 });
+    expect(packets).toHaveLength(0);
+  });
+
+  it("combines multiple pairs into a single chronologically ordered PCAP", () => {
+    let t = 1_700_000_000_000;
+    const s = new HandshakeState(() => t);
+    s.ingest({ type: "handshakeCaptureState", enabled: true });
+
+    t = 1_700_000_000_100;
+    s.ingest({ type: "handshakeFrame", bssid: BSSID, client: CLIENT, message: 1, replayCounter: 1, truncated: false, eapol: Uint8Array.from([1, 1]) });
+
+    t = 1_700_000_000_200;
+    s.ingest({ type: "handshakeFrame", bssid: BSSID2, client: CLIENT2, message: 1, replayCounter: 1, truncated: false, eapol: Uint8Array.from([2, 1]) });
+
+    t = 1_700_000_000_300;
+    s.ingest({ type: "handshakeFrame", bssid: BSSID, client: CLIENT, message: 2, replayCounter: 2, truncated: false, eapol: Uint8Array.from([1, 2]) });
+
+    t = 1_700_000_000_400;
+    s.ingest({ type: "handshakeFrame", bssid: BSSID2, client: CLIENT2, message: 2, replayCounter: 2, truncated: false, eapol: Uint8Array.from([2, 2]) });
+
+    const pairs = s.list();
+    expect(pairs).toHaveLength(2);
+
+    const { header, packets } = readPcap(buildMultiPcap(pairs));
+    expect(header).toEqual({ magic: 0xa1b2c3d4, linktype: 105 });
+    expect(packets).toHaveLength(4);
+
+    // Verify chronologically ordered payload bytes
+    // packet 0: pair 1 msg 1 ([1, 1])
+    expect([...packets[0].bytes.slice(32)]).toEqual([1, 1]);
+    // packet 1: pair 2 msg 1 ([2, 1])
+    expect([...packets[1].bytes.slice(32)]).toEqual([2, 1]);
+    // packet 2: pair 1 msg 2 ([1, 2])
+    expect([...packets[2].bytes.slice(32)]).toEqual([1, 2]);
+    // packet 3: pair 2 msg 2 ([2, 2])
+    expect([...packets[3].bytes.slice(32)]).toEqual([2, 2]);
   });
 });
 

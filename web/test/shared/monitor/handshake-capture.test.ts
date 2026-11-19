@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertFromTelemetry, createMonitorKernel, HandshakeState, handshakeToHashcat22000, pairToHex, pmkidToHashcat22000, type HandshakePair } from "../../../src/shared/monitor";
+import { alertFromTelemetry, createMonitorKernel, exportAll22000, HandshakeState, handshakeToHashcat22000, pairToHex, pmkidToHashcat22000, type HandshakePair } from "../../../src/shared/monitor";
 import { MockWorld } from "../../../src/shared/transport/mock-world";
 
 const BSSID = "50:c7:bf:aa:bb:01";
@@ -262,5 +262,95 @@ describe("handshakeToHashcat22000", () => {
       ]),
     };
     expect(handshakeToHashcat22000(pairShortM2, "Wifi")).toBeNull();
+  });
+});
+
+describe("allPmkids", () => {
+  it("returns all PMKIDs across all BSSIDs, newest first", () => {
+    let t = 1000;
+    const s = new HandshakeState(() => t);
+    t = 1100;
+    s.ingest({ type: "pmkidFound", bssid: "11:22:33:44:55:66", client: CLIENT, pmkid: "00112233445566778899aabbccddeeff" });
+    t = 1200;
+    s.ingest({ type: "pmkidFound", bssid: "aa:bb:cc:dd:ee:ff", client: CLIENT, pmkid: "ffeeddccbbaa99887766554433221100" });
+
+    const all = s.allPmkids();
+    expect(all).toHaveLength(2);
+    expect(all[0].bssid).toBe("aa:bb:cc:dd:ee:ff");
+    expect(all[1].bssid).toBe("11:22:33:44:55:66");
+  });
+});
+
+describe("exportAll22000", () => {
+  const createFrame = (len: number, fillByte: number) => {
+    const b = new Uint8Array(len);
+    b.fill(fillByte);
+    return b;
+  };
+
+  it("returns empty string when no pairs and no PMKIDs are present", () => {
+    expect(exportAll22000([], [])).toBe("");
+  });
+
+  it("skips non-crackable pairs and returns empty string", () => {
+    const pairIncomplete: HandshakePair = {
+      bssid: BSSID,
+      client: CLIENT,
+      complete: false,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: createFrame(60, 0x11), at: 1000 }],
+      ]),
+    };
+    expect(exportAll22000([pairIncomplete], [])).toBe("");
+  });
+
+  it("consolidates valid handshakes (WPA*02*) and PMKIDs (WPA*01*) into multi-line 22000 output", () => {
+    const m1Bytes = createFrame(60, 0x11);
+    m1Bytes.fill(0xaa, 17, 49);
+    const m2Bytes = createFrame(100, 0x22);
+    m2Bytes.fill(0xbb, 81, 97);
+
+    const pair: HandshakePair = {
+      bssid: "50:c7:bf:aa:bb:01",
+      client: "6c:5a:72:00:01:02",
+      complete: true,
+      firstSeen: 1000,
+      lastSeen: 1000,
+      messages: new Map([
+        [1, { message: 1, replayCounter: 1, truncated: false, eapol: m1Bytes, at: 1000 }],
+        [2, { message: 2, replayCounter: 2, truncated: false, eapol: m2Bytes, at: 1000 }],
+      ]),
+    };
+
+    const pmkid = {
+      bssid: "60:c7:bf:aa:bb:02",
+      client: "7c:5a:72:00:01:03",
+      pmkid: "00112233445566778899aabbccddeeff",
+      at: 1000,
+    };
+
+    const ssids: Record<string, string> = {
+      "50:c7:bf:aa:bb:01": "OfficeNet",
+      "60:c7:bf:aa:bb:02": "GuestNet",
+    };
+
+    const result = exportAll22000([pair], [pmkid], (bssid) => ssids[bssid] ?? "");
+    const lines = result.trim().split("\n");
+    expect(lines).toHaveLength(2);
+
+    // First line should be WPA*02* for the handshake
+    expect(lines[0].startsWith("WPA*02*")).toBe(true);
+    expect(lines[0]).toContain("50c7bfaabb01");
+    // "OfficeNet" in hex: 4f66666963654e6574
+    expect(lines[0]).toContain("4f66666963654e6574");
+
+    // Second line should be WPA*01* for the PMKID
+    expect(lines[1].startsWith("WPA*01*")).toBe(true);
+    expect(lines[1]).toContain("00112233445566778899aabbccddeeff");
+    expect(lines[1]).toContain("60c7bfaabb02");
+    // "GuestNet" in hex: 47756573744e6574
+    expect(lines[1]).toContain("47756573744e6574");
   });
 });

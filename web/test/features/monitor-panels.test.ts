@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chartSvg } from "../../src/features/channel-chart/chart";
 import { visible } from "../../src/features/anomalies/filter";
+import { handshakeHtml } from "../../src/features/handshake/template";
 import { DEFAULT_QUERY, filterAndSort, nextQuery } from "../../src/features/results/filter";
 import type { AlertRecord, NetworkRecord } from "../../src/shared/monitor";
 
@@ -83,5 +84,17 @@ describe("channel chart", () => {
     expect(heights[0]).toBeCloseTo(heights[1] * 2, 0);
     const act = [...svg.matchAll(/class="bar-act"[^>]*height="([\d.]+)"/g)].map((m) => Number(m[1]));
     expect(act[0]).toBeGreaterThan(0);
+  });
+});
+
+describe("handshake audit workspace template", () => {
+  it("renders batch export actions with PCAP, 22000 and copy controls initially hidden", () => {
+    expect(handshakeHtml).toContain("data-batch-actions");
+    expect(handshakeHtml).toContain('style="display:none"');
+    expect(handshakeHtml).toContain("data-export-all-pcap");
+    expect(handshakeHtml).toContain("data-export-all-22000");
+    expect(handshakeHtml).toContain("data-copy-all-22000");
+    expect(handshakeHtml).toContain("data-all-pcap-count");
+    expect(handshakeHtml).toContain("data-all-22000-count");
   });
 });

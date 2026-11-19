@@ -37,7 +37,7 @@ const APS: Ap[] = [
 ];
 
 const bssidBytes = (b: string) => b;
-const CLASS_BASE = { fastPair: 4, ibeacon: 3, proximity: 8, generic: 150 } as const;
+const CLASS_BASE = { fastPair: 4, ibeacon: 3, proximity: 8, generic: 150, findMy: 6 } as const;
 const SPIKE_EVERY = 60;
 const SPIKE_COUNT = 90;
 
@@ -142,11 +142,15 @@ export class MockWorld {
     if (t === 55) out.push({ type: "anomaly", kind: "twoChannels", bssid: APS[3].bssid, detail: 0 });
     if (t === 70) out.push({ type: "anomaly", kind: "rssiOutlier", bssid: APS[4].bssid, detail: 27 });
     if (t === 85) out.push({ type: "anomaly", kind: "returned", bssid: APS[6].bssid, detail: 8 });
+    if (t === 90) out.push({ type: "anomaly", kind: "securityDowngrade", bssid: APS[3].bssid, detail: 0 });
     if (t === 95) out.push({ type: "beaconFloodAlert", rate: 58, uniqueBssids: 32 });
     if (t === 98) out.push({ type: "decloakedResult", bssid: APS[5].bssid, ssid: "StealthNet", channel: 4, rssi: -79 });
   }
 
   private deauth(out: Telemetry[]): void {
+    if (this.scanTicks % 35 === 0 && this.config.deauthThreshold > 0) {
+      out.push({ type: "disassocAlert", bssid: APS[2].bssid, count: 28 });
+    }
     if (this.scanTicks % 15 !== 0) return;
     const count = 8 + Math.floor(this.rand() * 70);
     // the device only alerts at or above the threshold (0 = off)
@@ -177,6 +181,9 @@ export class MockWorld {
       out.push({ type: "probeResult", client: "da:a1:19:22:33:44", channel: ch, rssi: -58, ssid: "HomeNetwork" });
     } else if (this.scanTicks % 15 === 0) {
       out.push({ type: "probeResult", client: "f0:18:98:55:66:77", channel: ch, rssi: -72, ssid: "CoffeeShop" });
+    }
+    if (this.scanTicks % 60 === 0) {
+      out.push({ type: "probeFloodAlert", rate: 45, uniqueClients: 18 });
     }
   }
 
@@ -230,6 +237,7 @@ export class MockWorld {
       ibeacon: jitter(CLASS_BASE.ibeacon),
       proximity: spiking ? SPIKE_COUNT : jitter(CLASS_BASE.proximity),
       generic: jitter(CLASS_BASE.generic),
+      findMy: jitter(CLASS_BASE.findMy),
     };
     out.push({ type: "bleStats", ...counts });
     // the device's rule: above max(baseline x factor, baseline + 20)

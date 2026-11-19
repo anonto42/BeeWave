@@ -39,17 +39,32 @@ function u16le(out: DataView, offset: number, v: number): void {
   out.setUint16(offset, v, true);
 }
 
+interface PcapFrameEntry {
+  at: number;
+  message: number;
+  frame: Uint8Array;
+}
+
 /**
- * A classic libpcap file (the `.cap` / `.pcap` extensions name the same format) with one packet per
- * captured message, oldest first. Openable in Wireshark, and the EAPOL content is what tools such as
- * aircrack-ng or hcxpcapngtool read for an offline cracking attempt — subject to any message the device
- * flagged `truncated`, which this file carries over as `origLen` reported equal to the captured length
- * (the true original length past the device's capture cap is not known).
+ * Builds a classic libpcap file containing frames from multiple handshake pairs,
+ * ordered chronologically by capture timestamp. Suitable for Wireshark and `hcxpcapngtool`.
  */
-export function buildPcap(pair: HandshakePair): Uint8Array<ArrayBuffer> {
-  const messages = [...pair.messages.values()].sort((a, b) => a.message - b.message);
-  const frames = messages.map((m) => frameBytes(pair.bssid, pair.client, m));
-  const total = 24 + frames.reduce((n, f) => n + 16 + f.length, 0);
+export function buildMultiPcap(pairs: readonly HandshakePair[]): Uint8Array<ArrayBuffer> {
+  const entries: PcapFrameEntry[] = [];
+  for (const pair of pairs) {
+    for (const m of pair.messages.values()) {
+      entries.push({
+        at: m.at,
+        message: m.message,
+        frame: frameBytes(pair.bssid, pair.client, m),
+      });
+    }
+  }
+
+  // Sort chronologically; break timestamp ties by message sequence (M1, M2, M3, M4)
+  entries.sort((a, b) => (a.at - b.at) || (a.message - b.message));
+
+  const total = 24 + entries.reduce((n, e) => n + 16 + e.frame.length, 0);
   const buf = new ArrayBuffer(total);
   const view = new DataView(buf);
   const bytes = new Uint8Array(buf);
@@ -63,17 +78,27 @@ export function buildPcap(pair: HandshakePair): Uint8Array<ArrayBuffer> {
   u32le(view, 20, LINKTYPE_IEEE802_11);
 
   let o = 24;
-  for (const [i, frame] of frames.entries()) {
-    const at = messages[i].at;
-    u32le(view, o, Math.floor(at / 1000)); // ts_sec
-    u32le(view, o + 4, (at % 1000) * 1000); // ts_usec
-    u32le(view, o + 8, frame.length); // incl_len
-    u32le(view, o + 12, frame.length); // orig_len (the true length past the capture cap is unknown)
+  for (const entry of entries) {
+    u32le(view, o, Math.floor(entry.at / 1000)); // ts_sec
+    u32le(view, o + 4, (entry.at % 1000) * 1000); // ts_usec
+    u32le(view, o + 8, entry.frame.length); // incl_len
+    u32le(view, o + 12, entry.frame.length); // orig_len
     o += 16;
-    bytes.set(frame, o);
-    o += frame.length;
+    bytes.set(entry.frame, o);
+    o += entry.frame.length;
   }
   return bytes;
+}
+
+/**
+ * A classic libpcap file (the `.cap` / `.pcap` extensions name the same format) with one packet per
+ * captured message, oldest first. Openable in Wireshark, and the EAPOL content is what tools such as
+ * aircrack-ng or hcxpcapngtool read for an offline cracking attempt — subject to any message the device
+ * flagged `truncated`, which this file carries over as `origLen` reported equal to the captured length
+ * (the true original length past the device's capture cap is not known).
+ */
+export function buildPcap(pair: HandshakePair): Uint8Array<ArrayBuffer> {
+  return buildMultiPcap([pair]);
 }
 
 /** `ssid_macwithnocolons`, filesystem-safe, with the client's MAC appended only when it is needed to tell two

@@ -7,6 +7,7 @@ const ANOMALY_TEXT = {
   twoChannels: { severity: "info", title: "Same BSSID on two channels", detail: "may be adjacent-channel leakage; a hint, not proof" },
   rssiOutlier: { severity: "info", title: "Signal jumped", detail: "" },
   returned: { severity: "info", title: "Network came back", detail: "" },
+  securityDowngrade: { severity: "alert", title: "Evil Twin security downgrade detected", detail: "open or downgraded access point clone detected for secured network" },
 } as const;
 
 /** A deauth burst this size or bigger is treated as a flood (red); smaller bursts are yellow. */
@@ -14,7 +15,13 @@ export const DEAUTH_FLOOD = 50;
 /** A BLE class this many times above its baseline is treated as a flood (red). */
 export const BLE_FLOOD_FACTOR = 10;
 
-const CLASS_LABEL = { fastPair: "Fast Pair", ibeacon: "iBeacon", proximity: "Proximity pairing", generic: "Generic" } as const;
+const CLASS_LABEL = {
+  fastPair: "Fast Pair",
+  ibeacon: "iBeacon",
+  proximity: "Proximity pairing",
+  generic: "Generic",
+  findMy: "Apple Find My (AirTag)",
+} as const;
 
 /** The alert a device message stands for, or null if the message is not an alert. */
 export function alertFromTelemetry(m: Telemetry): NewAlert | null {
@@ -25,6 +32,14 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         severity: m.count >= DEAUTH_FLOOD ? "alert" : "warn",
         title: `Deauth frames: ${m.count}/s`,
         detail: `${m.bssid} (${vendorOf(m.bssid)})`,
+        bssid: m.bssid,
+      };
+    case "disassocAlert":
+      return {
+        source: "disassoc",
+        severity: m.count >= DEAUTH_FLOOD ? "alert" : "warn",
+        title: `Disassoc frames: ${m.count}/s`,
+        detail: `${m.bssid} (${vendorOf(m.bssid)}) (possible aireplay-ng / Marauder kick attack)`,
         bssid: m.bssid,
       };
     case "bleSpike":
@@ -69,6 +84,13 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         severity: "alert",
         title: `BLE advertisement flood: ${m.rate}/s`,
         detail: `${CLASS_LABEL[m.class]} burst (possible Flipper Zero / Hydra-ESP BLE spam)`,
+      };
+    case "probeFloodAlert":
+      return {
+        source: "probeFlood",
+        severity: "alert",
+        title: `Probe request flood attack: ${m.rate}/s`,
+        detail: `${m.uniqueClients} unique client MACs in 1s window (possible mdk4 / Marauder probe spam)`,
       };
     default:
       return null;

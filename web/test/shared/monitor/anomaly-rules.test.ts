@@ -10,7 +10,15 @@ describe("anomaly alerts", () => {
     const sev = Object.fromEntries(
       ANOMALY_KINDS.map((kind) => [kind, alertFromTelemetry({ type: "anomaly", kind, bssid: BSSID, detail: 27 })!.severity]),
     );
-    expect(sev).toEqual({ newBssidForSsid: "warn", twoChannels: "info", rssiOutlier: "info", returned: "info" });
+    expect(sev).toEqual({ newBssidForSsid: "warn", twoChannels: "info", rssiOutlier: "info", returned: "info", securityDowngrade: "alert" });
+  });
+
+  it("formats security downgrade anomaly with alert severity and clear title", () => {
+    const downgrade = alertFromTelemetry({ type: "anomaly", kind: "securityDowngrade", bssid: BSSID, detail: 0 })!;
+    expect(downgrade.severity).toBe("alert");
+    expect(downgrade.title).toBe("Evil Twin security downgrade detected");
+    expect(downgrade.detail).toContain("open or downgraded access point clone");
+    expect(downgrade).toMatchObject({ source: "anomaly", bssid: BSSID });
   });
 
   it("puts the numbers the device sent into the text", () => {
@@ -85,6 +93,46 @@ describe("anomaly alerts", () => {
       title: "BLE advertisement flood: 75/s",
     });
     expect(alert.detail).toContain("Proximity pairing burst");
+  });
+
+  it("formats probe flood alerts with high severity", () => {
+    const alert = alertFromTelemetry({
+      type: "probeFloodAlert",
+      rate: 55,
+      uniqueClients: 24,
+    })!;
+    expect(alert).toMatchObject({
+      source: "probeFlood",
+      severity: "alert",
+      title: "Probe request flood attack: 55/s",
+    });
+    expect(alert.detail).toContain("24 unique client MACs");
+  });
+
+  it("formats disassoc flood alerts with warning and alert severity", () => {
+    const warnAlert = alertFromTelemetry({
+      type: "disassocAlert",
+      bssid: BSSID,
+      count: 25,
+    })!;
+    expect(warnAlert).toMatchObject({
+      source: "disassoc",
+      severity: "warn",
+      title: "Disassoc frames: 25/s",
+      bssid: BSSID,
+    });
+
+    const highAlert = alertFromTelemetry({
+      type: "disassocAlert",
+      bssid: BSSID,
+      count: 65,
+    })!;
+    expect(highAlert).toMatchObject({
+      source: "disassoc",
+      severity: "alert",
+      title: "Disassoc frames: 65/s",
+      bssid: BSSID,
+    });
   });
 });
 

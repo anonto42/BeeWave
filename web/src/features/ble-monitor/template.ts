@@ -1,7 +1,13 @@
 import { AD_CLASSES, type AdClassName } from "../../shared/protocol";
 import { sparklinePoints, type BleCounts } from "../../shared/monitor";
 
-export const LABEL: Record<AdClassName, string> = { fastPair: "Fast Pair", ibeacon: "iBeacon", proximity: "Proximity pairing", generic: "Generic" };
+export const LABEL: Record<AdClassName, string> = {
+  fastPair: "Fast Pair",
+  ibeacon: "iBeacon",
+  proximity: "Proximity pairing",
+  generic: "Generic",
+  findMy: "Apple Find My (AirTag)",
+};
 
 const factors = [2, 3, 5, 10, 20].map((f) => `<option value="${f}">${f}x</option>`).join("");
 

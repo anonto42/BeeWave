@@ -29,7 +29,7 @@ export class MonitorState {
   config: MonitorConfig | null = null;
   readonly deauth = new Map<string, DeauthSource>();
   bleLatest: BleCounts | null = null;
-  readonly bleSeries: Record<AdClassName, number[]> = { fastPair: [], ibeacon: [], proximity: [], generic: [] };
+  readonly bleSeries: Record<AdClassName, number[]> = { fastPair: [], ibeacon: [], proximity: [], generic: [], findMy: [] };
   private subs: Array<() => void> = [];
 
   constructor(private readonly now: () => number = Date.now) {}
@@ -46,7 +46,7 @@ export class MonitorState {
   ingest(m: Telemetry): void {
     if (m.type === "monitorConfig") {
       this.config = { deauthThreshold: m.deauthThreshold, bleEnabled: m.bleEnabled, bleSpikeFactor: m.bleSpikeFactor };
-    } else if (m.type === "deauth") {
+    } else if (m.type === "deauth" || m.type === "disassocAlert") {
       const s = this.deauth.get(m.bssid) ?? { bssid: m.bssid, last: 0, alerts: 0, lastAt: 0, series: [] };
       s.last = m.count;
       s.alerts++;
@@ -55,7 +55,7 @@ export class MonitorState {
       if (s.series.length > SERIES_CAP) s.series.shift();
       this.deauth.set(m.bssid, s);
     } else if (m.type === "bleStats") {
-      this.bleLatest = { fastPair: m.fastPair, ibeacon: m.ibeacon, proximity: m.proximity, generic: m.generic };
+      this.bleLatest = { fastPair: m.fastPair, ibeacon: m.ibeacon, proximity: m.proximity, generic: m.generic, findMy: m.findMy };
       for (const c of AD_CLASSES) {
         const series = this.bleSeries[c];
         series.push(this.bleLatest[c]);

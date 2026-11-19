@@ -12,7 +12,7 @@ export type Telemetry =
   | { type: "authResult"; ok: boolean }
   | { type: "unclaimed" }
   | { type: "deauth"; bssid: string; count: number }
-  | { type: "bleStats"; fastPair: number; ibeacon: number; proximity: number; generic: number }
+  | { type: "bleStats"; fastPair: number; ibeacon: number; proximity: number; generic: number; findMy: number }
   | { type: "bleSpike"; class: AdClassName; count: number; baseline: number }
   | { type: "anomaly"; kind: AnomalyKindName; bssid: string; detail: number }
   | { type: "monitorConfig"; deauthThreshold: number; bleEnabled: boolean; bleSpikeFactor: number }
@@ -109,6 +109,16 @@ export type Telemetry =
       type: "bleFloodAlert";
       rate: number;
       class: AdClassName;
+    }
+  | {
+      type: "disassocAlert";
+      bssid: string;
+      count: number;
+    }
+  | {
+      type: "probeFloodAlert";
+      rate: number;
+      uniqueClients: number;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

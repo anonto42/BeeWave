@@ -67,7 +67,7 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
       msg = { type: "deauth", bssid: hex(r.bytes(6)), count: r.varint() };
       break;
     case 9:
-      msg = { type: "bleStats", fastPair: r.varint(), ibeacon: r.varint(), proximity: r.varint(), generic: r.varint() };
+      msg = { type: "bleStats", fastPair: r.varint(), ibeacon: r.varint(), proximity: r.varint(), generic: r.varint(), findMy: r.varint() };
       break;
     case 10:
       msg = { type: "bleSpike", class: enumName(AD_CLASSES, r.varint()), count: r.varint(), baseline: r.varint() };
@@ -188,6 +188,20 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         type: "bleFloodAlert",
         rate: r.varint(),
         class: enumName(AD_CLASSES, r.varint()),
+      };
+      break;
+    case 30:
+      msg = {
+        type: "disassocAlert",
+        bssid: hex(r.bytes(6)),
+        count: r.varint(),
+      };
+      break;
+    case 31:
+      msg = {
+        type: "probeFloodAlert",
+        rate: r.varint(),
+        uniqueClients: r.varint(),
       };
       break;
     default:

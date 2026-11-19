@@ -63,6 +63,11 @@ export class HandshakeState {
       .sort((a, b) => b.at - a.at);
   }
 
+  /** All captured PMKIDs across all monitored access points, newest first. */
+  allPmkids(): PmkidRecord[] {
+    return [...this.pmkidMap.values()].sort((a, b) => b.at - a.at);
+  }
+
   ingest(m: Telemetry): void {
     if (m.type === "handshakeCaptureState") {
       this.enabled = m.enabled;
@@ -173,4 +178,34 @@ export function handshakeToHashcat22000(p: HandshakePair, essid: string): string
   const messagePair = p.messages.has(1) ? "00" : "02";
 
   return `WPA*02*${mic}*${apMac}*${staMac}*${essidHex}*${anonce}*${eapolHex}*${messagePair}`;
+}
+
+/**
+ * Consolidates all crackable 4-way handshakes and clientless PMKIDs into a single
+ * Hashcat Mode 22000 multi-line text format.
+ *
+ * @param pairs - Handshake pairs
+ * @param pmkids - PMKID records
+ * @param getEssid - Function resolving BSSID to SSID name (defaults to empty string if unknown)
+ * @returns Multi-line text string with one hash per line, or empty string if none crackable
+ */
+export function exportAll22000(
+  pairs: readonly HandshakePair[],
+  pmkids: readonly PmkidRecord[],
+  getEssid: (bssid: string) => string = () => "",
+): string {
+  const lines: string[] = [];
+
+  for (const pair of pairs) {
+    const essid = getEssid(pair.bssid);
+    const line = handshakeToHashcat22000(pair, essid);
+    if (line) lines.push(line);
+  }
+
+  for (const record of pmkids) {
+    const essid = getEssid(record.bssid);
+    lines.push(pmkidToHashcat22000(record, essid));
+  }
+
+  return lines.length > 0 ? lines.join("\n") + "\n" : "";
 }
