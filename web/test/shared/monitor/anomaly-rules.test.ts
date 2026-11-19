@@ -72,6 +72,20 @@ describe("anomaly alerts", () => {
     expect(alert.detail).toContain("CH 6");
     expect(alert.detail).toContain("-58 dBm");
   });
+
+  it("formats ble flood alerts with high severity and dominant class", () => {
+    const alert = alertFromTelemetry({
+      type: "bleFloodAlert",
+      rate: 75,
+      class: "proximity",
+    })!;
+    expect(alert).toMatchObject({
+      source: "bleFlood",
+      severity: "alert",
+      title: "BLE advertisement flood: 75/s",
+    });
+    expect(alert.detail).toContain("Proximity pairing burst");
+  });
 });
 
 describe("watchlist rules (phone only)", () => {

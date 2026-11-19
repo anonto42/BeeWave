@@ -236,6 +236,7 @@ export class MockWorld {
     const base = CLASS_BASE.proximity;
     if (spiking && counts.proximity > Math.max(base * this.config.bleSpikeFactor, base + 20)) {
       out.push({ type: "bleSpike", class: "proximity", count: counts.proximity, baseline: base });
+      out.push({ type: "bleFloodAlert", rate: 64, class: "proximity" });
     }
   }
 }

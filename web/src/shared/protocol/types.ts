@@ -108,7 +108,7 @@ export type Telemetry =
   | {
       type: "bleFloodAlert";
       rate: number;
-      class: AdClass;
+      class: AdClassName;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

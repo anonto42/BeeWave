@@ -63,6 +63,13 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
         detail: `${m.bssid} (${vendorOf(m.bssid)}) on CH ${m.channel} · ${m.rssi} dBm`,
         bssid: m.bssid,
       };
+    case "bleFloodAlert":
+      return {
+        source: "bleFlood",
+        severity: "alert",
+        title: `BLE advertisement flood: ${m.rate}/s`,
+        detail: `${CLASS_LABEL[m.class]} burst (possible Flipper Zero / Hydra-ESP BLE spam)`,
+      };
     default:
       return null;
   }
