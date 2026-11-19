@@ -216,6 +216,8 @@ pub enum AdClass {
     Proximity,
     /// Anything else.
     Generic,
+    /// Apple Find My / AirTag (offline finding).
+    FindMy,
 }
 
 /// What an `AnomalyAlert` is about. Append new kinds at the end.
@@ -229,6 +231,8 @@ pub enum AnomalyKind {
     RssiOutlier,
     /// A network came back after missing more than 5 cycles (`detail` = cycles missed, capped at 255).
     Returned,
+    /// An existing encrypted network appeared with Open or degraded security (Evil Twin rogue AP).
+    SecurityDowngrade,
 }
 
 /// Device -> app.
@@ -281,6 +285,7 @@ pub enum TelemetryMessage {
         ibeacon: u16,
         proximity: u16,
         generic: u16,
+        find_my: u16,
     },
     /// One advertisement class is far above its baseline.
     BleSpike {
@@ -425,6 +430,16 @@ pub enum TelemetryMessage {
     BleFloodAlert {
         rate: u16,
         class: AdClass,
+    },
+    /// High-rate flood of 802.11 Disassociation management frames (active kick/DoS attack).
+    DisassocAlert {
+        bssid: [u8; 6],
+        count: u16,
+    },
+    /// High-rate flood of 802.11 Probe Request frames with spoofed clients (scanner exhaustion attack).
+    ProbeFloodAlert {
+        rate: u16,
+        unique_clients: u16,
     },
 }
 

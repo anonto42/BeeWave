@@ -74,6 +74,7 @@ fn roundtrip_and_emit_golden_vectors() {
             ibeacon: 2,
             proximity: 300,
             generic: 4000,
+            find_my: 50,
         },
         TelemetryMessage::BleSpike {
             class: AdClass::Proximity,
@@ -202,6 +203,14 @@ fn roundtrip_and_emit_golden_vectors() {
         TelemetryMessage::BleFloodAlert {
             rate: 75,
             class: AdClass::Proximity,
+        },
+        TelemetryMessage::DisassocAlert {
+            bssid: [0x50, 0xC7, 0xBF, 0xAA, 0xBB, 0xCC],
+            count: 42,
+        },
+        TelemetryMessage::ProbeFloodAlert {
+            rate: 55,
+            unique_clients: 24,
         },
     ];
     let cmds = [

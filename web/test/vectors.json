@@ -131,8 +131,8 @@
       "msg": "DeauthAlert { bssid: [1, 2, 3, 4, 5, 6], count: 42 }"
     },
     {
-      "hex": "0109090102ac02a01f",
-      "msg": "BleStats { fast_pair: 1, ibeacon: 2, proximity: 300, generic: 4000 }"
+      "hex": "0109090102ac02a01f32",
+      "msg": "BleStats { fast_pair: 1, ibeacon: 2, proximity: 300, generic: 4000, find_my: 50 }"
     },
     {
       "hex": "010a0a02f40328",
@@ -221,6 +221,14 @@
     {
       "hex": "011f1d4b02",
       "msg": "BleFloodAlert { rate: 75, class: Proximity }"
+    },
+    {
+      "hex": "01201e50c7bfaabbcc2a",
+      "msg": "DisassocAlert { bssid: [80, 199, 191, 170, 187, 204], count: 42 }"
+    },
+    {
+      "hex": "01211f3718",
+      "msg": "ProbeFloodAlert { rate: 55, unique_clients: 24 }"
     }
   ]
 }
