@@ -122,3 +122,67 @@ The protocol crate SHALL define a `BleFloodAlert { rate: u16, class: AdClass }` 
 #### Scenario: Golden test vectors
 - **WHEN** `cargo test -p beewave-protocol --features std --test vectors` runs
 - **THEN** the `BleFloodAlert` test vector is verified and recorded in `web/test/vectors.json`
+
+### Requirement: DisassocAlert telemetry message
+The wire protocol SHALL define a `DisassocAlert { bssid: [u8; 6], count: u16 }` variant on `TelemetryMessage` encoded with Postcard and appended to existing variants, maintaining wire backwards compatibility.
+
+#### Scenario: Serialization round-trip
+- **WHEN** a `DisassocAlert` message is serialized to bytes via Postcard
+- **THEN** it deserializes back into an identical struct matching golden test vectors
+
+#### Scenario: Golden test vectors
+- **WHEN** golden test vectors are regenerated
+- **THEN** both Rust and TypeScript codecs encode and decode `DisassocAlert` identically
+
+### Requirement: FindMy AdClass and BleStats wire representation
+The wire protocol SHALL append `FindMy` to the `AdClass` enum and append `find_my: u16` to the `BleStats` telemetry message.
+
+#### Scenario: AdClass deserialization
+- **WHEN** an `AdClass::FindMy` is serialized and deserialized
+- **THEN** it matches between Rust and TypeScript codecs
+
+#### Scenario: BleStats with FindMy
+- **WHEN** `BleStats` carrying `find_my` counts is encoded
+- **THEN** the TypeScript codec decodes the field accurately
+
+### Requirement: Provisioning messages
+The protocol SHALL define a `Provision { key }` command (32 bytes) and an `Unclaimed` telemetry message, appended after existing variants.
+
+#### Scenario: Golden vectors
+- **WHEN** Rust encodes `Provision` and `Unclaimed`
+- **THEN** the TypeScript codec decodes and encodes the same bytes, checked by golden vectors
+
+### Requirement: Passive handshake capture messages
+The protocol SHALL define `SetHandshakeCapture { enabled }` and `GetHandshakeCapture` commands and `HandshakeCaptureState { enabled }`, `HandshakeFrame { bssid, client, message, replay_counter, truncated, eapol }` and `HandshakeComplete { bssid, client }` telemetry, appended after existing variants with the version unchanged.
+
+#### Scenario: Golden vectors
+- **WHEN** Rust encodes each handshake message, including a truncated `HandshakeFrame`
+- **THEN** the TypeScript codec decodes and re-encodes identical bytes, checked by golden vectors
+
+### Requirement: Monitoring messages
+The protocol SHALL define `GetMonitor` and `SetMonitor { deauth_threshold, ble_enabled, ble_spike_factor }` commands and `DeauthAlert { bssid, count }`, `BleStats`, `BleSpike`, `AnomalyAlert` and `MonitorConfig` telemetry, plus the `AdClass` and `AnomalyKind` enums, all appended after existing variants with the protocol version unchanged.
+
+#### Scenario: Golden vectors
+- **WHEN** Rust encodes each monitoring message
+- **THEN** the TypeScript codec produces and decodes identical bytes, checked by golden vectors
+
+### Requirement: Settings management messages
+The protocol SHALL define `GetSettingsAll`, `SaveSettingsAll`, `FactoryReset`, `RunSelfTest`, `GetStorageInfo` and `GetDeviceInfo` commands and `SettingsAll`, `SettingsSaved`, `StorageInfo`, `SelfTestResult`, `DeviceInfo` and `Rejected` telemetry, appended after existing variants with the version unchanged, and SHALL keep `GetSettings` and `SetSettings`.
+
+#### Scenario: Golden vectors
+- **WHEN** Rust encodes each settings message
+- **THEN** the TypeScript codec produces and decodes identical bytes, checked by golden vectors
+
+### Requirement: SecurityDowngrade AnomalyKind wire representation
+The wire protocol SHALL define `SecurityDowngrade` as a variant of the `AnomalyKind` enum, appended after existing variants to preserve wire backwards compatibility.
+
+#### Scenario: AnomalyKind round-trip
+- **WHEN** an `AnomalyAlert` carrying `AnomalyKind::SecurityDowngrade` is encoded with Postcard
+- **THEN** it deserializes back identically across both Rust and TypeScript implementations matching golden vectors
+
+### Requirement: Probe flood alert telemetry message
+The wire protocol SHALL define `TelemetryMessage::ProbeFloodAlert { rate: u16, unique_clients: u16 }` as an appended variant, preserving postcard backwards compatibility.
+
+#### Scenario: Encoding and decoding probe flood alert
+- **WHEN** the device publishes `ProbeFloodAlert` with observed arrival rate and unique client MAC count
+- **THEN** the message serializes to postcard and decodes into a matching JSON representation in the web client

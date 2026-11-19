@@ -53,11 +53,19 @@ The client SHALL tell the user when Web Bluetooth is unavailable and point to a 
 - **THEN** a notice names Chrome/Edge and Bluefy
 
 ### Requirement: Device key and automatic authentication
-The client SHALL let the user enter the device key, keep it in browser storage without failing when storage is unavailable, and authenticate automatically after connecting.
+The client SHALL authenticate automatically after connecting, SHALL claim an unclaimed device by generating a random key and saving it only after the device accepts it, SHALL let the user enter a key by hand for an already claimed device, and SHALL keep the key in browser storage without failing when storage is unavailable.
 
 #### Scenario: Key stored
-- **WHEN** the user saves a valid 64 hex character key and connects
+- **WHEN** the user saves a valid 64 hex character key and connects to a claimed device
 - **THEN** the client completes the handshake without further input
+
+#### Scenario: First connect
+- **WHEN** the device reports it is unclaimed
+- **THEN** the client provisions a new key, saves it after acceptance and the session is authenticated
+
+#### Scenario: Claimed by someone else
+- **WHEN** the device is claimed and the browser has no key
+- **THEN** the UI shows that a key is needed
 
 #### Scenario: Wrong key
 - **WHEN** the device rejects the proof
@@ -203,3 +211,98 @@ The web client SHALL evaluate whether captured handshake frames provide sufficie
 #### Scenario: Incomplete frames
 - **WHEN** a handshake has only Message 1 without PMKID and without Message 2
 - **THEN** the status indicates waiting for client response and export actions remain disabled
+
+### Requirement: Disassociation alert ingestion and presentation
+The web client SHALL decode `DisassocAlert` telemetry messages, add them to `AlertStore`, and display them in the Alert feed and toast system with the source BSSID and observed frame rate.
+
+#### Scenario: Ingesting disassociation alert
+- **WHEN** a `DisassocAlert` packet is received and decoded
+- **THEN** an alert is recorded in `AlertStore` with source `disassoc` and formatted with the BSSID and rate
+
+#### Scenario: High severity threshold
+- **WHEN** the disassociation count reaches or exceeds 50 frames per second
+- **THEN** the alert severity is elevated to alert level (red)
+
+### Requirement: Apple Find My tracker visualization
+The web client SHALL decode `BleStats` with `findMy` counts, display Apple Find My (AirTag) in the BLE Monitor table with rolling sparklines, and format tracker spike warnings in the alert feed.
+
+#### Scenario: Display Find My counts
+- **WHEN** `BleStats` telemetry is received
+- **THEN** the BLE Monitor table displays active counts and history for Apple Find My
+
+#### Scenario: Find My spike alert
+- **WHEN** a `BleSpike` for `findMy` is received
+- **THEN** an alert is posted in `AlertStore` naming Apple Find My
+
+### Requirement: Handshake capture panel
+The client SHALL show captured BSSID/client pairs with which messages were seen, SHALL let the owner turn the capture on or off, and SHALL offer a hex export of the captured EAPOL bytes with any truncated message marked.
+
+#### Scenario: Off by default
+- **WHEN** the device has not been told to enable handshake capture
+- **THEN** no handshake telemetry is requested or shown
+
+### Requirement: Passive monitoring panels
+The client SHALL provide an expanded results table, channel occupancy and utilisation, RSSI history with a delta view, deauth, BLE and anomaly panels, scan comparison with JSON export, a phone-local watchlist, and a session export in JSON and CSV, all built from telemetry already received and without sending radio-affecting commands.
+
+#### Scenario: Delta view
+- **WHEN** a network's RSSI moves by at least 6 dB since the previous cycle
+- **THEN** it is highlighted in the delta view
+
+#### Scenario: Session export
+- **WHEN** the user exports the session
+- **THEN** a JSON and a CSV file containing scans, alerts, log and authentication events are downloaded
+
+#### Scenario: Watchlist
+- **WHEN** a pinned BSSID appears, disappears or moves by at least 6 dB
+- **THEN** an alert is raised and nothing is stored on the device
+
+### Requirement: Settings management surface
+The client SHALL present device-side settings in sections with one Apply and Revert bar and per-section dirty tracking, SHALL send one `SaveSettingsAll` on Apply and show the reason and highlight the field on rejection, SHALL save phone-side settings immediately, and SHALL load device settings only after authentication.
+
+#### Scenario: Rejected save
+- **WHEN** the device answers `SettingsSaved` with `ok: false`
+- **THEN** the bar shows the reason, the field is highlighted and the confirmed values are unchanged
+
+#### Scenario: Before authentication
+- **WHEN** the link is up but authentication has not succeeded
+- **THEN** no settings request is sent
+
+### Requirement: Settings import and export
+The client SHALL export phone-side settings (and optionally history) as JSON with a schema version, SHALL import such a file only after showing the differences, SHALL reject unknown keys, and SHALL export device settings as a separate file.
+
+#### Scenario: Unknown key
+- **WHEN** an imported file contains an unknown key
+- **THEN** the import is refused and nothing changes
+
+### Requirement: Evil Twin security downgrade alert presentation
+The web client SHALL decode `SecurityDowngrade` anomaly alerts and render them in the alert feed with alert-level severity (red), identifying the rogue BSSID and explaining that an unencrypted clone of a secured network was detected.
+
+#### Scenario: Display Evil Twin alert
+- **WHEN** an `AnomalyAlert` packet with kind `securityDowngrade` is decoded
+- **THEN** an alert is posted in `AlertStore` with severity `alert` and title `Evil Twin security downgrade detected`
+
+### Requirement: Batch PCAP and consolidated Hashcat 22000 multi-target export
+The web client SHALL support combining all captured 4-way handshakes into a single chronologically-ordered libpcap (`.pcap`) file and consolidating all crackable handshakes and clientless PMKIDs into a single unified Hashcat Mode 22000 file with 1-click download and clipboard actions.
+
+#### Scenario: Exporting all handshakes to a single PCAP
+- **WHEN** multiple 4-way handshakes have been captured across different BSSIDs or clients and the user requests all PCAP export
+- **THEN** the client generates and downloads a single `.pcap` file containing all captured EAPOL frames from all pairs ordered chronologically
+
+#### Scenario: Exporting all handshakes and PMKIDs to a single 22000 file
+- **WHEN** multiple crackable handshakes or PMKIDs have been captured and the user requests all 22000 export
+- **THEN** the client generates and downloads a consolidated `.22000` text file containing standard `WPA*02*` and `WPA*01*` formatted lines for all valid captures
+
+#### Scenario: Copying all 22000 hashes to clipboard
+- **WHEN** crackable handshakes or PMKIDs exist and the user clicks copy all 22000
+- **THEN** the consolidated 22000 formatted lines are copied to the system clipboard with momentary visual confirmation feedback
+
+#### Scenario: No crackable handshakes or PMKIDs
+- **WHEN** no crackable handshakes or PMKIDs have been captured
+- **THEN** batch export controls remain hidden or disabled in the workspace toolbar
+
+### Requirement: Probe flood alert ingestion and presentation
+The web client SHALL decode `ProbeFloodAlert` telemetry messages and display them in the Alert feed and toast system with alert-level severity (red), indicating the observed probe frame rate and unique client MAC count.
+
+#### Scenario: Ingesting probe flood alert
+- **WHEN** the web client receives a `probeFloodAlert` telemetry message
+- **THEN** it formats an alert with title indicating rapid probe request flood, detail displaying the rate and client count, and severity `alert`

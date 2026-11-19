@@ -69,11 +69,19 @@ The settings feature SHALL validate the channel (0 for auto, or 1 through 13), S
 - **THEN** the saved channel is applied and scanning starts if scan-at-boot was saved
 
 ### Requirement: Authentication gate
-The core SHALL verify proofs in constant time, SHALL use each nonce once, and MUST drop commands and non-auth telemetry while unauthenticated.
+The core SHALL verify proofs in constant time, SHALL use each nonce once, SHALL accept a key from a client only while it has none (persisting it before claiming), and MUST drop commands and non-auth telemetry while unauthenticated.
 
 #### Scenario: Wrong proof
 - **WHEN** the proof does not match
 - **THEN** the result is not ok and the session stays unauthenticated
+
+#### Scenario: Claim once
+- **WHEN** an unclaimed device receives a valid `Provision`
+- **THEN** the key is stored, the session is authenticated and a second `Provision` is refused
+
+#### Scenario: Storage failure
+- **WHEN** the key cannot be stored
+- **THEN** the device stays unclaimed and reports failure
 
 #### Scenario: Locked gate
 - **WHEN** the gate has no key
@@ -260,3 +268,145 @@ The core monitoring engine SHALL track BLE advertising arrival rates per 1-secon
 #### Scenario: Flood alert cooldown rate limiting
 - **WHEN** a BLE flood attack continues continuously over multiple consecutive seconds
 - **THEN** the core rate-limits `BleFloodAlert` emissions to at most one alert every 5 seconds to prevent BLE saturation
+
+### Requirement: Disassociation frame attack detection
+The core SHALL track received 802.11 Disassociation management frames (subtype `0xA0`) per BSSID over a 1-second sliding window without heap allocation and SHALL raise `DisassocAlert` for each BSSID whose rate meets or exceeds the configured threshold.
+
+#### Scenario: Disassociation threshold crossed
+- **WHEN** disassociation frames for a BSSID reach or exceed the threshold within the 1-second window
+- **THEN** a `DisassocAlert` carrying the BSSID and frame count is emitted over the telemetry sink
+
+#### Scenario: Disassociation below threshold or disabled
+- **WHEN** the disassociation count for a BSSID is below the threshold, or the threshold is 0
+- **THEN** no `DisassocAlert` is emitted
+
+#### Scenario: Multiple BSSIDs targeted
+- **WHEN** multiple BSSIDs exceed the threshold within the same window
+- **THEN** an alert is emitted for each qualifying BSSID up to the sink capacity
+
+### Requirement: Apple Find My and AirTag BLE classification
+The core SHALL inspect Bluetooth Low Energy advertisement manufacturer data for Apple Company ID (`0x004C`) with Continuity sub-type `0x12` (`APPLE_FIND_MY`), classify matching packets as `AdClass::FindMy`, track their rolling counts across 1-minute windows, and evaluate spike conditions.
+
+#### Scenario: AirTag advertisement received
+- **WHEN** a BLE advertisement with Apple manufacturer data type 0x12 is observed
+- **THEN** it is classified as `FindMy` and credited to the Find My class counter
+
+#### Scenario: Find My spike alert
+- **WHEN** Find My advertisement counts exceed the baseline by the configured spike factor after warm-up
+- **THEN** a `BleSpike` naming `AdClass::FindMy` is published
+
+### Requirement: Receive-only handshake classification
+The core SHALL classify a parsed EAPOL-Key frame as message 1, 2, 3 or 4 of the four-way handshake from its key-info bits, MUST NOT transmit anything, and SHALL discard frames that are not EAPOL-Key frames of a recognized message.
+
+#### Scenario: Each message number
+- **WHEN** key-info bits match message 1, 2, 3 or 4
+- **THEN** the frame is classified accordingly
+
+#### Scenario: Unrecognized key-info
+- **WHEN** the bits match none of the four messages (for example a group-key frame)
+- **THEN** the frame is not reported
+
+### Requirement: Per-pair capture tracking
+The core SHALL track which handshake messages have been seen for each BSSID/client pair in a bounded table and SHALL report completion once a message carrying the ANonce and the message carrying the SNonce and MIC have both been seen.
+
+#### Scenario: Completion
+- **WHEN** message 2 and either message 1 or message 3 have both been seen for a pair
+- **THEN** `HandshakeComplete` is reported once for that pair
+
+### Requirement: Receive-only deauthentication detector
+The core SHALL count deauthentication frames per BSSID over a one second window and SHALL raise a `DeauthAlert` for each BSSID at or above the configured threshold, and MUST NOT transmit anything.
+
+#### Scenario: Threshold crossed
+- **WHEN** a BSSID reaches the threshold within one second
+- **THEN** a `DeauthAlert` with that BSSID and count is published
+
+#### Scenario: Below threshold or disabled
+- **WHEN** the count is below the threshold, or the threshold is 0
+- **THEN** no alert is published
+
+### Requirement: Receive-only BLE advertisement monitor
+The core SHALL classify received advertisements as Fast Pair, iBeacon, proximity pairing or generic, SHALL keep per-class counts for the last minute, and SHALL raise `BleSpike` when a class exceeds its baseline by the configured factor after a warm-up.
+
+#### Scenario: Classification
+- **WHEN** an advertisement carries Apple manufacturer data of type 0x02 and length 0x15
+- **THEN** it is classified as iBeacon
+
+#### Scenario: Spike
+- **WHEN** a class count exceeds its baseline times the factor after warm-up
+- **THEN** a `BleSpike` naming the class is published
+
+### Requirement: Anomaly alerts
+The core SHALL raise `AnomalyAlert` for a known SSID on a new BSSID, a BSSID seen on two channels within a minute, an RSSI jump above 20 dB between cycles, and a BSSID returning after more than 5 missed cycles, with a cooldown per BSSID and kind.
+
+#### Scenario: Cooldown
+- **WHEN** the same anomaly repeats within the cooldown
+- **THEN** it is not published again
+
+### Requirement: Monitor configuration
+The core SHALL validate `SetMonitor`, answer with `MonitorConfig`, and reject out-of-range values with an event.
+
+#### Scenario: Invalid factor
+- **WHEN** `ble_spike_factor` is outside 2..=20
+- **THEN** the configuration is unchanged and an error event is published
+
+### Requirement: Validated persistent device settings
+The core SHALL validate every device-side setting against its range and the cross-field rules, SHALL persist a complete valid set and bump a revision counter, and MUST leave storage and live values untouched when a request is rejected.
+
+#### Scenario: Out of range
+- **WHEN** a field is outside its range
+- **THEN** `SettingsSaved` reports `ok: false` with the reason naming the field and nothing is written
+
+#### Scenario: Window too short
+- **WHEN** `deauth_window_ms` is less than twice `scan_interval_ms`
+- **THEN** the request is rejected with `WindowTooShort`
+
+#### Scenario: Revision
+- **WHEN** a save succeeds
+- **THEN** the revision increases by one and survives a reboot
+
+### Requirement: Settings take effect where they belong
+The core SHALL apply scan filters and the dedup threshold to following beacons, SHALL hand hop dwell and order to the radio only when a scan starts, and SHALL use the saved status period and deauth window.
+
+#### Scenario: Hop change mid-scan
+- **WHEN** hop settings are saved while a scan is running
+- **THEN** the radio keeps its current hopping until the next scan start
+
+### Requirement: Factory reset
+The core SHALL accept `FactoryReset` only from an authenticated session with no update in flight, erase settings, key and revision, and reboot.
+
+#### Scenario: Update in flight
+- **WHEN** `FactoryReset` arrives during an update
+- **THEN** it is rejected with `Busy` and nothing is erased
+
+### Requirement: Self-test
+The core SHALL run a self-test of radio, NVS, BLE and OTA slot when not scanning and report each result, and MUST return `busy` without touching the radio while scanning.
+
+#### Scenario: Scanning
+- **WHEN** `RunSelfTest` arrives during a scan
+- **THEN** the result has `busy: true` and no radio call is made
+
+### Requirement: Evil Twin security downgrade anomaly detection
+The core SHALL correlate the security protocol of observed access points against the known security baseline of matching SSIDs and SHALL raise `AnomalyAlert` with kind `SecurityDowngrade` when an SSID known to use robust encryption (WPA2, WPA3, Enterprise) is observed with Open or WEP security.
+
+#### Scenario: Open rogue AP clones WPA2 network
+- **WHEN** an access point is observed broadcasting an SSID previously heard with WPA2 or WPA3 encryption, but advertising Open or WEP security
+- **THEN** the core emits `AnomalyAlert` with kind `SecurityDowngrade` naming the rogue BSSID
+
+#### Scenario: Legitimate access points with matching security
+- **WHEN** a new access point is observed for a known SSID with identical or compatible security posture
+- **THEN** no `SecurityDowngrade` anomaly is emitted
+
+### Requirement: Passive probe request flood detection
+The core monitoring engine SHALL track received 802.11 Probe Request frame velocity and distinct client MAC counts in a 1-second sliding window without heap allocation, emitting `ProbeFloodAlert` when the rate and client diversity exceed configured thresholds.
+
+#### Scenario: Normal probe arrival below threshold
+- **WHEN** client probe requests arrive at normal ambient rates (below 30 frames per second)
+- **THEN** no `ProbeFloodAlert` is emitted
+
+#### Scenario: Probe request flood attack exceeds threshold
+- **WHEN** probe requests arrive at 30 or more frames per second with at least 8 unique client MAC addresses in a 1-second window
+- **THEN** the core emits `ProbeFloodAlert` containing the observed rate and unique client count
+
+#### Scenario: Flood alert cooldown rate limiting
+- **WHEN** a probe flood attack persists across consecutive 1-second intervals
+- **THEN** the core rate-limits `ProbeFloodAlert` emissions to at most one alert every 5 seconds to prevent BLE link exhaustion
