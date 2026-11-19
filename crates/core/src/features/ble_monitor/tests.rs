@@ -44,6 +44,13 @@ fn recognises_airpods_style_proximity_pairing() {
 }
 
 #[test]
+fn recognises_apple_find_my_airtag() {
+    let mut mfg = std::vec![0x4C, 0x00, 0x12, 0x19];
+    mfg.extend_from_slice(&[0u8; 25]);
+    assert_eq!(classify(&ad(&[(0xFF, &mfg)])), AdClass::FindMy);
+}
+
+#[test]
 fn other_apple_and_other_vendor_data_are_generic() {
     assert_eq!(
         classify(&ad(&[(0xFF, &[0x4C, 0x00, 0x10, 0x05, 1])])),
@@ -177,7 +184,7 @@ fn reset_forgets_history_but_keeps_the_factor() {
     m.set_factor(7);
     run(&mut m, 20, 3, AdClass::Generic);
     m.reset();
-    assert_eq!(m.counts(), [0; 4]);
+    assert_eq!(m.counts(), [0; 5]);
     assert_eq!(m.factor(), 7);
 }
 

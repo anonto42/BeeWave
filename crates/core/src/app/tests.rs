@@ -631,6 +631,27 @@ fn deauth_counts_at_the_threshold_raise_an_alert() {
 }
 
 #[test]
+fn disassoc_counts_at_the_threshold_raise_an_alert() {
+    let (mut app, sink) = authed_app();
+    app.on_disassoc_window(&[([1; 6], 9), ([2; 6], 15)]);
+    assert_eq!(
+        results(&sink),
+        [TelemetryMessage::DisassocAlert {
+            bssid: [2; 6],
+            count: 15
+        }]
+    );
+}
+
+#[test]
+fn disassoc_alerts_are_withheld_until_authenticated() {
+    let sink = FakeSink::default();
+    let mut app = app_with(sink.clone(), Rc::default(), Some(KEY));
+    app.on_disassoc_window(&[([2; 6], 500)]);
+    assert!(results(&sink).is_empty());
+}
+
+#[test]
 fn deauth_alerts_follow_the_configured_threshold() {
     let (mut app, sink) = authed_app();
     set_monitor(&mut app, 0, false, 3);
@@ -682,7 +703,8 @@ fn ble_stats_are_published_every_ten_seconds_while_on() {
             fast_pair: 0,
             ibeacon: 10,
             proximity: 0,
-            generic: 0
+            generic: 0,
+            find_my: 0,
         }]
     );
 }
@@ -705,7 +727,8 @@ fn switching_the_ble_monitor_on_starts_from_a_clean_slate() {
             fast_pair: 0,
             ibeacon: 0,
             proximity: 0,
-            generic: 0
+            generic: 0,
+            find_my: 0,
         }));
 }
 
@@ -1450,5 +1473,31 @@ fn ble_flood_alerts_through_app_service() {
     assert!(results(&sink).iter().any(|m| matches!(
         m,
         TelemetryMessage::BleFloodAlert { rate, class } if *rate >= 35 && *class == beewave_protocol::AdClass::Proximity
+    )));
+}
+
+#[test]
+fn probe_flood_alerts_through_app_service() {
+    let (mut app, sink) = authed_app();
+    // Simulate flood of 35 probes from 10 distinct client MACs
+    for i in 0..10u8 {
+        for _ in 0..4 {
+            app.on_probe(crate::features::probe::ProbeObservation {
+                client: [0xda, 0xa1, 0x19, 0, 1, i],
+                channel: 6,
+                rssi: -60,
+                ssid: "TargetSSID".try_into().unwrap(),
+            });
+        }
+    }
+    sink.got.borrow_mut().clear();
+    app.on_tick();
+
+    assert!(results(&sink).iter().any(|m| matches!(
+        m,
+        TelemetryMessage::ProbeFloodAlert {
+            rate,
+            unique_clients
+        } if *rate >= 40 && *unique_clients >= 10
     )));
 }

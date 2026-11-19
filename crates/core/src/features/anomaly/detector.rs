@@ -1,4 +1,4 @@
-use beewave_protocol::AnomalyKind;
+use beewave_protocol::{AnomalyKind, WifiSecurityProtocol};
 use heapless::Vec;
 
 use crate::features::scan::Observation;
@@ -7,6 +7,18 @@ use super::types::{
     kind_index, Anomaly, CAPACITY, COOLDOWN_TICKS, CYCLE_TICKS, KINDS, LEARN_TICKS,
     RETURN_AFTER_CYCLES, RSSI_JUMP_DB, TWO_CHANNEL_WINDOW_TICKS,
 };
+
+fn is_secure_protocol(proto: WifiSecurityProtocol) -> bool {
+    matches!(
+        proto,
+        WifiSecurityProtocol::Wpa
+            | WifiSecurityProtocol::Wpa2
+            | WifiSecurityProtocol::Wpa3
+            | WifiSecurityProtocol::Wpa2Wpa3
+            | WifiSecurityProtocol::Enterprise
+            | WifiSecurityProtocol::Owe
+    )
+}
 
 struct Entry {
     bssid: [u8; 6],
@@ -19,6 +31,7 @@ struct Entry {
     last_cycle: u32,
     /// RSSI when the BSSID was last seen in an earlier cycle.
     rssi: i8,
+    security_proto: Option<WifiSecurityProtocol>,
     /// Per kind: no report before this tick.
     quiet_until: [u32; KINDS],
 }
@@ -42,9 +55,22 @@ impl AnomalyDetector {
         let learning = tick.saturating_sub(*self.start.get_or_insert(tick)) < LEARN_TICKS;
         let cycle = tick / CYCLE_TICKS;
         let ssid = ssid_hash(&o.ssid);
+        let obs_proto = o.security.as_ref().map(|s| s.protocol);
 
         let Some(i) = self.entries.iter().position(|e| e.bssid == o.bssid) else {
-            let known_ssid = ssid != 0 && self.entries.iter().any(|e| e.ssid == ssid);
+            let matching_entry = if ssid != 0 {
+                self.entries.iter().find(|e| e.ssid == ssid)
+            } else {
+                None
+            };
+            let is_downgrade = matching_entry.map_or(false, |e| {
+                e.security_proto.map_or(false, is_secure_protocol)
+                    && obs_proto.map_or(true, |p| {
+                        matches!(p, WifiSecurityProtocol::Open | WifiSecurityProtocol::Wep)
+                    })
+            });
+            let known_ssid = matching_entry.is_some();
+
             self.insert(Entry {
                 bssid: o.bssid,
                 ssid,
@@ -53,17 +79,44 @@ impl AnomalyDetector {
                 last_tick: tick,
                 last_cycle: cycle,
                 rssi: o.rssi,
+                security_proto: obs_proto,
                 quiet_until: [0; KINDS],
             });
-            return (known_ssid && !learning).then_some(Anomaly {
-                kind: AnomalyKind::NewBssidForSsid,
-                bssid: o.bssid,
-                detail: 0,
-            });
+
+            if !learning {
+                if is_downgrade {
+                    return Some(Anomaly {
+                        kind: AnomalyKind::SecurityDowngrade,
+                        bssid: o.bssid,
+                        detail: 0,
+                    });
+                } else if known_ssid {
+                    return Some(Anomaly {
+                        kind: AnomalyKind::NewBssidForSsid,
+                        bssid: o.bssid,
+                        detail: 0,
+                    });
+                }
+            }
+            return None;
         };
 
         let e = &mut self.entries[i];
         let mut found: Option<(AnomalyKind, u8)> = None;
+
+        if let (Some(known_proto), Some(new_proto)) = (e.security_proto, obs_proto) {
+            if is_secure_protocol(known_proto)
+                && matches!(
+                    new_proto,
+                    WifiSecurityProtocol::Open | WifiSecurityProtocol::Wep
+                )
+            {
+                found = Some((AnomalyKind::SecurityDowngrade, 0));
+            }
+        }
+        if obs_proto.is_some() {
+            e.security_proto = obs_proto;
+        }
 
         let missed = cycle.saturating_sub(e.last_cycle).saturating_sub(1);
         if missed > RETURN_AFTER_CYCLES {

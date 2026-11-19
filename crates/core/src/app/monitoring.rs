@@ -8,7 +8,7 @@ use crate::features::assoc::{AssocObservation, AssocTracker};
 use crate::features::ble_monitor::{BleFloodDetector, BleMonitor};
 use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
 use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
-use crate::features::probe::{ProbeObservation, ProbeTracker};
+use crate::features::probe::{ProbeFloodDetector, ProbeObservation, ProbeTracker};
 use crate::features::scan::{
     BeaconFloodDetector, Observation, SecurityInfo, SecurityTracker, WpsInfo, WpsTracker,
 };
@@ -51,6 +51,7 @@ pub struct Monitoring {
     wps: WpsTracker,
     security: SecurityTracker,
     flood: BeaconFloodDetector,
+    probe_flood: ProbeFloodDetector,
     ble_flood: BleFloodDetector,
     /// Off by default, like the BLE monitor; kept outside `MonitorConfig` since it has its own
     /// command pair (`SetHandshakeCapture` / `GetHandshakeCapture`) rather than `SetMonitor`.
@@ -72,6 +73,7 @@ impl Monitoring {
             wps: WpsTracker::new(),
             security: SecurityTracker::new(),
             flood: BeaconFloodDetector::new(),
+            probe_flood: ProbeFloodDetector::new(),
             ble_flood: BleFloodDetector::new(),
             handshake_enabled: false,
             tick: 0,
@@ -145,6 +147,22 @@ impl Monitoring {
         out
     }
 
+    /// Disassoc frame counts per BSSID gathered over `window_ms`. Returns the alerts to publish.
+    pub fn on_disassoc_window(
+        &self,
+        counts: &[([u8; 6], u16)],
+        window_ms: u16,
+    ) -> Vec<TelemetryMessage, 4> {
+        let mut out = Vec::new();
+        for hit in self.deauth.evaluate_window(counts, window_ms) {
+            let _ = out.push(TelemetryMessage::DisassocAlert {
+                bssid: hit.bssid,
+                count: hit.count,
+            });
+        }
+        out
+    }
+
     pub fn handshake_capture_enabled(&self) -> bool {
         self.handshake_enabled
     }
@@ -204,6 +222,7 @@ impl Monitoring {
 
     /// A parsed client Probe Request frame. Deduplicated with `ProbeTracker`.
     pub fn on_probe(&mut self, p: &ProbeObservation) -> Option<TelemetryMessage> {
+        self.probe_flood.observe(&p.client);
         self.probes
             .observe(p)
             .map(|obs| TelemetryMessage::ProbeResult {
@@ -258,13 +277,16 @@ impl Monitoring {
     }
 
     /// 1 Hz: advance time; returns the BLE stats and spike to publish, if any.
-    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 5> {
+    pub fn on_tick(&mut self) -> Vec<TelemetryMessage, 6> {
         self.tick = self.tick.wrapping_add(1);
         self.probes.tick();
         self.assoc.tick();
         let mut out = Vec::new();
         if let Some(flood) = self.flood.tick() {
             let _ = out.push(flood);
+        }
+        if let Some(probe_flood) = self.probe_flood.tick() {
+            let _ = out.push(probe_flood);
         }
         if !self.cfg.ble_enabled {
             return out;
@@ -273,12 +295,13 @@ impl Monitoring {
             let _ = out.push(ble_flood);
         }
         let t = self.ble.tick();
-        if let Some([fast_pair, ibeacon, proximity, generic]) = t.stats {
+        if let Some([fast_pair, ibeacon, proximity, generic, find_my]) = t.stats {
             let _ = out.push(TelemetryMessage::BleStats {
                 fast_pair,
                 ibeacon,
                 proximity,
                 generic,
+                find_my,
             });
         }
         if let Some(s) = t.spike {

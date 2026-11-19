@@ -1,6 +1,6 @@
 use heapless::Vec;
 
-use super::{parse_probe_request, ProbeObservation, ProbeTracker};
+use super::{parse_probe_request, ProbeFloodDetector, ProbeObservation, ProbeTracker};
 
 const CLIENT: [u8; 6] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
 const BROADCAST: [u8; 6] = [0xFF; 6];
@@ -119,4 +119,44 @@ fn tracker_is_bounded_and_evicts_oldest() {
         assert!(tracker.observe(&obs).is_some());
         tracker.tick();
     }
+}
+
+#[test]
+fn probe_flood_detector_triggers_on_high_rate_and_unique_clients() {
+    let mut detector = ProbeFloodDetector::new();
+    assert_eq!(detector.threshold(), super::DEFAULT_PROBE_FLOOD_THRESHOLD);
+
+    // 1. Normal ambient traffic: 5 probes from 3 clients -> no alert
+    for i in 0..5 {
+        detector.observe(&[0x11, 0x22, 0x33, 0x44, 0x55, i % 3]);
+    }
+    assert!(detector.tick().is_none());
+
+    // 2. High-rate burst from a single client (aggressive scanning) -> no flood alert
+    for _ in 0..35 {
+        detector.observe(&[0x11, 0x22, 0x33, 0x44, 0x55, 0x01]);
+    }
+    assert!(detector.tick().is_none());
+
+    // 3. Flood attack: 35 probes from 12 distinct spoofed clients -> triggers alert!
+    for i in 0..35 {
+        detector.observe(&[0xaa, 0xbb, 0xcc, 0xdd, 0xee, (i % 12) as u8]);
+    }
+    let alert = detector.tick().expect("should trigger probe flood alert");
+    match alert {
+        beewave_protocol::TelemetryMessage::ProbeFloodAlert {
+            rate,
+            unique_clients,
+        } => {
+            assert_eq!(rate, 35);
+            assert_eq!(unique_clients, 12);
+        }
+        other => panic!("unexpected telemetry: {:?}", other),
+    }
+
+    // 4. Cooldown suppresses consecutive alerts
+    for i in 0..35 {
+        detector.observe(&[0xaa, 0xbb, 0xcc, 0xdd, 0xee, (i % 12) as u8]);
+    }
+    assert!(detector.tick().is_none());
 }

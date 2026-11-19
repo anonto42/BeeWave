@@ -237,6 +237,15 @@ where
         }
     }
 
+    /// Driving port: disassociation frame counts per BSSID gathered over `deauth_window_ms`, drained from
+    /// the sniffer's counters. Publishes an alert for each BSSID whose rate reaches the threshold.
+    pub fn on_disassoc_window(&mut self, counts: &[([u8; 6], u16)]) {
+        let window = self.deauth_window_ms();
+        for alert in self.monitoring.on_disassoc_window(counts, window) {
+            self.emit(alert);
+        }
+    }
+
     /// Driving port: a passively received BLE advertisement, already classified.
     pub fn on_ble_adv(&mut self, class: AdClass) {
         self.monitoring.on_ble_adv(class);

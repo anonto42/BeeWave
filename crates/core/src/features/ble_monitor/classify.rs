@@ -8,6 +8,7 @@ const FAST_PAIR_UUID: u16 = 0xFE2C;
 const APPLE_IBEACON: u8 = 0x02;
 const APPLE_IBEACON_LEN: u8 = 0x15;
 const APPLE_PROXIMITY_PAIRING: u8 = 0x07;
+const APPLE_FIND_MY: u8 = 0x12;
 
 /// Class of a raw advertisement payload (a sequence of `[len][type][data]` structures). A truncated
 /// or malformed structure ends the walk; whatever was recognised before it still counts.
@@ -41,6 +42,7 @@ fn classify_structure(ty: u8, data: &[u8]) -> Option<AdClass> {
             match (data[2], data[3]) {
                 (APPLE_IBEACON, APPLE_IBEACON_LEN) => Some(AdClass::IBeacon),
                 (APPLE_PROXIMITY_PAIRING, _) => Some(AdClass::Proximity),
+                (APPLE_FIND_MY, _) => Some(AdClass::FindMy),
                 _ => None,
             }
         }

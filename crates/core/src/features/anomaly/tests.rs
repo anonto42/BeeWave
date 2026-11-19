@@ -152,3 +152,90 @@ fn the_table_is_bounded_and_drops_the_least_recently_seen() {
         "0 was evicted and 'x' is a known SSID"
     );
 }
+
+fn beacon_sec(
+    id: u8,
+    ssid: &str,
+    channel: u8,
+    rssi: i8,
+    protocol: beewave_protocol::WifiSecurityProtocol,
+) -> Observation {
+    Observation {
+        bssid: [id; 6],
+        channel,
+        rssi,
+        ssid: ssid.try_into().unwrap(),
+        wps: None,
+        security: Some(crate::features::scan::SecurityInfo {
+            bssid: [id; 6],
+            protocol,
+            pmf: beewave_protocol::WifiPmfMode::None,
+        }),
+    }
+}
+
+#[test]
+fn evil_twin_security_downgrade_is_flagged_with_high_priority() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    while t <= LEARN_TICKS + CYCLE_TICKS {
+        assert!(d
+            .observe(
+                &beacon_sec(
+                    1,
+                    "SecureCorp",
+                    6,
+                    -50,
+                    beewave_protocol::WifiSecurityProtocol::Wpa2
+                ),
+                t
+            )
+            .is_none());
+        t += 1;
+    }
+    // Rogue AP (bssid 2) broadcasts identical SSID "SecureCorp" with Open security!
+    let finding = d.observe(
+        &beacon_sec(
+            2,
+            "SecureCorp",
+            6,
+            -45,
+            beewave_protocol::WifiSecurityProtocol::Open,
+        ),
+        t,
+    );
+    assert_eq!(kind(finding), Some(AnomalyKind::SecurityDowngrade));
+}
+
+#[test]
+fn legitimate_multi_ap_with_same_security_is_not_downgrade() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    while t <= LEARN_TICKS + CYCLE_TICKS {
+        assert!(d
+            .observe(
+                &beacon_sec(
+                    1,
+                    "SecureCorp",
+                    6,
+                    -50,
+                    beewave_protocol::WifiSecurityProtocol::Wpa2
+                ),
+                t
+            )
+            .is_none());
+        t += 1;
+    }
+    // Second legitimate AP (bssid 2) broadcasts "SecureCorp" also with WPA2
+    let finding = d.observe(
+        &beacon_sec(
+            2,
+            "SecureCorp",
+            11,
+            -55,
+            beewave_protocol::WifiSecurityProtocol::Wpa2,
+        ),
+        t,
+    );
+    assert_eq!(kind(finding), Some(AnomalyKind::NewBssidForSsid));
+}

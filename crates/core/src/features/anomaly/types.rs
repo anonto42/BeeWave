@@ -24,7 +24,7 @@ pub struct Anomaly {
     pub detail: u8,
 }
 
-pub(super) const KINDS: usize = 4;
+pub(super) const KINDS: usize = 5;
 
 pub(super) const fn kind_index(k: AnomalyKind) -> usize {
     match k {
@@ -32,5 +32,6 @@ pub(super) const fn kind_index(k: AnomalyKind) -> usize {
         AnomalyKind::TwoChannels => 1,
         AnomalyKind::RssiOutlier => 2,
         AnomalyKind::Returned => 3,
+        AnomalyKind::SecurityDowngrade => 4,
     }
 }

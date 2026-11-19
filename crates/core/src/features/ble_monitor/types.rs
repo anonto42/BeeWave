@@ -11,7 +11,7 @@ pub const MIN_SPIKE_DELTA: u16 = 20;
 /// After a spike for a class, wait this long before reporting that class again.
 pub const SPIKE_COOLDOWN_SECS: u32 = 60;
 /// Number of classes (the `AdClass` variants).
-pub const CLASSES: usize = 4;
+pub const CLASSES: usize = 5;
 
 /// Advertisements per class over the last minute, in `AdClass` order.
 pub type BleCounts = [u16; CLASSES];
@@ -39,6 +39,7 @@ pub const fn class_index(c: AdClass) -> usize {
         AdClass::IBeacon => 1,
         AdClass::Proximity => 2,
         AdClass::Generic => 3,
+        AdClass::FindMy => 4,
     }
 }
 
@@ -47,4 +48,5 @@ pub const ALL_CLASSES: [AdClass; CLASSES] = [
     AdClass::IBeacon,
     AdClass::Proximity,
     AdClass::Generic,
+    AdClass::FindMy,
 ];
