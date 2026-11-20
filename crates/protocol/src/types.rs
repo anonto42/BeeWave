@@ -235,6 +235,8 @@ pub enum AnomalyKind {
     SecurityDowngrade,
     /// An access point BSSID advertised a different SSID than previously heard (KARMA / Rogue AP honeypot).
     KarmaSsidChange,
+    /// Beacon timestamp jumped backward by 5+ seconds (software fake AP / Rogue AP reboot).
+    TsfRollback,
 }
 
 /// Device -> app.
@@ -443,6 +445,11 @@ pub enum TelemetryMessage {
         rate: u16,
         unique_clients: u16,
     },
+    /// 802.11 PHY generation / physical standard of an Access Point (passively heard).
+    PhyResult {
+        bssid: [u8; 6],
+        standard: WifiPhyStandard,
+    },
 }
 
 /// Wi-Fi security / authentication protocol of an Access Point.
@@ -464,4 +471,14 @@ pub enum WifiPmfMode {
     None,
     Capable,
     Required,
+}
+
+/// 802.11 PHY physical layer standard / generation of an Access Point. Append new variants at the end.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiPhyStandard {
+    Unknown,
+    B,
+    G,
+    N,
+    Ax,
 }

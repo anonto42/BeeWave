@@ -212,6 +212,15 @@ fn roundtrip_and_emit_golden_vectors() {
             rate: 55,
             unique_clients: 24,
         },
+        TelemetryMessage::PhyResult {
+            bssid: [0x50, 0xC7, 0xBF, 0xAA, 0xBB, 0xCC],
+            standard: WifiPhyStandard::N,
+        },
+        TelemetryMessage::AnomalyAlert {
+            kind: AnomalyKind::TsfRollback,
+            bssid: [0x50, 0xC7, 0xBF, 0xAA, 0xBB, 0xCC],
+            detail: 15,
+        },
     ];
     let cmds = [
         DeviceCommand::StartScan { band_mask: 3 },

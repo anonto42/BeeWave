@@ -229,6 +229,14 @@
     {
       "hex": "01211f3718",
       "msg": "ProbeFloodAlert { rate: 55, unique_clients: 24 }"
+    },
+    {
+      "hex": "01222050c7bfaabbcc03",
+      "msg": "PhyResult { bssid: [80, 199, 191, 170, 187, 204], standard: N }"
+    },
+    {
+      "hex": "01230b0650c7bfaabbcc0f",
+      "msg": "AnomalyAlert { kind: TsfRollback, bssid: [80, 199, 191, 170, 187, 204], detail: 15 }"
     }
   ]
 }
