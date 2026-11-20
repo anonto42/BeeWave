@@ -300,3 +300,54 @@ code { font-size:11px; background:var(--soft); padding:0 4px; }
 .hs-copy-btn { font-weight:600; border-color:var(--ok); color:var(--ok); }
 @media (hover: hover) { .hs-copy-btn:hover:not(:disabled) { background:var(--ok); color:var(--bg); } }
 .hs-assoc-sig { display:flex; align-items:center; margin-left:auto; }
+
+/* ---- Adaptive layout: the URL tab (#app[data-tab]) and the panel name ([data-slot]) decide where things go ---- */
+.pane-title { display:none; }
+.pane { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; align-content:start; align-items:start; }
+.pane > .panel { margin-bottom:0; min-width:0; }
+
+/* tablet and up: a wider column, device and log use the room */
+@media (min-width: 700px) {
+  main { max-width:min(960px, 100%); padding-left:clamp(12px, 3vw, 28px); padding-right:clamp(12px, 3vw, 28px); }
+  .toasts { max-width:960px; }
+  .pane[data-tab="device"] { grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+}
+
+/* desktop: left sidebar, fluid workspace */
+@media (min-width: 900px) {
+  :root { --sidebar-w:clamp(180px, 15vw, 240px); }
+  #app { display:grid; grid-template-columns:var(--sidebar-w) minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); grid-template-areas:"header header" "sidebar main"; min-height:100vh; }
+  .appbar { grid-area:header; position:sticky; top:0; padding-left:24px; padding-right:24px; }
+  .tabbar { grid-area:sidebar; position:sticky; top:calc(var(--top-h) + env(safe-area-inset-top)); align-self:start; height:calc(100vh - var(--top-h) - env(safe-area-inset-top)); display:flex; flex-direction:column; justify-content:flex-start; border-top:0; border-right:1px solid var(--soft); padding-bottom:0; overflow-y:auto; }
+  .tab { flex-direction:row; justify-content:flex-start; gap:12px; min-height:48px; padding:12px 18px; border-right:0; border-bottom:1px solid var(--soft); font-size:12px; letter-spacing:.08em; width:100%; }
+  .tab svg { width:18px; height:18px; flex:0 0 18px; }
+  .tab.active { box-shadow:inset 3px 0 0 var(--fg); }
+  @media (hover: hover) { .tab:hover:not(.active) { background:var(--soft); } }
+  main { grid-area:main; max-width:none; width:100%; margin:0; padding:20px clamp(16px, 2.5vw, 40px) 48px; }
+  .pane-title { display:block; margin:0 0 16px; padding:0 0 8px; border-bottom:1px solid var(--line); font-size:18px; letter-spacing:.2em; text-transform:uppercase; }
+  .toasts { left:auto; right:24px; bottom:24px; width:min(380px, 40vw); max-width:none; margin:0; }
+  ::-webkit-scrollbar { width:8px; height:8px; } ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--soft); } ::-webkit-scrollbar-thumb:hover { background:var(--dim); }
+  @media (hover: hover) { .net:hover { background:var(--soft); } }
+}
+
+/* wide desktop: a dashboard per tab. Tracks flex with the viewport; named areas, no child-order assumptions. */
+@media (min-width: 1100px) {
+  .pane { gap:16px; }
+  .pane[data-tab="device"] { grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); }
+  .pane[data-tab="scan"] { grid-template-columns:minmax(0,1.5fr) minmax(340px,1fr); grid-template-areas:"scanner control" "scanner targets" "scanner handshake"; grid-template-rows:auto auto 1fr; }
+  .pane[data-tab="analyze"] { grid-template-columns:repeat(2, minmax(0,1fr)); grid-template-areas:"results results" "clients channelChart" "rssiHistory compare"; }
+  .pane[data-tab="alerts"] { grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr); grid-template-areas:"anomalies deauth" "anomalies bleMonitor"; grid-template-rows:auto 1fr; }
+  .pane[data-tab="settings"] { grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr); grid-template-areas:"settings ota"; }
+  [data-slot="control"] { grid-area:control; } [data-slot="scanner"] { grid-area:scanner; } [data-slot="targets"] { grid-area:targets; } [data-slot="handshake"] { grid-area:handshake; }
+  [data-slot="results"] { grid-area:results; } [data-slot="clients"] { grid-area:clients; } [data-slot="channelChart"] { grid-area:channelChart; }
+  [data-slot="rssiHistory"] { grid-area:rssiHistory; } [data-slot="compare"] { grid-area:compare; }
+  [data-slot="anomalies"] { grid-area:anomalies; } [data-slot="deauth"] { grid-area:deauth; } [data-slot="bleMonitor"] { grid-area:bleMonitor; }
+  [data-slot="settings"] { grid-area:settings; } [data-slot="ota"] { grid-area:ota; }
+}
+
+/* very wide: give the live feeds a third column */
+@media (min-width: 1700px) {
+  .pane[data-tab="scan"] { grid-template-columns:minmax(0,2fr) minmax(360px,1fr) minmax(360px,1fr); grid-template-areas:"scanner control handshake" "scanner targets handshake"; grid-template-rows:auto 1fr; }
+}
+
