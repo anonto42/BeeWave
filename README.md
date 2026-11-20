@@ -248,6 +248,10 @@ make fw-run
 - [Settings & NVS Guide](docs/SETTINGS.md): Schema, defaults, and persistence of runtime configurations.
 - [Brand Guidelines](docs/BRANDING.md): Crest logo assets, color specifications, and vector regeneration.
 - [Benchmarking Runbook](docs/BENCH_RUNBOOK.md): Radio coexistence and frame throughput performance metrics.
+- [Releases & Packaging](docs/RELEASES.md): Versioning, OTA binary signing, and deployment guide.
+- [Contributing Guide](CONTRIBUTING.md): How to develop, test, and contribute to BeeWave.
+- [Code of Conduct](CODE_OF_CONDUCT.md): Community pledge and standards.
+- [Security Policy](SECURITY.md): Vulnerability disclosure and security architecture guarantees.
 
 ---
 

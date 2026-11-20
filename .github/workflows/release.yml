@@ -1,0 +1,57 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node & pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies & build PWA
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm run build
+        working-directory: web
+
+      - name: Package Web PWA Distribution
+        run: |
+          mkdir -p dist
+          tar -czf dist/beewave-web-pwa-${{ github.ref_name }}.tar.gz -C web/dist .
+          zip -r dist/beewave-web-pwa-${{ github.ref_name }}.zip web/dist
+
+      - name: Generate Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/beewave-web-pwa-${{ github.ref_name }}.tar.gz
+            dist/beewave-web-pwa-${{ github.ref_name }}.zip
+            dist/SHA256SUMS.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
