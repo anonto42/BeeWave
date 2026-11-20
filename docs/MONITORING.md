@@ -48,6 +48,7 @@ and tracks associations in a bounded 32-entry LRU table (`AssocTracker`). Report
 and re-emitted only on significant signal movement (6 dB+) or after 5 seconds.
 
 In the PWA:
+- Under **Scan > Scanner**: Each Access Point card displays a live station badge (`1 CLIENT` or `N CLIENTS`) when associated client stations are tracked in `AssocStore`. The toolbar provides a **FILTER** selector (`ALL`, `> -80 dBm`, `> -70 dBm`, `> -60 dBm`, and `WITH CLIENTS`) to isolate nearby targets or APs with active client traffic during wardriving and physical site surveys.
 - Under **Scan > Targets**: Each targeted Access Point lists its actively communicating stations with hardware vendor name, signal strength, and packet count.
 - Under **Analyze > Client stations**: Probed stations indicate their active AP association (or "Unassociated").
 
@@ -73,6 +74,18 @@ The core parses these elements zero-allocation in `#![no_std]` and deduplicates 
 
 In the PWA:
 - Under **Scan > Scanner**: Each network displays color-coded security badges: `OPEN` (yellow warn), `WEP` (red alert), `WPA`, `WPA2`, `WPA3`, `WPA2/WPA3`, `OWE`, `802.1X`, and PMF indicators (`· PMF` when required, `· PMF OPT` when capable).
+
+## Wi-Fi generation and PHY standard classification (device slice `scan`)
+Beacon and Probe Response management frames broadcast physical layer (PHY) capability elements that define maximum throughput rates and modulation schemes:
+- **HE Capabilities (Tag 255 / `0xFF` with Extension ID 35 / `0x23`)**: Identifies 802.11ax (Wi-Fi 6) High Efficiency networks.
+- **HT Capabilities (Tag 45 / `0x2D`)**: Identifies 802.11n (Wi-Fi 4) High Throughput networks.
+- **ERP Information (Tag 42 / `0x2A`) or OFDM rates (Tag 1 & 50)**: Identifies 802.11g Extended Rate PHY networks (up to 54 Mbps).
+- **Basic DSSS rates only (Tag 1)**: Identifies legacy 802.11b networks (1, 2, 5.5, 11 Mbps) which degrade channel airtime and lack modern wireless protection.
+
+The device core parses these elements zero-allocation in `#![no_std]` and deduplicates observations in a 32-entry bounded table (`PhyTracker`), emitting `PhyResult` over BLE only upon initial observation or when the PHY generation changes.
+
+In the PWA:
+- Under **Scan > Scanner**: Each network displays a generation badge: `Wi-Fi 6` (cyan), `Wi-Fi 4` (blue), `802.11g` (neutral), or `802.11b` (amber warning for legacy networks).
 
 ## Channels
 Two bars per channel 1-13: access points, and **reports in the last 60 s**. The second series is a proxy for how busy a channel is,
@@ -129,6 +142,7 @@ A chronological feed, newest first, coloured by severity (blue info, yellow warn
 
 | Kind | Rule | Severity |
 |---|---|---|
+| Rogue AP / timestamp rollback detected | an Access Point's 64-bit microsecond TSF hardware clock jumped backward by 5+ seconds (software fake AP / clone reboot) | alert |
 | KARMA / Rogue AP SSID change detected | an Access Point BSSID previously heard advertising a valid SSID begins broadcasting a different SSID (WiFi Pineapple / MANA honeypot) | alert |
 | Evil Twin security downgrade detected | an SSID previously observed with secure encryption (WPA, WPA2, WPA3, OWE, Enterprise) appears open or downgraded to WEP | alert |
 | New access point for a known network | a known SSID appears on a BSSID not seen with it before (not during the first 30 s) | warn |
