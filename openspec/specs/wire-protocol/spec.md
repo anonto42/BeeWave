@@ -193,3 +193,17 @@ The wire protocol SHALL define `KarmaSsidChange` as a variant of the `AnomalyKin
 #### Scenario: AnomalyKind round-trip
 - **WHEN** an `AnomalyAlert` carrying `AnomalyKind::KarmaSsidChange` is encoded with Postcard
 - **THEN** it deserializes back identically across both Rust and TypeScript implementations matching golden vectors
+
+### Requirement: Wi-Fi PHY Standard Classification
+The protocol crate SHALL define a `WifiPhyStandard` enum representing physical layer standards (`Unknown`, `B`, `G`, `N`, `Ax`) and append a `PhyResult` variant to `TelemetryMessage` carrying the Access Point BSSID and its detected PHY standard.
+
+#### Scenario: Golden vector verification
+- **WHEN** `TelemetryMessage::PhyResult` is serialized and deserialized via Postcard
+- **THEN** both Rust and TypeScript codecs encode and decode the identical binary representation
+
+### Requirement: TSF Rollback Anomaly Kind
+The protocol crate SHALL include a `TsfRollback` variant in the `AnomalyKind` enum, appended after existing variants, to represent backward beacon timestamp anomalies indicative of rogue Access Points.
+
+#### Scenario: Golden vector verification
+- **WHEN** an `AnomalyAlert` with kind `TsfRollback` is serialized to Postcard
+- **THEN** Rust and TypeScript codecs encode and decode identical byte representations

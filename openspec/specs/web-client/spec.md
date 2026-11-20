@@ -313,3 +313,43 @@ The web client SHALL decode `KarmaSsidChange` anomaly alerts and render them in 
 #### Scenario: Ingesting KARMA anomaly alert
 - **WHEN** the web client receives an `anomaly` telemetry message with kind `karmaSsidChange`
 - **THEN** it formats an alert with title "KARMA / Rogue AP SSID change detected" and severity `alert`
+
+### Requirement: PHY Standard Badging in Scanner
+The web client SHALL ingest `PhyResult` telemetry messages, store the PHY generation standard on the corresponding `NetworkRecord`, and render visible badges indicating the physical standard in the Scanner network cards.
+
+#### Scenario: Visual badging of Wi-Fi generations
+- **WHEN** a network has a classified PHY standard
+- **THEN** the Scanner card displays a badge indicating the standard (e.g. `AX`, `N`, `802.11g`, or `802.11b`)
+
+### Requirement: Rogue AP TSF Rollback Alert Formatting
+The web client SHALL decode `TsfRollback` anomaly alerts and render high-severity alert messages in the alert feed noting the observed timestamp rollback magnitude in seconds.
+
+#### Scenario: Display rogue AP alert
+- **WHEN** an anomaly alert with kind `tsfRollback` and detail `N` is received
+- **THEN** the alert feed displays `[ROGUE AP DETECTED] Timestamp rollback on <bssid> (<N>s backward) - possible fake AP` with alert severity
+
+### Requirement: Scanner Proximity and Station Filtering
+The web client SHALL provide a filter selector in the Scanner view allowing filtering of visible networks by minimum RSSI thresholds (`-80 dBm`, `-70 dBm`, `-60 dBm`) and by presence of connected client stations (`WITH CLIENTS`). The network count indicator SHALL display the filtered count alongside the total count when filtering is active.
+
+#### Scenario: Proximity filter applied
+- **WHEN** the user selects an RSSI threshold (e.g. `> -70 dBm`)
+- **THEN** only networks with RSSI at or above that threshold are rendered in the network list
+
+#### Scenario: Station filter applied
+- **WHEN** the user selects `WITH CLIENTS` filter
+- **THEN** only networks with one or more associated client stations in `AssocStore` are displayed
+
+#### Scenario: Network count indicator with active filter
+- **WHEN** filtering reduces the displayed networks from 10 to 3
+- **THEN** the count indicator displays `3 / 10 networks`
+
+### Requirement: Connected Station Badging in Scanner
+The web client SHALL query `AssocStore` for each displayed Access Point and render a visual station count badge on the network card, reactively updating when new client associations are intercepted without requiring a manual page refresh.
+
+#### Scenario: Access point with associated clients
+- **WHEN** an Access Point has associated client stations tracked in `AssocStore`
+- **THEN** the network card in the Scanner view renders a badge displaying the active client count (e.g. `1 CLIENT` or `N CLIENTS`)
+
+#### Scenario: Reactive update on association telemetry
+- **WHEN** an `assocResult` telemetry message is received for an Access Point currently visible in Scanner
+- **THEN** the Access Point's station badge reactively updates to reflect the new client count

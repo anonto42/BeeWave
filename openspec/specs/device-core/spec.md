@@ -421,3 +421,25 @@ The core anomaly detector SHALL detect when an Access Point BSSID previously see
 #### Scenario: Hidden network transition ignored
 - **WHEN** an AP broadcasts an empty or hidden SSID
 - **THEN** no `KarmaSsidChange` anomaly is raised
+
+### Requirement: 802.11 PHY Standard Extraction and Deduplication
+The scan feature SHALL parse 802.11 beacon and probe response frames to detect HT Capabilities (Element 45), ERP Information (Element 42), HE Capabilities (Element 255 Ext 35), and Supported Rates (Elements 1 and 50) without allocating, classify the physical standard into `WifiPhyStandard`, and emit `PhyResult` deduplicated in a bounded table (`PhyTracker`).
+
+#### Scenario: 802.11n Wi-Fi 4 detection
+- **WHEN** a beacon contains Information Element 45 (HT Capabilities)
+- **THEN** the detected PHY standard is classified as `WifiPhyStandard::N` and emitted via `PhyResult`
+
+#### Scenario: Deduplicated PHY reporting
+- **WHEN** an Access Point is observed again with an unchanged PHY standard
+- **THEN** `PhyTracker` suppresses duplicate telemetry emission
+
+### Requirement: Beacon TSF Extraction and Rollback Detection
+The scan feature SHALL extract the 64-bit microsecond TSF timestamp from beacon management frames, and the anomaly detector SHALL flag an `AnomalyKind::TsfRollback` alert when an Access Point's timestamp rolls backward by 5 seconds or more relative to its previous observation.
+
+#### Scenario: Rogue AP timestamp rollback
+- **WHEN** an Access Point's beacon is received with a TSF timestamp that is at least 5,000,000 microseconds less than the previously observed timestamp for that BSSID
+- **THEN** the anomaly detector raises `AnomalyKind::TsfRollback` with detail set to the rollback duration in seconds
+
+#### Scenario: Normal monotonic clock progression
+- **WHEN** an Access Point's beacon is received with an incremented or equal TSF timestamp
+- **THEN** no `TsfRollback` anomaly is raised
