@@ -15,6 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Rust-2021_Edition-orange?logo=rust" alt="Rust 2021">
   <img src="https://img.shields.io/badge/Target-ESP32--WROOM--32-red?logo=espressif" alt="ESP32 Target">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
   <img src="https://img.shields.io/badge/Core-%23!%5Bno__std%5D-blue" alt="no_std Core">
   <img src="https://img.shields.io/badge/Frontend-Vite_PWA_+_TS-green?logo=vite" alt="Vite PWA">
   <img src="https://img.shields.io/badge/Transport-Web_Bluetooth-blueviolet?logo=bluetooth" alt="Web Bluetooth">
@@ -261,4 +262,4 @@ BeeWave is strictly **non-transmitting** on the 802.11 physical layer: it cannot
 
 ## License
 
-BeeWave is open-source software licensed under the [MIT License](LICENSE) (or project root license).
+BeeWave is open-source software licensed under the [Apache License 2.0](LICENSE).

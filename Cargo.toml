@@ -7,6 +7,8 @@ exclude = ["firmware"]
 [workspace.package]
 edition = "2021"
 version = "0.1.0"
+license = "Apache-2.0"
+authors = ["MD Sohidul Islam Ananto <anontom90@gmail.com>"]
 
 [workspace.dependencies]
 heapless = { version = "0.7", features = ["serde"] }
