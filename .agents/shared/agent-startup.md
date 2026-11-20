@@ -10,3 +10,4 @@
 6. **Verify before & after:** `make check` (fmt, host tests, no_std build, web build, specs). Hardware: `make fw-build`, then `make fw-run`.
 7. **Hardware facts:** board on `/dev/ttyACM0` (CH9102), ESP32 rev1 4 MB; hold BOOT if auto-reset fails.
 8. **Commits:** follow `.agents/shared/rules/git.md` (separate logical commits, conventional messages, no AI attribution, device git user).
+9. **Agent Maintenance:** follow `.agents/shared/rules/agent-maintenance.md`: keep `.agents/shared/memory/` (`architecture.md`, `capabilities.md`) automatically synchronized with all new domain features, slices, and wire formats.
