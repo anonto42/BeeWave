@@ -1,5 +1,5 @@
 import type { GpsCoordinates } from "../gps";
-import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
+import type { WifiPhyStandard, WifiPmfMode, WifiSecurityProtocol } from "../protocol";
 
 export interface SecurityRecord {
   protocol: WifiSecurityProtocol;
@@ -32,6 +32,7 @@ export interface NetworkRecord {
   history: RssiPoint[];
   wps?: WpsRecord;
   security?: SecurityRecord;
+  phy?: WifiPhyStandard;
   decloaked?: boolean;
   gps?: GpsCoordinates;
 }

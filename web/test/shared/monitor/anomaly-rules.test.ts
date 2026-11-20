@@ -10,7 +10,15 @@ describe("anomaly alerts", () => {
     const sev = Object.fromEntries(
       ANOMALY_KINDS.map((kind) => [kind, alertFromTelemetry({ type: "anomaly", kind, bssid: BSSID, detail: 27 })!.severity]),
     );
-    expect(sev).toEqual({ newBssidForSsid: "warn", twoChannels: "info", rssiOutlier: "info", returned: "info", securityDowngrade: "alert", karmaSsidChange: "alert" });
+    expect(sev).toEqual({
+      newBssidForSsid: "warn",
+      twoChannels: "info",
+      rssiOutlier: "info",
+      returned: "info",
+      securityDowngrade: "alert",
+      karmaSsidChange: "alert",
+      tsfRollback: "alert",
+    });
   });
 
   it("formats karma ssid change anomaly with alert severity and clear title", () => {
@@ -141,6 +149,22 @@ describe("anomaly alerts", () => {
       title: "Disassoc frames: 65/s",
       bssid: BSSID,
     });
+  });
+
+  it("formats tsf rollback rogue AP alerts with high severity", () => {
+    const alert = alertFromTelemetry({
+      type: "anomaly",
+      kind: "tsfRollback",
+      bssid: BSSID,
+      detail: 45,
+    })!;
+    expect(alert).toMatchObject({
+      source: "anomaly",
+      severity: "alert",
+      title: "Rogue AP / timestamp rollback detected",
+      bssid: BSSID,
+    });
+    expect(alert.detail).toContain("45s backward");
   });
 });
 

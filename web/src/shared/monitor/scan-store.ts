@@ -1,6 +1,6 @@
 import type { GpsCoordinates } from "../gps";
 import { CYCLE_TICKS, EVENT_CAP, HISTORY_CAP, SNAPSHOT_CAP } from "./constants";
-import type { WifiPmfMode, WifiSecurityProtocol } from "../protocol";
+import type { WifiPhyStandard, WifiPmfMode, WifiSecurityProtocol } from "../protocol";
 import type { NetworkRecord, ScanEvent, SecurityRecord, Snapshot, WpsRecord } from "./types";
 
 export interface ScanInput {
@@ -189,6 +189,29 @@ export class ScanStore {
         count: 1,
         history: [{ cycle, rssi: -90, at }],
         security,
+      });
+      this.emit();
+    }
+  }
+
+  ingestPhy(m: { bssid: string; standard: WifiPhyStandard }): void {
+    const rec = this.records.get(m.bssid);
+    if (rec) {
+      rec.phy = m.standard;
+      this.emit();
+    } else {
+      const at = this.now();
+      const cycle = this.cycle;
+      this.records.set(m.bssid, {
+        bssid: m.bssid,
+        ssid: "",
+        channel: 1,
+        rssi: -90,
+        firstSeen: at,
+        lastSeen: at,
+        count: 1,
+        history: [{ cycle, rssi: -90, at }],
+        phy: m.standard,
       });
       this.emit();
     }

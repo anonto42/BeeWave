@@ -68,6 +68,9 @@ export function createMonitorKernel(
         case "securityResult":
           scans.ingestSecurity(m);
           return;
+        case "phyResult":
+          scans.ingestPhy(m);
+          return;
         case "decloakedResult": {
           scans.ingestDecloaked(m);
           const a = alertFromTelemetry(m);

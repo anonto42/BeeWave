@@ -14,6 +14,7 @@ export { ProbeStore, type DiscoveredClient } from "./probe-store";
 export { ScanStore, type ScanInput } from "./scan-store";
 export { csvText, SessionRecorder, sessionToCsv, sessionToJson, type SessionData } from "./session";
 export type { AlertRecord, AlertSource, NetworkRecord, RssiPoint, ScanEvent, SecurityRecord, Severity, Snapshot, SnapshotNetwork, WpsRecord } from "./types";
+export type { WifiPhyStandard } from "../protocol";
 export { channelToFrequencyMhz, formatWigleTimestamp, generateWigleCsv, networkToWigleAuthMode } from "./wigle";
 export { securityLabel } from "./security-format";
 export { MISSING_CYCLES, WatchlistEngine, WatchlistStore, fullEntry, type WatchEntry } from "./watchlist";

@@ -3,7 +3,15 @@ export const AD_CLASSES = ["fastPair", "ibeacon", "proximity", "generic", "findM
 export type AdClassName = (typeof AD_CLASSES)[number];
 
 /** Anomaly kinds, in `AnomalyKind` variant order. */
-export const ANOMALY_KINDS = ["newBssidForSsid", "twoChannels", "rssiOutlier", "returned", "securityDowngrade", "karmaSsidChange"] as const;
+export const ANOMALY_KINDS = [
+  "newBssidForSsid",
+  "twoChannels",
+  "rssiOutlier",
+  "returned",
+  "securityDowngrade",
+  "karmaSsidChange",
+  "tsfRollback",
+] as const;
 export type AnomalyKindName = (typeof ANOMALY_KINDS)[number];
 
 /** `HopOrder` variants, in wire order. */
@@ -48,3 +56,7 @@ export type WifiSecurityProtocol = (typeof WIFI_SECURITY_PROTOCOLS)[number];
 /** `WifiPmfMode` variants, in wire order. */
 export const WIFI_PMF_MODES = ["none", "capable", "required"] as const;
 export type WifiPmfMode = (typeof WIFI_PMF_MODES)[number];
+
+/** `WifiPhyStandard` variants, in wire order. */
+export const WIFI_PHY_STANDARDS = ["unknown", "b", "g", "n", "ax"] as const;
+export type WifiPhyStandard = (typeof WIFI_PHY_STANDARDS)[number];

@@ -110,6 +110,7 @@ export class MockWorld {
       this.associations(ch, out);
       this.wps(out);
       this.security(out);
+      this.phy(out);
     }
     this.ble(out);
     return { telemetry: out, channel: ch };
@@ -144,6 +145,7 @@ export class MockWorld {
     if (t === 85) out.push({ type: "anomaly", kind: "returned", bssid: APS[6].bssid, detail: 8 });
     if (t === 90) out.push({ type: "anomaly", kind: "securityDowngrade", bssid: APS[3].bssid, detail: 0 });
     if (t === 92) out.push({ type: "anomaly", kind: "karmaSsidChange", bssid: APS[3].bssid, detail: 0 });
+    if (t === 94) out.push({ type: "anomaly", kind: "tsfRollback", bssid: APS[3].bssid, detail: 15 });
     if (t === 95) out.push({ type: "beaconFloodAlert", rate: 58, uniqueBssids: 32 });
     if (t === 98) out.push({ type: "decloakedResult", bssid: APS[5].bssid, ssid: "StealthNet", channel: 4, rssi: -79 });
   }
@@ -223,6 +225,21 @@ export class MockWorld {
         bssid: APS[0].bssid,
         protocol: "wpa3",
         pmf: "required",
+      });
+    }
+  }
+
+  private phy(out: Telemetry[]): void {
+    if (this.scanTicks === 2) {
+      out.push({
+        type: "phyResult",
+        bssid: APS[0].bssid,
+        standard: "ax",
+      });
+      out.push({
+        type: "phyResult",
+        bssid: APS[3].bssid,
+        standard: "n",
       });
     }
   }

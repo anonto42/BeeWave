@@ -1,4 +1,4 @@
-import type { AdClassName, AnomalyKindName, RejectReasonName, WifiPmfMode, WifiSecurityProtocol } from "./monitor";
+import type { AdClassName, AnomalyKindName, RejectReasonName, WifiPhyStandard, WifiPmfMode, WifiSecurityProtocol } from "./monitor";
 import type { DeviceSettings } from "./settings-types";
 
 /** Device -> app messages. Mirrors `TelemetryMessage` in crates/protocol/src/types.rs. */
@@ -119,6 +119,11 @@ export type Telemetry =
       type: "probeFloodAlert";
       rate: number;
       uniqueClients: number;
+    }
+  | {
+      type: "phyResult";
+      bssid: string;
+      standard: WifiPhyStandard;
     };
 
 /** App -> device messages. Mirrors `DeviceCommand` in crates/protocol/src/types.rs. */

@@ -9,6 +9,7 @@ const ANOMALY_TEXT = {
   returned: { severity: "info", title: "Network came back", detail: "" },
   securityDowngrade: { severity: "alert", title: "Evil Twin security downgrade detected", detail: "open or downgraded access point clone detected for secured network" },
   karmaSsidChange: { severity: "alert", title: "KARMA / Rogue AP SSID change detected", detail: "same BSSID advertised different SSID (possible WiFi Pineapple / MANA honeypot attack)" },
+  tsfRollback: { severity: "alert", title: "Rogue AP / timestamp rollback detected", detail: "beacon clock rolled backward (software fake AP or clone)" },
 } as const;
 
 /** A deauth burst this size or bigger is treated as a flood (red); smaller bursts are yellow. */
@@ -61,7 +62,13 @@ export function alertFromTelemetry(m: Telemetry): NewAlert | null {
     case "anomaly": {
       const t = ANOMALY_TEXT[m.kind];
       const extra =
-        m.kind === "rssiOutlier" ? `${m.detail} dB between cycles` : m.kind === "returned" ? `after ${m.detail} cycles` : t.detail;
+        m.kind === "rssiOutlier"
+          ? `${m.detail} dB between cycles`
+          : m.kind === "returned"
+          ? `after ${m.detail} cycles`
+          : m.kind === "tsfRollback"
+          ? `${m.detail}s backward (fake AP or AP clone)`
+          : t.detail;
       return { source: "anomaly", severity: t.severity, title: t.title, detail: `${m.bssid} (${vendorOf(m.bssid)}): ${extra}`, bssid: m.bssid };
     }
     case "beaconFloodAlert":

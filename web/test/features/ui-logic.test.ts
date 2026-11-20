@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { describeEvent } from "../../src/features/alerts/describe";
 import { controlState } from "../../src/features/control/enabled";
 import { rssiHtml, rssiLevel } from "../../src/shared/monitor";
+import { filterNetworks } from "../../src/features/scanner/filter";
 import { sortNetworks } from "../../src/features/scanner/sort";
 import { rowHtml } from "../../src/features/scanner/template";
 import type { ScanResult } from "../../src/features/scanner/types";
@@ -103,5 +104,74 @@ describe("rowHtml with Decloaked", () => {
   it("does not render DECLOAKED badge when decloaked flag is false or undefined", () => {
     const r = rowHtml(net("NormalNet", 6, -55), false, false);
     expect(r).not.toContain("DECLOAKED");
+  });
+});
+
+describe("rowHtml with PHY standard", () => {
+  it("renders Wi-Fi 6 badge for ax standard", () => {
+    const r = rowHtml(net("AxNet", 6, -50), false, false, undefined, undefined, false, "ax");
+    expect(r).toContain("Wi-Fi 6");
+  });
+
+  it("renders Wi-Fi 4 badge for n standard", () => {
+    const r = rowHtml(net("NNet", 6, -50), false, false, undefined, undefined, false, "n");
+    expect(r).toContain("Wi-Fi 4");
+  });
+
+  it("renders 802.11b warn badge for legacy b standard", () => {
+    const r = rowHtml(net("BNet", 1, -50), false, false, undefined, undefined, false, "b");
+    expect(r).toContain("badge small warn");
+    expect(r).toContain("802.11b");
+  });
+
+  it("does not render PHY badge when unknown or undefined", () => {
+    const r = rowHtml(net("UnknownNet", 6, -50), false, false, undefined, undefined, false, "unknown");
+    expect(r).not.toContain("Wi-Fi");
+    expect(r).not.toContain("802.11");
+  });
+});
+
+describe("filterNetworks", () => {
+  const sample = [
+    net("strong", 1, -45),
+    net("medium", 6, -65),
+    net("usable", 11, -75),
+    net("weak", 6, -85),
+  ];
+
+  it("filters by RSSI thresholds", () => {
+    expect(filterNetworks(sample, "all")).toHaveLength(4);
+    expect(filterNetworks(sample, "-80").map((n) => n.ssid)).toEqual(["strong", "medium", "usable"]);
+    expect(filterNetworks(sample, "-70").map((n) => n.ssid)).toEqual(["strong", "medium"]);
+    expect(filterNetworks(sample, "-60").map((n) => n.ssid)).toEqual(["strong"]);
+  });
+
+  it("filters by presence of associated stations", () => {
+    const counts = (bssid: string) => (bssid === sample[1].bssid ? 2 : 0);
+    const withClients = filterNetworks(sample, "stations", counts);
+    expect(withClients).toHaveLength(1);
+    expect(withClients[0].ssid).toBe("medium");
+  });
+});
+
+describe("rowHtml with stationCount", () => {
+  it("renders 1 CLIENT badge with ok styling when stationCount is 1", () => {
+    const r = rowHtml(net("TargetAP", 6, -50), false, false, undefined, undefined, false, undefined, 1);
+    expect(r).toContain("1 CLIENT");
+    expect(r).toContain("badge small ok");
+    expect(r).toContain('title="1 connected client station"');
+  });
+
+  it("renders plural CLIENTS badge when stationCount is greater than 1", () => {
+    const r = rowHtml(net("TargetAP", 6, -50), false, false, undefined, undefined, false, undefined, 3);
+    expect(r).toContain("3 CLIENTS");
+    expect(r).toContain('title="3 connected client stations"');
+  });
+
+  it("omits station badge when stationCount is 0 or undefined", () => {
+    const rZero = rowHtml(net("TargetAP", 6, -50), false, false, undefined, undefined, false, undefined, 0);
+    expect(rZero).not.toContain("CLIENT");
+    const rUndef = rowHtml(net("TargetAP", 6, -50), false, false);
+    expect(rUndef).not.toContain("CLIENT");
   });
 });

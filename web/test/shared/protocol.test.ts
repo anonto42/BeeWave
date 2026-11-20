@@ -78,6 +78,22 @@ describe("telemetry decode (golden vectors from Rust)", () => {
       bssid: "50:c7:bf:aa:bb:cc",
       count: 42,
     });
+    expect(m(33)).toEqual({
+      type: "probeFloodAlert",
+      rate: 55,
+      uniqueClients: 24,
+    });
+    expect(m(34)).toEqual({
+      type: "phyResult",
+      bssid: "50:c7:bf:aa:bb:cc",
+      standard: "n",
+    });
+    expect(m(35)).toEqual({
+      type: "anomaly",
+      kind: "tsfRollback",
+      bssid: "50:c7:bf:aa:bb:cc",
+      detail: 15,
+    });
   });
   it("settings management messages", () => {
     const m = (i: number) => decodeTelemetry(bytes(vectors.telemetry[i].hex)).msg;

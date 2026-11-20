@@ -1,5 +1,6 @@
 import { $, download, panel, type AppContext } from "../../shared/app";
 import { generateWigleCsv } from "../../shared/monitor";
+import { filterNetworks, type FilterKey } from "./filter";
 import { sortNetworks, type SortKey } from "./sort";
 import { emptyHtml, rowHtml, scannerHtml } from "./template";
 import type { ScanResult } from "./types";
@@ -11,6 +12,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   const networks = new Map<string, ScanResult>();
 
   const sortSel = $<HTMLSelectElement>(el, "[data-sort]");
+  const filterSel = $<HTMLSelectElement>(el, "[data-filter]");
   const gpsBtn = $<HTMLButtonElement>(el, "[data-gps]");
 
   const updateGps = () => {
@@ -48,10 +50,18 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   };
 
   const render = () => {
-    body.innerHTML = networks.size
-      ? sortNetworks([...networks.values()], sortSel.value as SortKey)
+    const allList = [...networks.values()];
+    const filtered = filterNetworks(
+      allList,
+      filterSel.value as FilterKey,
+      (bssid) => ctx.monitor.assoc.stationsFor(bssid).length,
+    );
+    const sorted = sortNetworks(filtered, sortSel.value as SortKey);
+    body.innerHTML = sorted.length
+      ? sorted
           .map((n) => {
             const rec = ctx.monitor.scans.get(n.bssid);
+            const stations = ctx.monitor.assoc.stationsFor(n.bssid);
             return rowHtml(
               n,
               ctx.targets.has(n.bssid),
@@ -59,14 +69,21 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
               rec?.wps,
               rec?.security,
               rec?.decloaked,
+              rec?.phy,
+              stations.length,
             );
           })
           .join("")
       : emptyHtml;
-    $(el, "[data-count]").textContent = `${networks.size} network${networks.size === 1 ? "" : "s"}`;
+
+    const countText = filterSel.value === "all"
+      ? `${networks.size} network${networks.size === 1 ? "" : "s"}`
+      : `${filtered.length} / ${networks.size} network${networks.size === 1 ? "" : "s"}`;
+    $(el, "[data-count]").textContent = countText;
   };
 
   sortSel.onchange = render;
+  filterSel.onchange = render;
   $<HTMLButtonElement>(el, "[data-clear]").onclick = () => {
     networks.clear();
     render();
@@ -89,6 +106,7 @@ export function mount(root: HTMLElement, ctx: AppContext): void {
   ctx.targets.onChange(render);
   ctx.monitor.watchlist.onChange(render);
   ctx.monitor.scans.onChange(render);
+  ctx.monitor.assoc.onChange(render);
   render();
   ctx.onTelemetry("scan", (m) => {
     networks.set(m.bssid, m);

@@ -1,5 +1,5 @@
 import { HEADER_LEN, PROTO_VERSION } from "./constants";
-import { AD_CLASSES, ANOMALY_KINDS, HOP_ORDERS, LOG_LEVELS, REJECT_REASONS, WIFI_SECURITY_PROTOCOLS, WIFI_PMF_MODES } from "./monitor";
+import { AD_CLASSES, ANOMALY_KINDS, HOP_ORDERS, LOG_LEVELS, REJECT_REASONS, WIFI_SECURITY_PROTOCOLS, WIFI_PMF_MODES, WIFI_PHY_STANDARDS } from "./monitor";
 import { HOP_LIST_LEN, type DeviceSettings } from "./settings-types";
 import { Reader } from "./reader";
 import type { Telemetry, TelemetryPacket } from "./types";
@@ -202,6 +202,13 @@ export function decodeTelemetry(buf: Uint8Array): TelemetryPacket {
         type: "probeFloodAlert",
         rate: r.varint(),
         uniqueClients: r.varint(),
+      };
+      break;
+    case 32:
+      msg = {
+        type: "phyResult",
+        bssid: hex(r.bytes(6)),
+        standard: enumName(WIFI_PHY_STANDARDS, r.varint()),
       };
       break;
     default:
