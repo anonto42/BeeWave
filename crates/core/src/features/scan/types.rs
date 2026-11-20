@@ -1,5 +1,6 @@
 use heapless::String;
 
+use super::phy::PhyInfo;
 use super::security::SecurityInfo;
 use super::wps::WpsInfo;
 
@@ -17,4 +18,6 @@ pub struct Observation {
     pub ssid: String<32>,
     pub wps: Option<WpsInfo>,
     pub security: Option<SecurityInfo>,
+    pub phy: Option<PhyInfo>,
+    pub tsf: u64,
 }

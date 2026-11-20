@@ -209,6 +209,11 @@ where
                 self.emit(m);
             }
         }
+        if let Some(phy) = &o.phy {
+            if let Some(m) = self.monitoring.on_phy(phy) {
+                self.emit(m);
+            }
+        }
         if let Some(m) = self.scans.observe(o, self.elapsed_ms) {
             self.emit(m);
         }

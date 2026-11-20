@@ -8,6 +8,8 @@ fn obs(rssi: i8) -> Observation {
         ssid: "x".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     }
 }
 
@@ -29,6 +31,8 @@ fn hidden_network_decloaked_bypasses_dedup() {
         ssid: "".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     };
     // 1. Initial observation of hidden AP emits ScanResult
     let res = t.observe(hidden.clone(), 0).expect("first hidden scan");
@@ -47,6 +51,8 @@ fn hidden_network_decloaked_bypasses_dedup() {
         ssid: "SecretCorp".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     };
     let decloaked = t.observe(probe_resp, 10).expect("decloaked report");
     assert_eq!(
@@ -135,6 +141,8 @@ fn named(bssid: u8, ssid: &str, channel: u8, rssi: i8) -> Observation {
         ssid: ssid.try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     }
 }
 
@@ -515,4 +523,97 @@ fn beacon_flood_detector_triggers_on_high_rate_and_unique_bssids() {
         detector.observe(&[0, 0, 0, 0, 2, i]);
     }
     assert!(detector.tick().is_none());
+}
+
+#[test]
+fn test_classify_phy_rules() {
+    use beewave_protocol::WifiPhyStandard;
+
+    // HE capabilities take precedence -> Ax (Wi-Fi 6)
+    assert_eq!(
+        classify_phy(true, true, true, true, true),
+        WifiPhyStandard::Ax
+    );
+
+    // HT capabilities -> N (Wi-Fi 4)
+    assert_eq!(
+        classify_phy(false, true, true, true, true),
+        WifiPhyStandard::N
+    );
+
+    // ERP or G rates -> G
+    assert_eq!(
+        classify_phy(false, false, true, false, true),
+        WifiPhyStandard::G
+    );
+    assert_eq!(
+        classify_phy(false, false, false, true, true),
+        WifiPhyStandard::G
+    );
+
+    // B rates only -> B
+    assert_eq!(
+        classify_phy(false, false, false, false, true),
+        WifiPhyStandard::B
+    );
+
+    // No rates or capability tags -> Unknown
+    assert_eq!(
+        classify_phy(false, false, false, false, false),
+        WifiPhyStandard::Unknown
+    );
+}
+
+#[test]
+fn test_phy_tracker_deduplication() {
+    use beewave_protocol::WifiPhyStandard;
+
+    let mut tracker = PhyTracker::new();
+    let bssid = [0x50, 0xC7, 0xBF, 0x01, 0x02, 0x03];
+    let info = PhyInfo {
+        bssid,
+        standard: WifiPhyStandard::N,
+    };
+
+    // First observation: reported
+    assert!(tracker.observe(&info));
+
+    // Duplicate observation: suppressed
+    assert!(!tracker.observe(&info));
+
+    // Standard changed: reported
+    let updated = PhyInfo {
+        bssid,
+        standard: WifiPhyStandard::Ax,
+    };
+    assert!(tracker.observe(&updated));
+    assert!(!tracker.observe(&updated));
+}
+
+#[test]
+fn test_parse_beacon_phy_extraction() {
+    use beewave_protocol::WifiPhyStandard;
+
+    let mut frame = [0u8; 128];
+    frame[0] = 0x80; // Beacon
+    frame[16..22].copy_from_slice(&[0x11, 0x22, 0x33, 0x44, 0x55, 0x66]); // BSSID
+    frame[24..32].copy_from_slice(&12345678u64.to_le_bytes()); // TSF
+    frame[34] = 0x01; // Caps
+
+    let mut offset = 36;
+    // SSID
+    frame[offset] = 0; // Tag 0
+    frame[offset + 1] = 4;
+    frame[offset + 2..offset + 6].copy_from_slice(b"Test");
+    offset += 6;
+
+    // HT Capabilities (Tag 45)
+    frame[offset] = 45;
+    frame[offset + 1] = 26;
+    offset += 28;
+
+    let obs = parse_beacon(&frame[..offset], -50, 6).expect("should parse");
+    assert_eq!(obs.tsf, 12345678);
+    let phy = obs.phy.expect("should have phy info");
+    assert_eq!(phy.standard, WifiPhyStandard::N);
 }

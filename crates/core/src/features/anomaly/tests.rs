@@ -11,6 +11,8 @@ fn beacon(id: u8, ssid: &str, channel: u8, rssi: i8) -> Observation {
         ssid: ssid.try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     }
 }
 
@@ -171,6 +173,8 @@ fn beacon_sec(
             protocol,
             pmf: beewave_protocol::WifiPmfMode::None,
         }),
+        phy: None,
+        tsf: 0,
     }
 }
 
@@ -266,4 +270,42 @@ fn karma_does_not_trigger_for_hidden_ssid_transition() {
     // Network broadcasts with empty SSID (hidden beacon): no Karma alert
     let finding = d.observe(&beacon(1, "", 6, -50), t);
     assert!(finding.is_none());
+}
+
+#[test]
+fn tsf_rollback_triggers_when_timestamp_jumps_backward() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    while t <= LEARN_TICKS + CYCLE_TICKS {
+        let mut b = beacon(1, "OriginalNet", 6, -50);
+        b.tsf = 100_000_000; // 100 seconds uptime
+        assert!(d.observe(&b, t).is_none());
+        t += 1;
+    }
+
+    // Rogue AP (airbase-ng or spoofed AP) appears with reset timestamp (e.g. 10 s uptime):
+    let mut rogue = beacon(1, "OriginalNet", 6, -50);
+    rogue.tsf = 10_000_000; // 10 seconds uptime (jumped backward by 90 s)
+    let finding = d.observe(&rogue, t).expect("should trigger TSF rollback");
+    assert_eq!(finding.kind, AnomalyKind::TsfRollback);
+    assert_eq!(finding.detail, 90); // 90 seconds rolled back
+
+    // Cooldown active
+    t += 1;
+    let finding2 = d.observe(&rogue, t);
+    assert!(finding2.is_none());
+}
+
+#[test]
+fn normal_monotonic_tsf_does_not_trigger_rollback() {
+    let mut d = AnomalyDetector::new();
+    let mut t = 0;
+    let mut tsf = 10_000_000u64;
+    while t <= LEARN_TICKS + CYCLE_TICKS + 5 {
+        let mut b = beacon(1, "NormalNet", 6, -50);
+        b.tsf = tsf;
+        assert!(d.observe(&b, t).is_none());
+        tsf += 1_000_000;
+        t += 1;
+    }
 }

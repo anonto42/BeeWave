@@ -230,6 +230,8 @@ fn routes_commands_and_observations() {
         ssid: "a".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     });
     app.on_tick();
 
@@ -372,6 +374,8 @@ fn withholds_telemetry_until_authenticated() {
         ssid: "a".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     });
     assert!(sink.got.borrow().is_empty());
     assert_eq!(app.dropped(), 0, "withheld is not dropped");
@@ -742,6 +746,8 @@ fn a_known_ssid_on_a_new_bssid_publishes_an_anomaly_after_the_learning_period() 
         ssid: "home".try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     };
     app.on_observation(beacon(1));
     for _ in 0..40 {
@@ -932,6 +938,8 @@ fn saved_scan_settings_take_effect_on_the_next_beacons() {
         ssid: ssid.try_into().unwrap(),
         wps: None,
         security: None,
+        phy: None,
+        tsf: 0,
     };
     r.app.on_observation(beacon(1, "Cafe", 6));
     r.app.on_observation(beacon(2, "Cafe", 1)); // wrong channel
@@ -1374,6 +1382,8 @@ fn routes_wps_observations_with_deduplication() {
             model_name: "AX50".try_into().unwrap(),
         }),
         security: None,
+        phy: None,
+        tsf: 0,
     };
     r.app.on_observation(obs.clone());
     let got = results(&r.sink);
@@ -1409,6 +1419,8 @@ fn routes_security_observations_with_deduplication() {
             protocol: beewave_protocol::WifiSecurityProtocol::Wpa3,
             pmf: beewave_protocol::WifiPmfMode::Required,
         }),
+        phy: None,
+        tsf: 0,
     };
     r.app.on_observation(obs.clone());
     let got = results(&r.sink);
@@ -1442,6 +1454,8 @@ fn beacon_flood_alerts_through_app_service() {
                 ssid: "Flood".try_into().unwrap(),
                 wps: None,
                 security: None,
+                phy: None,
+                tsf: 0,
             });
         }
     }
@@ -1451,6 +1465,41 @@ fn beacon_flood_alerts_through_app_service() {
         m,
         TelemetryMessage::BeaconFloodAlert { rate, unique_bssids } if *rate >= 30 && *unique_bssids >= 10
     )));
+}
+
+#[test]
+fn routes_phy_observations_with_deduplication() {
+    let mut r = rig(None);
+    let bssid = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
+    let obs = Observation {
+        bssid,
+        channel: 6,
+        rssi: -50,
+        ssid: "Wifi4Net".try_into().unwrap(),
+        wps: None,
+        security: None,
+        phy: Some(crate::features::scan::PhyInfo {
+            bssid,
+            standard: beewave_protocol::WifiPhyStandard::N,
+        }),
+        tsf: 0,
+    };
+    r.app.on_observation(obs.clone());
+    let got = results(&r.sink);
+    assert!(got.iter().any(|m| matches!(
+        m,
+        TelemetryMessage::PhyResult {
+            standard: beewave_protocol::WifiPhyStandard::N,
+            ..
+        }
+    )));
+
+    // Duplicate PHY observation is suppressed
+    r.sink.got.borrow_mut().clear();
+    r.app.on_observation(obs);
+    assert!(!results(&r.sink)
+        .iter()
+        .any(|m| matches!(m, TelemetryMessage::PhyResult { .. })));
 }
 
 #[test]

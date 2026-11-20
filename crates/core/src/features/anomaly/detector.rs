@@ -5,7 +5,7 @@ use crate::features::scan::Observation;
 
 use super::types::{
     kind_index, Anomaly, CAPACITY, COOLDOWN_TICKS, CYCLE_TICKS, KINDS, LEARN_TICKS,
-    RETURN_AFTER_CYCLES, RSSI_JUMP_DB, TWO_CHANNEL_WINDOW_TICKS,
+    RETURN_AFTER_CYCLES, RSSI_JUMP_DB, TSF_ROLLBACK_THRESHOLD_US, TWO_CHANNEL_WINDOW_TICKS,
 };
 
 fn is_secure_protocol(proto: WifiSecurityProtocol) -> bool {
@@ -32,6 +32,7 @@ struct Entry {
     /// RSSI when the BSSID was last seen in an earlier cycle.
     rssi: i8,
     security_proto: Option<WifiSecurityProtocol>,
+    last_tsf: u64,
     /// Per kind: no report before this tick.
     quiet_until: [u32; KINDS],
 }
@@ -80,6 +81,7 @@ impl AnomalyDetector {
                 last_cycle: cycle,
                 rssi: o.rssi,
                 security_proto: obs_proto,
+                last_tsf: o.tsf,
                 quiet_until: [0; KINDS],
             });
 
@@ -140,6 +142,14 @@ impl AnomalyDetector {
         if found.is_none() && e.ssid != 0 && ssid != 0 && e.ssid != ssid {
             found = Some((AnomalyKind::KarmaSsidChange, 0));
         }
+        if found.is_none() && e.last_tsf > 0 && o.tsf < e.last_tsf {
+            let rollback_us = e.last_tsf - o.tsf;
+            if rollback_us >= TSF_ROLLBACK_THRESHOLD_US {
+                let rollback_sec = (rollback_us / 1_000_000).min(255) as u8;
+                found = Some((AnomalyKind::TsfRollback, rollback_sec.max(1)));
+            }
+        }
+        e.last_tsf = o.tsf;
         e.last_tick = tick;
         e.ssid = ssid;
 

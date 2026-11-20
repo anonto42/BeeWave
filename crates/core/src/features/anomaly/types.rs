@@ -14,17 +14,19 @@ pub const RETURN_AFTER_CYCLES: u32 = 5;
 pub const COOLDOWN_TICKS: u32 = 30;
 /// Right after start every access point is new; nothing is reported for this long.
 pub const LEARN_TICKS: u32 = 30;
+/// A TSF timestamp rolling backward by at least this many microseconds (5 s) indicates a rogue AP or reboot.
+pub const TSF_ROLLBACK_THRESHOLD_US: u64 = 5_000_000;
 
 /// A finding, ready to become an `AnomalyAlert`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Anomaly {
     pub kind: AnomalyKind,
     pub bssid: [u8; 6],
-    /// Jump in dB (`RssiOutlier`) or cycles missed (`Returned`), capped at 255; 0 otherwise.
+    /// Jump in dB (`RssiOutlier`), cycles missed (`Returned`), or rollback in seconds (`TsfRollback`), capped at 255; 0 otherwise.
     pub detail: u8,
 }
 
-pub(super) const KINDS: usize = 6;
+pub(super) const KINDS: usize = 7;
 
 pub(super) const fn kind_index(k: AnomalyKind) -> usize {
     match k {
@@ -34,5 +36,6 @@ pub(super) const fn kind_index(k: AnomalyKind) -> usize {
         AnomalyKind::Returned => 3,
         AnomalyKind::SecurityDowngrade => 4,
         AnomalyKind::KarmaSsidChange => 5,
+        AnomalyKind::TsfRollback => 6,
     }
 }

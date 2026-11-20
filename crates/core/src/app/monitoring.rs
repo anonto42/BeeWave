@@ -10,7 +10,8 @@ use crate::features::deauth_detect::{DeauthDetector, DEFAULT_THRESHOLD};
 use crate::features::handshake::{extract_pmkid, EapolFrame, HandshakeTracker};
 use crate::features::probe::{ProbeFloodDetector, ProbeObservation, ProbeTracker};
 use crate::features::scan::{
-    BeaconFloodDetector, Observation, SecurityInfo, SecurityTracker, WpsInfo, WpsTracker,
+    BeaconFloodDetector, Observation, PhyInfo, PhyTracker, SecurityInfo, SecurityTracker, WpsInfo,
+    WpsTracker,
 };
 
 /// Allowed `ble_spike_factor` values.
@@ -50,6 +51,7 @@ pub struct Monitoring {
     assoc: AssocTracker,
     wps: WpsTracker,
     security: SecurityTracker,
+    phy: PhyTracker,
     flood: BeaconFloodDetector,
     probe_flood: ProbeFloodDetector,
     ble_flood: BleFloodDetector,
@@ -72,6 +74,7 @@ impl Monitoring {
             assoc: AssocTracker::new(),
             wps: WpsTracker::new(),
             security: SecurityTracker::new(),
+            phy: PhyTracker::new(),
             flood: BeaconFloodDetector::new(),
             probe_flood: ProbeFloodDetector::new(),
             ble_flood: BleFloodDetector::new(),
@@ -270,6 +273,18 @@ impl Monitoring {
                 bssid: info.bssid,
                 protocol: info.protocol,
                 pmf: info.pmf,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// A parsed 802.11 PHY generation standard from a beacon or probe response. Deduplicated with `PhyTracker`.
+    pub fn on_phy(&mut self, info: &PhyInfo) -> Option<TelemetryMessage> {
+        if self.phy.observe(info) {
+            Some(TelemetryMessage::PhyResult {
+                bssid: info.bssid,
+                standard: info.standard,
             })
         } else {
             None
