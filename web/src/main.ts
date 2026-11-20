@@ -2,7 +2,7 @@
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
 import { applyUiSettings, createContext } from "./shared/app";
-import { createTabShell, ICONS } from "./shared/shell";
+import { createTabShell, ICONS, mountSlot } from "./shared/shell";
 import { BleTransport, MockTransport } from "./shared/transport";
 import * as connection from "./features/connection";
 import * as status from "./features/status";
@@ -40,15 +40,17 @@ const shell = createTabShell(root, "BEEWAVE", [
   { id: "log", label: "Log", icon: ICONS.log },
 ], mock ? "MOCK" : undefined);
 
+// Slot names are the CSS layout hooks (`[data-tab="scan"] [data-slot="control"]` in style.css).
 const layout = {
-  device: [compat, status],
-  scan: [control, scanner, targets, handshake],
-  analyze: [results, clients, channelChart, rssiHistory, compare],
-  alerts: [anomalies, deauth, bleMonitor],
-  settings: [settings, ota],
-  log: [log],
+  device: { compat, status },
+  scan: { control, scanner, targets, handshake },
+  analyze: { results, clients, channelChart, rssiHistory, compare },
+  alerts: { anomalies, deauth, bleMonitor },
+  settings: { settings, ota },
+  log: { log },
 } as const;
-for (const [tab, features] of Object.entries(layout)) for (const f of features) f.mount(shell.panes[tab], ctx);
+for (const [tab, features] of Object.entries(layout))
+  for (const [slot, f] of Object.entries(features)) mountSlot(shell.panes[tab], slot, (el) => f.mount(el, ctx));
 
 // Phone-side look and feel: theme, density, signal unit and repaint rate apply now and on every change.
 applyUiSettings(ctx.settings.phone.get().ui);

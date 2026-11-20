@@ -11,11 +11,15 @@ export function createTabShell(root: HTMLElement, title: string, tabs: readonly 
   header.innerHTML = `<span class="brand">${crestSvg(34)}<h1 class="sr-only">${title}</h1>${badge ? `<span class="badge">${badge}</span>` : ""}</span><div class="appbar-slot"></div>`;
 
   const main = document.createElement("main");
+  const heading = document.createElement("h2"); // names the screen beside the sidebar; hidden on phones (style.css)
+  heading.className = "pane-title";
+  main.append(heading);
   const panes: Record<string, HTMLElement> = {};
   for (const t of tabs) {
     const pane = document.createElement("section");
     pane.className = "pane";
     pane.id = `pane-${t.id}`;
+    pane.dataset.tab = t.id;
     pane.hidden = true;
     main.append(pane);
     panes[t.id] = pane;
@@ -36,6 +40,8 @@ export function createTabShell(root: HTMLElement, title: string, tabs: readonly 
   }
 
   function select(id: string): void {
+    root.dataset.tab = id; // CSS lays out each screen by this attribute
+    heading.textContent = tabs.find((t) => t.id === id)?.label ?? "";
     for (const t of tabs) {
       const on = t.id === id;
       panes[t.id].hidden = !on;
@@ -46,6 +52,8 @@ export function createTabShell(root: HTMLElement, title: string, tabs: readonly 
     window.scrollTo(0, 0);
   }
 
+  // The URL decides the screen: back/forward and edited hashes switch tabs too.
+  window.addEventListener("hashchange", () => select(tabFromHash(location.hash, ids, ids[0])));
   window.addEventListener(NAVIGATE_EVENT, (e) => {
     const id = (e as CustomEvent<string>).detail;
     if (ids.includes(id)) select(id);

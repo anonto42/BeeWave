@@ -13,3 +13,4 @@
 - 2026-11-20: Monotonic 64-bit microsecond TSF rollback detector in `AnomalyDetector` flagging rogue AP timestamp inversions $\ge 5$ s.
 - 2026-11-20: Scanner proximity and client association filtering (`filterNetworks`) and live station badging in PWA.
 - 2026-11-20: Mandatory agent knowledge synchronization rule (`.agents/shared/rules/agent-maintenance.md`) to maintain `.agents/` memory on all changes.
+- Web layout: the shell sets `#app[data-tab]` from the URL hash (also on `hashchange`); `mountSlot` tags each feature's panel `data-slot=<name>` (names = keys in `web/src/main.ts` layout). `style.css` places panels with named grid areas per tab at ≥1100px / ≥1700px; never use `nth-child` for placement.
